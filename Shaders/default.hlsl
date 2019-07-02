@@ -10,6 +10,19 @@
 
 #include "LightUtil.hlsl"
 
+struct MaterialData {
+  float4   DiffuseAlbedo;
+	float3   FresnelR0;
+	float    Roughness;
+	float4x4 MatTransform;
+	uint     DiffuseMapIndex;
+	uint     MatPad0;
+	uint     MatPad1;
+	uint     MatPad2;
+};
+
+//Texture2D gDiffuseMap[4] : register(t0);
+
 Texture2D    gDiffuseMap : register(t0);
 SamplerState gsamLinear  : register(s0);
 
@@ -17,17 +30,13 @@ cbuffer cbPerObject : register(b0)
 {
 	float4x4 gWorld; 
   float4x4 gTexTransform;
+  uint     MaterialIndex;
+	uint     ObjPad0;
+	uint     ObjPad1;
+	uint     ObjPad2;
 };
 
-cbuffer cbMaterial : register(b1)
-{
-  float4 gDiffuseAlbedo;
-  float3 gFresnelR0;
-  float  gRoughness;
-	float4x4 gMatTransform;
-};
-
-cbuffer cbPass : register(b2)
+cbuffer cbPass : register(b1)
 {
   float4x4 gView;
   float4x4 gInvView;
@@ -48,6 +57,16 @@ cbuffer cbPass : register(b2)
   Light gLights[MaxLights];
 };
 
+StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
+
+//cbuffer cbMaterial : register(b2)
+//{
+//  float4 gDiffuseAlbedo;
+//  float3 gFresnelR0;
+//  float  gRoughness;
+//	float4x4 gMatTransform;
+//};
+
 struct VertexIn
 {
 	float3 PosL  : POSITION;
@@ -67,6 +86,8 @@ VertexOut VS(VertexIn vin)
 {
 	VertexOut vout;
 	
+  MaterialData matData = gMaterialData[MaterialIndex];
+
 	// Transform to homogeneous clip space.
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
     vout.PosW = posW.xyz;
@@ -77,41 +98,40 @@ VertexOut VS(VertexIn vin)
     vout.Normal = mul(vin.Normal, (float3x3)gWorld);
     float4 texCoord = mul(float4(vin.TexCoord, 0.0f, 1.0f), gTexTransform);
     //  float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
-    vout.TexCoord = texCoord.xy;
+    //  vout.TexCoord = texCoord.xy;
+    vout.TexCoord = mul(texCoord, matData.MatTransform).xy;
     return vout;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamLinear, pin.TexCoord) * gDiffuseAlbedo;
-  //  float4 diffuseAlbedo = gDiffuseAlbedo;
 
-  pin.Normal = normalize(pin.Normal);
+ // //  uint deffuseIndex = 
+ //   float4 diffuseAlbedo = gDiffuseMap.Sample(gsamLinear, pin.TexCoord) * gDiffuseAlbedo;
+ // //  float4 diffuseAlbedo = gDiffuseAlbedo;
 
-    // Vector from point being lit to eye. 
-    float3 toEyeW = normalize(gEyePosW - pin.PosW);
+ // pin.Normal = normalize(pin.Normal);
 
-	// Indirect lighting.
-    float4 ambient = gAmbientLight*diffuseAlbedo;
+ //   // Vector from point being lit to eye. 
+ //   float3 toEyeW = normalize(gEyePosW - pin.PosW);
 
-    const float shininess = 1.0f - gRoughness;
-    Material mat = { diffuseAlbedo, gFresnelR0, shininess };
-    float3 shadowFactor = 1.0f;
-    float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
-        pin.Normal, toEyeW, shadowFactor);
+	//// Indirect lighting.
+ //   float4 ambient = gAmbientLight*diffuseAlbedo;
 
-    float4 litColor = ambient + directLight;
+ //   const float shininess = 1.0f - gRoughness;
+ //   Material mat = { diffuseAlbedo, gFresnelR0, shininess };
+ //   float3 shadowFactor = 1.0f;
+ //   float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
+ //       pin.Normal, toEyeW, shadowFactor);
 
-    // Common convention to take alpha from diffuse material.
-    litColor.a = diffuseAlbedo.a;
+ //   float4 litColor = ambient + directLight;
 
-      return litColor;
-    //  float3 c =  BlinnPhong(gLights[0].Strength, gLights[0].Direction, pin.Normal, toEyeW, mat);
+ //   // Common convention to take alpha from diffuse material.
+ //   litColor.a = diffuseAlbedo.a;
 
-    //  return float4(c, gDiffuseAlbedo.a);
+ //     return litColor;
 
-    //  float3 c = ComputeDirectionalLight(gLights[0], mat, pin.Normal, toEyeW);
-    //  return float4(c, gDiffuseAlbedo.a);
+  return float4(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 
