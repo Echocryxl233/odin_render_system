@@ -48,9 +48,13 @@ void RenderSystem::Draw(const GameTimer& gt)
 
     UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
     auto passCB = current_frame_resource_->PassCB->Resource();
-	  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
+	  d3d_command_list_->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
 
-    //  DrawRenderItems(d3d_command_list_.Get(), opaque_items_);
+    auto material_buffer = current_frame_resource_->MaterialBuffer->Resource();
+	  d3d_command_list_->SetGraphicsRootShaderResourceView(2, material_buffer->GetGPUVirtualAddress());
+
+    d3d_command_list_->SetGraphicsRootDescriptorTable(3, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+
     DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kOpaque]);
 
       d3d_command_list_->OMSetStencilRef(1);
@@ -65,11 +69,11 @@ void RenderSystem::Draw(const GameTimer& gt)
       d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
       d3d_command_list_->OMSetStencilRef(0);
 
-    d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
-    DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
+      d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
+      DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
 
     blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
-		pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
+		  pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
 
     d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		  D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
@@ -110,7 +114,7 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
   UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
  
 	auto objectCB = current_frame_resource_->ObjectCB->Resource();
-  auto materialCB = current_frame_resource_->MaterialCB->Resource();
+  auto materialCB = current_frame_resource_->MaterialBuffer->Resource();
 
   // For each render item...
   for(size_t i = 0; i < ritems.size(); ++i)
@@ -121,19 +125,10 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
     cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
     cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE tex(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-		tex.Offset(ri->Mat->DiffuseSrvHeapIndex, cbv_srv_uav_descriptor_size);
-
     D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress();
     objCBAddress += ri->ObjectCBIndex*objCBByteSize;
 
-    D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = materialCB->GetGPUVirtualAddress();
-    matCBAddress += ri->Mat->MatCBIndex * matCBByteSize;
-
-    cmdList->SetGraphicsRootDescriptorTable(0, tex);
-
-    cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-    cmdList->SetGraphicsRootConstantBufferView(2, matCBAddress);
+    cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
 
     cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
   }
@@ -160,7 +155,7 @@ void RenderSystem::Update(const GameTimer& gt) {
   //  AnimateMaterials(gt);
   UpdateObjectCBs(gt);
   UpdateMainPassCB(gt);
-  UpdateMaterialCB(gt);
+  UpdateMaterialBuffer(gt);
   UpdateReflectedPassCB(gt);
   //  UpdateWave(gt);
   
@@ -184,7 +179,7 @@ void RenderSystem::UpdateCamera(const GameTimer& gt) {
 }
 
 void RenderSystem::UpdateObjectCBs(const GameTimer& gt) {
-  auto object_cb = current_frame_resource_->ObjectCB.get();
+  auto current_object_cb = current_frame_resource_->ObjectCB.get();
   
   for(auto& item : render_items_) {
     if (item->NumFrameDirty > 0) {
@@ -193,8 +188,9 @@ void RenderSystem::UpdateObjectCBs(const GameTimer& gt) {
       ObjectConstants object_CB;
       XMStoreFloat4x4(&object_CB.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
       XMStoreFloat4x4(&object_CB.TexTransform, XMMatrixTranspose(texcoord));  
-      
-      object_cb->CopyData(item->ObjectCBIndex, object_CB);
+      object_CB.MaterialIndex = item->Mat->MatCBIndex;
+
+      current_object_cb->CopyData(item->ObjectCBIndex, object_CB);
       --item->NumFrameDirty;
     }
   }
@@ -262,46 +258,8 @@ void RenderSystem::UpdateReflectedPassCB(const GameTimer& gt)
 	currPassCB->CopyData(1, mReflectedPassCB);
 }
 
-//void RenderSystem::UpdateWave(const GameTimer& gt) {
-//
-//  static float t_base = 0.0f;
-//	if((timer_.TotalTime() - t_base) >= 0.5f)
-//	{
-//		t_base += 0.5f;
-//
-//		int i = MathHelper::Rand(4, waves_->RowCount() - 5);
-//		int j = MathHelper::Rand(4, waves_->ColumnCount() - 5);
-//
-//		float r = MathHelper::RandF(0.4f, 0.7f);
-//
-//		waves_->Disturb(i, j, r);
-//	}
-//
-//  waves_->Update(gt.DeltaTime());
-//  
-//  // Update the wave vertex buffer with the new solution.
-//	auto currWavesVB = current_frame_resource_->WavesVB.get();
-//	for(int i = 0; i < waves_->VertexCount(); ++i)
-//	{
-//		Vertex v;
-//
-//		v.Pos = waves_->Position(i);
-//    //  v.Color = XMFLOAT4(DirectX::Colors::Blue);
-//    v.Normal = waves_->Normal(i);
-//    //v.TexCoord = waves_->tex(i);
-//
-//    v.TexCoord.x = 0.5f + v.Pos.x / waves_->Width();
-//		v.TexCoord.y = 0.5f - v.Pos.z / waves_->Depth();
-//
-//		currWavesVB->CopyData(i, v);
-//	}
-//
-//	// Set the dynamic VB of the wave renderitem to the current frame VB.
-//	waves_render_item_->Geo->VertexBufferGpu = currWavesVB->Resource();
-//}
-
-void RenderSystem::UpdateMaterialCB(const GameTimer& gt) {
-  auto material_cb = current_frame_resource_->MaterialCB.get();
+void RenderSystem::UpdateMaterialBuffer(const GameTimer& gt) {
+  auto material_cb = current_frame_resource_->MaterialBuffer.get();
 
   for (auto& pair : materials_) {
     auto material = pair.second.get();
@@ -309,13 +267,14 @@ void RenderSystem::UpdateMaterialCB(const GameTimer& gt) {
 
       XMMATRIX matTransform = XMLoadFloat4x4(&material->MatTransform);
 
-      MaterialConstants mat_constant;
-      mat_constant.Roughness = material->Roughness;
-      mat_constant.FresnelR0 = material->FresnelR0;
-      mat_constant.DiffuseAlbedo = material->DiffuseAlbedo;
-      XMStoreFloat4x4(&mat_constant.MatTransform, XMMatrixTranspose(matTransform));
+      MaterialData mat_data;
+      mat_data.Roughness = material->Roughness;
+      mat_data.FresnelR0 = material->FresnelR0;
+      mat_data.DiffuseAlbedo = material->DiffuseAlbedo;
+      XMStoreFloat4x4(&mat_data.MatTransform, XMMatrixTranspose(matTransform));
+      mat_data.DiffuseMapIndex = material->DiffuseSrvHeapIndex;
 
-      material_cb->CopyData(material->MatCBIndex, mat_constant);
+      material_cb->CopyData(material->MatCBIndex, mat_data);
       material->NumFrameDirty --;
     }
   }
@@ -1026,13 +985,15 @@ void RenderSystem::BuildShadersAndInputLayout() {
 
 void RenderSystem::BuildRootSignature() {
   CD3DX12_DESCRIPTOR_RANGE tex_table;
-	tex_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	tex_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0);
 
   CD3DX12_ROOT_PARAMETER slotRootParameter[4];
-  slotRootParameter[0].InitAsDescriptorTable(1, &tex_table, D3D12_SHADER_VISIBILITY_PIXEL);
-  slotRootParameter[1].InitAsConstantBufferView(0);
-  slotRootParameter[2].InitAsConstantBufferView(1);
-  slotRootParameter[3].InitAsConstantBufferView(2);
+  
+  slotRootParameter[0].InitAsConstantBufferView(0);
+  slotRootParameter[1].InitAsConstantBufferView(1);
+    slotRootParameter[2].InitAsShaderResourceView(0, 1);
+  //slotRootParameter[2].InitAsConstantBufferView(2);
+  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table, D3D12_SHADER_VISIBILITY_PIXEL);
 
   auto static_samplers = GetStaticSamplers();
 
@@ -1061,42 +1022,6 @@ void RenderSystem::BuildRootSignature() {
 }
 
 void RenderSystem::BuildPostProcessRootSignature() {
- // CD3DX12_DESCRIPTOR_RANGE srv_table;
-	//srv_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE::D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-
- // CD3DX12_DESCRIPTOR_RANGE uav_table;
-	//uav_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE::D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
-
- // CD3DX12_ROOT_PARAMETER slotRootParameter[3];
- // slotRootParameter[0].InitAsConstants(12, 0);
- // slotRootParameter[1].InitAsDescriptorTable(1, &uav_table);
- // slotRootParameter[2].InitAsDescriptorTable(1, &srv_table);
-
- // CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter, 
- //   0, nullptr, 
- //   D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-
-	//// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
-	//ComPtr<ID3DBlob> serializedRootSig = nullptr;
-	//ComPtr<ID3DBlob> errorBlob = nullptr;
-	//HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-	//	serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
-
-	//if(errorBlob != nullptr)
-	//{
-	//	::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-	//}
-	//ThrowIfFailed(hr);
-
-	//ThrowIfFailed(d3d_device_->CreateRootSignature(
-	//	0,
-	//	serializedRootSig->GetBufferPointer(),
-	//	serializedRootSig->GetBufferSize(),
-	//	IID_PPV_ARGS(post_process_root_signature_.GetAddressOf())));
-
-  //  -----------
-
   CD3DX12_DESCRIPTOR_RANGE srvTable;
 	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
