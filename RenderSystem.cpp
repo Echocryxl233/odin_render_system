@@ -53,31 +53,32 @@ void RenderSystem::Draw(const GameTimer& gt)
     auto material_buffer = current_frame_resource_->MaterialBuffer->Resource();
 	  d3d_command_list_->SetGraphicsRootShaderResourceView(2, material_buffer->GetGPUVirtualAddress());
 
-    //  DrawRenderItems(d3d_command_list_.Get(), opaque_items_);
+    d3d_command_list_->SetGraphicsRootDescriptorTable(3, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+
     DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kOpaque]);
 
-    //  d3d_command_list_->OMSetStencilRef(1);
-    //  d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_mirror].Get());
-    //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kMirrors]);
+      d3d_command_list_->OMSetStencilRef(1);
+      d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_mirror].Get());
+      DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kMirrors]);
 
-    ////  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress() + 1*passCBByteSize);
-    //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_reflection].Get());
-    //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kReflected]);
-    //
+    //  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress() + 1*passCBByteSize);
+    d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_reflection].Get());
+    DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kReflected]);
+    
 
-    //  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
-    //  d3d_command_list_->OMSetStencilRef(0);
+      d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
+      d3d_command_list_->OMSetStencilRef(0);
 
-    //  d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
-    //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
+      d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
+      DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
 
-    //  blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
-		//  pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
+    blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
+		  pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
 
-    /*d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		  D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));*/
+    d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		  D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
-	  //d3d_command_list_->CopyResource(CurrentBackBuffer(), blur_filter_->Output());
+	  d3d_command_list_->CopyResource(CurrentBackBuffer(), blur_filter_->Output());
 
     // Transition to PRESENT state.
 	  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -124,19 +125,10 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
     cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
     cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE tex(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-		tex.Offset(ri->Mat->DiffuseSrvHeapIndex, cbv_srv_uav_descriptor_size);
-
     D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress();
     objCBAddress += ri->ObjectCBIndex*objCBByteSize;
 
-    D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = materialCB->GetGPUVirtualAddress();
-    matCBAddress += ri->Mat->MatCBIndex * matCBByteSize;
-
-    cmdList->SetGraphicsRootDescriptorTable(3, tex);
-
     cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
-    //  cmdList->SetGraphicsRootConstantBufferView(2, matCBAddress);
 
     cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
   }
@@ -993,7 +985,7 @@ void RenderSystem::BuildShadersAndInputLayout() {
 
 void RenderSystem::BuildRootSignature() {
   CD3DX12_DESCRIPTOR_RANGE tex_table;
-	tex_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	tex_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0);
 
   CD3DX12_ROOT_PARAMETER slotRootParameter[4];
   
@@ -1030,42 +1022,6 @@ void RenderSystem::BuildRootSignature() {
 }
 
 void RenderSystem::BuildPostProcessRootSignature() {
- // CD3DX12_DESCRIPTOR_RANGE srv_table;
-	//srv_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE::D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-
- // CD3DX12_DESCRIPTOR_RANGE uav_table;
-	//uav_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE::D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
-
- // CD3DX12_ROOT_PARAMETER slotRootParameter[3];
- // slotRootParameter[0].InitAsConstants(12, 0);
- // slotRootParameter[1].InitAsDescriptorTable(1, &uav_table);
- // slotRootParameter[2].InitAsDescriptorTable(1, &srv_table);
-
- // CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter, 
- //   0, nullptr, 
- //   D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-
-	//// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
-	//ComPtr<ID3DBlob> serializedRootSig = nullptr;
-	//ComPtr<ID3DBlob> errorBlob = nullptr;
-	//HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-	//	serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
-
-	//if(errorBlob != nullptr)
-	//{
-	//	::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-	//}
-	//ThrowIfFailed(hr);
-
-	//ThrowIfFailed(d3d_device_->CreateRootSignature(
-	//	0,
-	//	serializedRootSig->GetBufferPointer(),
-	//	serializedRootSig->GetBufferSize(),
-	//	IID_PPV_ARGS(post_process_root_signature_.GetAddressOf())));
-
-  //  -----------
-
   CD3DX12_DESCRIPTOR_RANGE srvTable;
 	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
