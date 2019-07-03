@@ -35,6 +35,17 @@ struct ObjectConstants
 	UINT     ObjPad2;
 };
 
+struct InstanceData
+{
+    //  XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
+  XMFLOAT4X4 World;
+  XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
+  UINT MaterialIndex;
+	UINT InstancePad0;
+	UINT InstancePad1;
+	UINT InstancePad2;
+};
+
 struct MaterialData {
   DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
 	DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
@@ -85,6 +96,7 @@ struct FrameResource
   std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
   std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
 
+  std::unique_ptr<UploadBuffer<InstanceData>> InstanceBuffer = nullptr;
   std::unique_ptr<UploadBuffer<MaterialData>> MaterialBuffer = nullptr;
 
   //  std::unique_ptr<UploadBuffer<Vertex>> WavesVB = nullptr;
