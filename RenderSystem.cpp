@@ -571,11 +571,26 @@ void RenderSystem::BuildSkullGeometry() {
   vector<Vertex> vertices_geo(vertex_count);
   vector<uint16_t> indices_geo (index_count * 3);
 
+  XMFLOAT3 v_min_f3 = XMFLOAT3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+  XMFLOAT3 v_max_f3 = XMFLOAT3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+
+  XMVECTOR v_min = XMLoadFloat3(&v_min_f3);
+  XMVECTOR v_max = XMLoadFloat3(&v_max_f3);
+
   for (UINT i=0; i < vertex_count; ++i) {
     fin >> vertices_geo[i].Pos.x >> vertices_geo[i].Pos.y >> vertices_geo[i].Pos.z;
     fin >> vertices_geo[i].Normal.x >> vertices_geo[i].Normal.y >> vertices_geo[i].Normal.z;
     vertices_geo[i].TexCoord = {0.0f, 0.0f};
+
+    XMVECTOR p = XMLoadFloat3(&vertices_geo[i].Pos);
+
+    v_min = XMVectorMin(v_min, p);  //  find the min point
+    v_max = XMVectorMax(v_max, p);  //  find the max point
   }
+
+  BoundingBox bounds;
+  XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
+  XMStoreFloat3(&bounds.Extents, 0.5f * (v_max - v_min ));
 
   fin >> ignore >> ignore >> ignore;
 
@@ -613,6 +628,8 @@ void RenderSystem::BuildSkullGeometry() {
   skull_sub_mesh_geo.IndexCount = (UINT)indices_geo.size();
   skull_sub_mesh_geo.BaseVertexLocation = 0;
   skull_sub_mesh_geo.StartIndexLocation = 0;
+
+  skull_sub_mesh_geo.Bounds = bounds;
 
   geo->DrawArgs["skull"] = std::move(skull_sub_mesh_geo);
   
@@ -857,97 +874,119 @@ void RenderSystem::BuildRenderItems() {
   //skull_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
   //items_layers_[(int)RenderLayer::kOpaque].push_back(skull_render_item.get());
 
-  auto floorRitem = std::make_unique<RenderItem>();
-	floorRitem->World = MathHelper::Identity4x4();
-	floorRitem->TexTransform = MathHelper::Identity4x4();
-	floorRitem->ObjectCBIndex = 0;
-	floorRitem->Mat = materials_["checkertile"].get();
-	floorRitem->Geo = mesh_geos_["roomGeo"].get();
-	floorRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	floorRitem->IndexCount = floorRitem->Geo->DrawArgs["floor"].IndexCount;
-	floorRitem->StartIndexLocation = floorRitem->Geo->DrawArgs["floor"].StartIndexLocation;
-	floorRitem->BaseVertexLocation = floorRitem->Geo->DrawArgs["floor"].BaseVertexLocation;
-	items_layers_[(int)RenderLayer::kOpaque].push_back(floorRitem.get());
+ // auto floorRitem = std::make_unique<RenderItem>();
+	//floorRitem->World = MathHelper::Identity4x4();
+	//floorRitem->TexTransform = MathHelper::Identity4x4();
+	//floorRitem->ObjectCBIndex = 0;
+	//floorRitem->Mat = materials_["checkertile"].get();
+	//floorRitem->Geo = mesh_geos_["roomGeo"].get();
+	//floorRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//floorRitem->IndexCount = floorRitem->Geo->DrawArgs["floor"].IndexCount;
+	//floorRitem->StartIndexLocation = floorRitem->Geo->DrawArgs["floor"].StartIndexLocation;
+	//floorRitem->BaseVertexLocation = floorRitem->Geo->DrawArgs["floor"].BaseVertexLocation;
+	//items_layers_[(int)RenderLayer::kOpaque].push_back(floorRitem.get());
 
-    auto wallsRitem = std::make_unique<RenderItem>();
-	wallsRitem->World = MathHelper::Identity4x4();
-	wallsRitem->TexTransform = MathHelper::Identity4x4();
-	wallsRitem->ObjectCBIndex = 1;
-	wallsRitem->Mat = materials_["bricks"].get();
-	wallsRitem->Geo = mesh_geos_["roomGeo"].get();
-	wallsRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	wallsRitem->IndexCount = wallsRitem->Geo->DrawArgs["wall"].IndexCount;
-	wallsRitem->StartIndexLocation = wallsRitem->Geo->DrawArgs["wall"].StartIndexLocation;
-	wallsRitem->BaseVertexLocation = wallsRitem->Geo->DrawArgs["wall"].BaseVertexLocation;
-	items_layers_[(int)RenderLayer::kOpaque].push_back(wallsRitem.get());
+ // auto wallsRitem = std::make_unique<RenderItem>();
+	//wallsRitem->World = MathHelper::Identity4x4();
+	//wallsRitem->TexTransform = MathHelper::Identity4x4();
+	//wallsRitem->ObjectCBIndex = 1;
+	//wallsRitem->Mat = materials_["bricks"].get();
+	//wallsRitem->Geo = mesh_geos_["roomGeo"].get();
+	//wallsRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//wallsRitem->IndexCount = wallsRitem->Geo->DrawArgs["wall"].IndexCount;
+	//wallsRitem->StartIndexLocation = wallsRitem->Geo->DrawArgs["wall"].StartIndexLocation;
+	//wallsRitem->BaseVertexLocation = wallsRitem->Geo->DrawArgs["wall"].BaseVertexLocation;
+	//items_layers_[(int)RenderLayer::kOpaque].push_back(wallsRitem.get());
 
 
-  XMMATRIX skullRotate = XMMatrixRotationY(0.5f*MathHelper::Pi);
-	XMMATRIX skullScale = XMMatrixScaling(0.45f, 0.45f, 0.45f);
-	XMMATRIX skullOffset = XMMatrixTranslation(-1.0f, 0.0f, -4.0f);
-  XMMATRIX skull_world = skullRotate * skullScale * skullOffset;
+ // XMMATRIX skullRotate = XMMatrixRotationY(0.5f*MathHelper::Pi);
+	//XMMATRIX skullScale = XMMatrixScaling(0.45f, 0.45f, 0.45f);
+	//XMMATRIX skullOffset = XMMatrixTranslation(-1.0f, 0.0f, -4.0f);
+ // XMMATRIX skull_world = skullRotate * skullScale * skullOffset;
 
-	auto skullRitem = std::make_unique<RenderItem>();
-	//  skullRitem->World = MathHelper::Identity4x4();
+	//auto skullRitem = std::make_unique<RenderItem>();
+	////  skullRitem->World = MathHelper::Identity4x4();
 
-  XMStoreFloat4x4(&skullRitem->World, skull_world);
-	skullRitem->TexTransform = MathHelper::Identity4x4();
-	skullRitem->ObjectCBIndex = 2;
-	skullRitem->Mat = materials_["skullMat"].get();
-	skullRitem->Geo = mesh_geos_["skullGeo"].get();
-	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
-	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
-	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
-	mSkullRitem = skullRitem.get();
-	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
+ // XMStoreFloat4x4(&skullRitem->World, skull_world);
+	//skullRitem->TexTransform = MathHelper::Identity4x4();
+	//skullRitem->ObjectCBIndex = 2;
+	//skullRitem->Mat = materials_["skullMat"].get();
+	//skullRitem->Geo = mesh_geos_["skullGeo"].get();
+	//skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
+	//skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+	//skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+	//mSkullRitem = skullRitem.get();
+	//items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
 
-	// Reflected skull will have different world matrix, so it needs to be its own render item.
-  // Update reflection world matrix.
-	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
-	XMMATRIX R = XMMatrixReflect(mirrorPlane);
-	
-	auto reflectedSkullRitem = std::make_unique<RenderItem>();
-	*reflectedSkullRitem = *skullRitem;
-  XMStoreFloat4x4(&reflectedSkullRitem->World, skull_world * R);
-  //  XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(0.5f,0.5f,0.5f) * XMMatrixRotationAxis({0.0f, 1.0f, 0.0f}, 90.0f) * XMMatrixTranslation(-1.0f, 0.0f, 4.0f));
-	reflectedSkullRitem->ObjectCBIndex = 3;
-	mReflectedSkullRitem = reflectedSkullRitem.get();
-	items_layers_[(int)RenderLayer::kReflected].push_back(reflectedSkullRitem.get());
+	//// Reflected skull will have different world matrix, so it needs to be its own render item.
+ // // Update reflection world matrix.
+	//XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
+	//XMMATRIX R = XMMatrixReflect(mirrorPlane);
+	//
+	//auto reflectedSkullRitem = std::make_unique<RenderItem>();
+	//*reflectedSkullRitem = *skullRitem;
+ // XMStoreFloat4x4(&reflectedSkullRitem->World, skull_world * R);
+ // //  XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(0.5f,0.5f,0.5f) * XMMatrixRotationAxis({0.0f, 1.0f, 0.0f}, 90.0f) * XMMatrixTranslation(-1.0f, 0.0f, 4.0f));
+	//reflectedSkullRitem->ObjectCBIndex = 3;
+	//mReflectedSkullRitem = reflectedSkullRitem.get();
+	//items_layers_[(int)RenderLayer::kReflected].push_back(reflectedSkullRitem.get());
 
-	// Shadowed skull will have different world matrix, so it needs to be its own render item.
-	auto shadowedSkullRitem = std::make_unique<RenderItem>();
-	*shadowedSkullRitem = *skullRitem;
-	shadowedSkullRitem->ObjectCBIndex = 4;
-	shadowedSkullRitem->Mat = materials_["shadowMat"].get();
-	mShadowedSkullRitem = shadowedSkullRitem.get();
-	items_layers_[(int)RenderLayer::kOpaque].push_back(shadowedSkullRitem.get());
+	//// Shadowed skull will have different world matrix, so it needs to be its own render item.
+	//auto shadowedSkullRitem = std::make_unique<RenderItem>();
+	//*shadowedSkullRitem = *skullRitem;
+	//shadowedSkullRitem->ObjectCBIndex = 4;
+	//shadowedSkullRitem->Mat = materials_["shadowMat"].get();
+	//mShadowedSkullRitem = shadowedSkullRitem.get();
+	//items_layers_[(int)RenderLayer::kOpaque].push_back(shadowedSkullRitem.get());
 
-	auto mirrorRitem = std::make_unique<RenderItem>();
-	mirrorRitem->World = MathHelper::Identity4x4();
-	mirrorRitem->TexTransform = MathHelper::Identity4x4();
-	mirrorRitem->ObjectCBIndex = 5;
-	mirrorRitem->Mat = materials_["icemirror"].get();
-	mirrorRitem->Geo = mesh_geos_["roomGeo"].get();
-	mirrorRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	mirrorRitem->IndexCount = mirrorRitem->Geo->DrawArgs["mirror"].IndexCount;
-	mirrorRitem->StartIndexLocation = mirrorRitem->Geo->DrawArgs["mirror"].StartIndexLocation;
-	mirrorRitem->BaseVertexLocation = mirrorRitem->Geo->DrawArgs["mirror"].BaseVertexLocation;
-	items_layers_[(int)RenderLayer::kMirrors].push_back(mirrorRitem.get());
-	items_layers_[(int)RenderLayer::kTransparent].push_back(mirrorRitem.get());
+	//auto mirrorRitem = std::make_unique<RenderItem>();
+	//mirrorRitem->World = MathHelper::Identity4x4();
+	//mirrorRitem->TexTransform = MathHelper::Identity4x4();
+	//mirrorRitem->ObjectCBIndex = 5;
+	//mirrorRitem->Mat = materials_["icemirror"].get();
+	//mirrorRitem->Geo = mesh_geos_["roomGeo"].get();
+	//mirrorRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//mirrorRitem->IndexCount = mirrorRitem->Geo->DrawArgs["mirror"].IndexCount;
+	//mirrorRitem->StartIndexLocation = mirrorRitem->Geo->DrawArgs["mirror"].StartIndexLocation;
+	//mirrorRitem->BaseVertexLocation = mirrorRitem->Geo->DrawArgs["mirror"].BaseVertexLocation;
+	//items_layers_[(int)RenderLayer::kMirrors].push_back(mirrorRitem.get());
+	//items_layers_[(int)RenderLayer::kTransparent].push_back(mirrorRitem.get());
 
-	render_items_.push_back(std::move(floorRitem));
-	render_items_.push_back(std::move(wallsRitem));
-	render_items_.push_back(std::move(skullRitem));
-	render_items_.push_back(std::move(reflectedSkullRitem));
-	render_items_.push_back(std::move(shadowedSkullRitem));
-	render_items_.push_back(std::move(mirrorRitem));
+	//render_items_.push_back(std::move(floorRitem));
+	//render_items_.push_back(std::move(wallsRitem));
+	//render_items_.push_back(std::move(skullRitem));
+	//render_items_.push_back(std::move(reflectedSkullRitem));
+	//render_items_.push_back(std::move(shadowedSkullRitem));
+	//render_items_.push_back(std::move(mirrorRitem));
 
   //  --------------
 
   
 
   //render_items_.push_back(std::move(skull_render_item));
+
+  XMMATRIX skullRotate = XMMatrixRotationY(0.5f*MathHelper::Pi);
+	XMMATRIX skullScale = XMMatrixScaling(0.45f, 0.45f, 0.45f);
+	XMMATRIX skullOffset = XMMatrixTranslation(-1.0f, 0.0f, -4.0f);
+  XMMATRIX skull_world = skullRotate * skullScale * skullOffset;
+
+  auto skullRitem = std::make_unique<RenderItem>();
+  XMStoreFloat4x4(&skullRitem->World, skull_world);
+	skullRitem->TexTransform = MathHelper::Identity4x4();
+	skullRitem->ObjectCBIndex = 0;
+	skullRitem->Mat = materials_["skullMat"].get();
+	skullRitem->Geo = mesh_geos_["skullGeo"].get();
+	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
+	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+  skullRitem->Bounds = skullRitem->Geo->DrawArgs["skull"].Bounds;
+
+	mSkullRitem = skullRitem.get();
+	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
+
+  render_items_.push_back(std::move(skullRitem));
 }
 
 void RenderSystem::DrawRenderItems() {

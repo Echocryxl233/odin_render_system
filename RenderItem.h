@@ -6,6 +6,7 @@
 #include "MeshGeometry.h"
 #include "Util.h"
 #include "RenderItem.h"
+#include "FrameResource.h"
 
 using namespace DirectX;
 
@@ -25,6 +26,9 @@ struct RenderItem {
   Material* Mat = nullptr;
 
   D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+
+  BoundingBox Bounds;
+  vector<InstanceData> Instances;
 
   UINT IndexCount = 0;
   UINT StartIndexLocation = 0;
