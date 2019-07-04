@@ -56,3 +56,4 @@ x64/Debug/Waves.obj
 .vs/OdinRenderSystem/v15/ipch/AutoPCH/b41059d2e6913a67/RENDERSYSTEM.ipch
 .vs/OdinRenderSystem/v15/ipch/AutoPCH/bfab91c2962ec4fc/RENDERSYSTEM.ipch
 .vs/OdinRenderSystem/v15/ipch/AutoPCH/de68674abf9b2612/APPLICATION.ipch
+*.ipch

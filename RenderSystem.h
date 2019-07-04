@@ -58,6 +58,7 @@ class RenderSystem : public OdinRenderSystem::Application
    virtual void UpdateObjectCBs(const GameTimer& gt) ;
    virtual void UpdateMainPassCB(const GameTimer& gt);
    // virtual void UpdateWave(const GameTimer& gt);
+   virtual void UpdateInstanceData(const GameTimer& gt);
    virtual void UpdateMaterialBuffer(const GameTimer& gt);
    virtual void AnimateMaterials(const GameTimer& gt);
 
@@ -170,6 +171,9 @@ private:
   std::unique_ptr<BlurFilter> blur_filter_;
 
   Camera camera_;
+  BoundingFrustum camera_frustum_;
+
+  UINT instance_count_;
 };
 
 }

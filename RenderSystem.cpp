@@ -46,31 +46,33 @@ void RenderSystem::Draw(const GameTimer& gt)
 
 	  d3d_command_list_->SetGraphicsRootSignature(root_signature_.Get());
 
+    auto material_buffer = current_frame_resource_->MaterialBuffer->Resource();
+	  d3d_command_list_->SetGraphicsRootShaderResourceView(1, material_buffer->GetGPUVirtualAddress());
+
     UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
     auto passCB = current_frame_resource_->PassCB->Resource();
-	  d3d_command_list_->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+	  d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-    auto material_buffer = current_frame_resource_->MaterialBuffer->Resource();
-	  d3d_command_list_->SetGraphicsRootShaderResourceView(2, material_buffer->GetGPUVirtualAddress());
+    
 
     d3d_command_list_->SetGraphicsRootDescriptorTable(3, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
 
     DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kOpaque]);
 
-      d3d_command_list_->OMSetStencilRef(1);
-      d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_mirror].Get());
-      DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kMirrors]);
+    //d3d_command_list_->OMSetStencilRef(1);
+    //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_mirror].Get());
+    //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kMirrors]);
 
-    //  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress() + 1*passCBByteSize);
-    d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_reflection].Get());
-    DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kReflected]);
-    
+    ////  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress() + 1*passCBByteSize);
+    //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_reflection].Get());
+    //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kReflected]);
+    //
 
-      d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
-      d3d_command_list_->OMSetStencilRef(0);
+    //  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
+    //  d3d_command_list_->OMSetStencilRef(0);
 
-      d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
-      DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
+      //d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
+      //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
 
     blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
 		  pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
@@ -78,7 +80,7 @@ void RenderSystem::Draw(const GameTimer& gt)
     d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		  D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
-	  d3d_command_list_->CopyResource(CurrentBackBuffer(), blur_filter_->Output());
+	  //  d3d_command_list_->CopyResource(CurrentBackBuffer(), blur_filter_->Output());
 
     // Transition to PRESENT state.
 	  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -115,6 +117,7 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
  
 	auto objectCB = current_frame_resource_->ObjectCB->Resource();
   auto materialCB = current_frame_resource_->MaterialBuffer->Resource();
+  auto instanceBuffer = current_frame_resource_->InstanceBuffer->Resource();
 
   // For each render item...
   for(size_t i = 0; i < ritems.size(); ++i)
@@ -125,12 +128,14 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
     cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
     cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-    D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress();
-    objCBAddress += ri->ObjectCBIndex*objCBByteSize;
+   /* D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress();
+    objCBAddress += ri->ObjectCBIndex*objCBByteSize;*/
 
-    cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
+    //  cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 
-    cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+    d3d_command_list_->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
+
+    cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
   }
 }
 
@@ -154,6 +159,7 @@ void RenderSystem::Update(const GameTimer& gt) {
 
   //  AnimateMaterials(gt);
   UpdateObjectCBs(gt);
+  UpdateInstanceData(gt);
   UpdateMainPassCB(gt);
   UpdateMaterialBuffer(gt);
   UpdateReflectedPassCB(gt);
@@ -258,6 +264,53 @@ void RenderSystem::UpdateReflectedPassCB(const GameTimer& gt)
 	currPassCB->CopyData(1, mReflectedPassCB);
 }
 
+void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
+  auto view = camera_.GetView();
+  auto inv_view = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+
+  auto current_instance_buffer = current_frame_resource_->InstanceBuffer.get();
+  
+  for(auto& item : render_items_) {
+    const auto& instances = item->Instances;
+
+    int visible_instance_count = 0;
+    
+    for (auto& instance_data : instances) {
+      BoundingFrustum local_frustum;
+
+      XMMATRIX world = XMLoadFloat4x4(&instance_data.World);
+      XMMATRIX tex_transform = XMLoadFloat4x4(&instance_data.TexTransform);
+      XMMATRIX inv_world = XMMatrixInverse(&XMMatrixDeterminant(world), world);
+      XMMATRIX local_to_view = XMMatrixMultiply(inv_view, inv_world);
+
+      camera_frustum_.Transform(local_frustum, local_to_view);
+
+      //if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT) {
+        InstanceData instance_data;
+        XMStoreFloat4x4(&instance_data.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
+        XMStoreFloat4x4(&instance_data.TexTransform, XMMatrixTranspose(tex_transform));  
+        instance_data.MaterialIndex = item->Mat->MatCBIndex;
+
+        current_instance_buffer->CopyData(visible_instance_count, instance_data);
+        visible_instance_count++;
+      //}
+    }
+
+    item->InstanceCount = visible_instance_count;
+
+    std::wostringstream outs;
+		outs.precision(0);
+		outs << L"Odin Instancing" <<
+			L"    " << item->InstanceCount <<
+			L" objects visible out of " << item->Instances.size();
+
+    main_wnd_caption_ = outs.str();
+
+    SetWindowText(h_window_, main_wnd_caption_.c_str());
+		//  mMainWndCaption = outs.str();
+  }
+}
+
 void RenderSystem::UpdateMaterialBuffer(const GameTimer& gt) {
   auto material_cb = current_frame_resource_->MaterialBuffer.get();
 
@@ -347,7 +400,7 @@ void RenderSystem::BuildFrameResource() {
 
   for (size_t i=0; i<kNumFrameResources; ++i) {
     frame_resources_.push_back(std::make_unique<FrameResource>(d3d_device_.Get(), 1, 
-      (UINT)render_items_.size(), (UINT)materials_.size(), waves_->VertexCount()));
+      (UINT)render_items_.size(), instance_count_, (UINT)materials_.size(), waves_->VertexCount()));
   }
 
 }
@@ -972,7 +1025,8 @@ void RenderSystem::BuildRenderItems() {
   XMMATRIX skull_world = skullRotate * skullScale * skullOffset;
 
   auto skullRitem = std::make_unique<RenderItem>();
-  XMStoreFloat4x4(&skullRitem->World, skull_world);
+  //  XMStoreFloat4x4(&skullRitem->World, skull_world);
+  skullRitem->World = MathHelper::Identity4x4();
 	skullRitem->TexTransform = MathHelper::Identity4x4();
 	skullRitem->ObjectCBIndex = 0;
 	skullRitem->Mat = materials_["skullMat"].get();
@@ -983,7 +1037,44 @@ void RenderSystem::BuildRenderItems() {
 	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
   skullRitem->Bounds = skullRitem->Geo->DrawArgs["skull"].Bounds;
 
-	mSkullRitem = skullRitem.get();
+	//  mSkullRitem = skullRitem.get();
+
+  // Generate instance data.
+	const int n = 5;
+	instance_count_ = n*n*n;
+	skullRitem->Instances.resize(instance_count_);
+
+
+	float width = 200.0f;
+	float height = 200.0f;
+	float depth = 200.0f;
+
+	float x = -0.5f*width;
+	float y = -0.5f*height;
+	float z = -0.5f*depth;
+	float dx = width / (n - 1);
+	float dy = height / (n - 1);
+	float dz = depth / (n - 1);
+	for(int k = 0; k < n; ++k)
+	{
+		for(int i = 0; i < n; ++i)
+		{
+			for(int j = 0; j < n; ++j)
+			{
+				int index = k*n*n + i*n + j;
+				// Position instanced along a 3D grid.
+				skullRitem->Instances[index].World = XMFLOAT4X4(
+					1.0f, 0.0f, 0.0f, 0.0f,
+					0.0f, 1.0f, 0.0f, 0.0f,
+					0.0f, 0.0f, 1.0f, 0.0f,
+					x + j*dx, y + i*dy, z + k*dz, 1.0f);
+
+				XMStoreFloat4x4(&skullRitem->Instances[index].TexTransform, XMMatrixScaling(2.0f, 2.0f, 1.0f));
+				skullRitem->Instances[index].MaterialIndex = index % materials_.size();
+			}
+		}
+	}
+
 	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
 
   render_items_.push_back(std::move(skullRitem));
@@ -1028,10 +1119,11 @@ void RenderSystem::BuildRootSignature() {
 
   CD3DX12_ROOT_PARAMETER slotRootParameter[4];
   
-  slotRootParameter[0].InitAsConstantBufferView(0);
-  slotRootParameter[1].InitAsConstantBufferView(1);
-    slotRootParameter[2].InitAsShaderResourceView(0, 1);
+  
+  slotRootParameter[0].InitAsShaderResourceView(0, 1);
+    slotRootParameter[1].InitAsShaderResourceView(1, 1);
   //slotRootParameter[2].InitAsConstantBufferView(2);
+  slotRootParameter[2].InitAsConstantBufferView(0);
   slotRootParameter[3].InitAsDescriptorTable(1, &tex_table, D3D12_SHADER_VISIBILITY_PIXEL);
 
   auto static_samplers = GetStaticSamplers();

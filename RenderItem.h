@@ -5,7 +5,7 @@
 
 #include "MeshGeometry.h"
 #include "Util.h"
-#include "RenderItem.h"
+//  #include "RenderItem.h"
 #include "FrameResource.h"
 
 using namespace DirectX;
@@ -29,6 +29,7 @@ struct RenderItem {
 
   BoundingBox Bounds;
   vector<InstanceData> Instances;
+  UINT InstanceCount = 0;
 
   UINT IndexCount = 0;
   UINT StartIndexLocation = 0;

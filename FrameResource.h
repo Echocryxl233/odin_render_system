@@ -85,7 +85,7 @@ struct PassConstants
 struct FrameResource
 {
  public:
-  FrameResource(ID3D12Device* device, UINT pass_CB_count, UINT object_CB_count,
+  FrameResource(ID3D12Device* device, UINT pass_CB_count, UINT object_CB_count, UINT max_instance_count,
     UINT material_count, UINT waves_vertex_count);
   FrameResource(const FrameResource& rhs) = delete;
   FrameResource& operator=(const FrameResource& rhs) = delete;

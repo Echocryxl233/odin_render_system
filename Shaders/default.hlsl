@@ -21,6 +21,16 @@ struct MaterialData {
 	uint     MatPad2;
 };
 
+struct InstanceData
+{
+  float4x4 World;
+  float4x4 TexTransform ;
+  uint MaterialIndex;
+	uint InstancePad0;
+	uint InstancePad1;
+	uint InstancePad2;
+};
+
 Texture2D gDiffuseMap[4] : register(t0);
 
 SamplerState gsamPointWrap        : register(s0);
@@ -30,17 +40,9 @@ SamplerState gsamLinearClamp      : register(s3);
 SamplerState gsamAnisotropicWrap  : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 
-cbuffer cbPerObject : register(b0)
-{
-	float4x4 gWorld; 
-  float4x4 gTexTransform;
-  uint     MaterialIndex;
-	uint     ObjPad0;
-	uint     ObjPad1;
-	uint     ObjPad2;
-};
 
-cbuffer cbPass : register(b1)
+
+cbuffer cbPass : register(b0)
 {
   float4x4 gView;
   float4x4 gInvView;
@@ -61,7 +63,18 @@ cbuffer cbPass : register(b1)
   Light gLights[MaxLights];
 };
 
-StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
+//cbuffer cbPerObject : register(b1)
+//{
+//	float4x4 gWorld; 
+//  float4x4 gTexTransform;
+//  uint     MaterialIndex;
+//	uint     ObjPad0;
+//	uint     ObjPad1;
+//	uint     ObjPad2;
+//};
+
+StructuredBuffer<InstanceData> gInstanceData : register(t0, space1);
+StructuredBuffer<MaterialData> gMaterialData : register(t1, space1);
 
 struct VertexIn
 {
@@ -76,23 +89,31 @@ struct VertexOut
   float3 PosW  : POSITION;
   float3 Normal : NORMAL; //  normal world
   float2 TexCoord : TEXCOORD;
+
+  nointerpolation uint MatIndex  : MATINDEX;
 };
 
-VertexOut VS(VertexIn vin)
+VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 {
 	  VertexOut vout;
 	
-    MaterialData matData = gMaterialData[MaterialIndex];
+    
+    InstanceData instData = gInstanceData[instanceID];
 
+    float4x4 world = instData.World;
+	  float4x4 texTransform = instData.TexTransform;
+	  uint matIndex = instData.MaterialIndex;
+    vout.MatIndex = matIndex;
+    MaterialData matData = gMaterialData[matIndex];
 	  // Transform to homogeneous clip space.
-    float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
+    float4 posW = mul(float4(vin.PosL, 1.0f), world);
     vout.PosW = posW.xyz;
     vout.PosH = mul(posW, gViewProj);
 	
 	  // Just pass vertex color into the pixel shader.
     //  vout.Color = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    vout.Normal = mul(vin.Normal, (float3x3)gWorld);
-    float4 texCoord = mul(float4(vin.TexCoord, 0.0f, 1.0f), gTexTransform);
+    vout.Normal = mul(vin.Normal, (float3x3)world);
+    float4 texCoord = mul(float4(vin.TexCoord, 0.0f, 1.0f), texTransform);
     //  float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
     //  vout.TexCoord = texCoord.xy;
     vout.TexCoord = mul(texCoord, matData.MatTransform).xy;
@@ -101,7 +122,8 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    MaterialData matData = gMaterialData[MaterialIndex];
+    //  MaterialData matData = gMaterialData[MaterialIndex];
+    MaterialData matData = gMaterialData[pin.MatIndex];
     float4 diffuseAlbedo = matData.DiffuseAlbedo;
     float3 FresnelR0 = matData.FresnelR0;
     float  Roughness = matData.Roughness;
