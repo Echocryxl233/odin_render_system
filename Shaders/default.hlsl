@@ -73,8 +73,9 @@ cbuffer cbPass : register(b0)
 //	uint     ObjPad2;
 //};
 
-StructuredBuffer<InstanceData> gInstanceData : register(t0, space1);
-StructuredBuffer<MaterialData> gMaterialData : register(t1, space1);
+
+StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
+StructuredBuffer<InstanceData> gInstanceData : register(t1, space1);
 
 struct VertexIn
 {
@@ -94,17 +95,31 @@ struct VertexOut
 };
 
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
+//  VertexOut VS(VertexIn vin)
 {
-	  VertexOut vout;
-	
-    
+    VertexOut vout = (VertexOut)0.0f;
+
+
+    //  -------------
     InstanceData instData = gInstanceData[instanceID];
 
     float4x4 world = instData.World;
 	  float4x4 texTransform = instData.TexTransform;
 	  uint matIndex = instData.MaterialIndex;
     vout.MatIndex = matIndex;
+
     MaterialData matData = gMaterialData[matIndex];
+
+    //  ----------
+
+    
+    //float4x4 world = gWorld;
+    //float4x4 texTransform = gTexTransform;
+
+    //MaterialData matData = gMaterialData[MaterialIndex];
+    
+
+    //  ------------
 	  // Transform to homogeneous clip space.
     float4 posW = mul(float4(vin.PosL, 1.0f), world);
     vout.PosW = posW.xyz;
@@ -114,9 +129,8 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     //  vout.Color = float4(0.0f, 0.0f, 0.0f, 0.0f);
     vout.Normal = mul(vin.Normal, (float3x3)world);
     float4 texCoord = mul(float4(vin.TexCoord, 0.0f, 1.0f), texTransform);
-    //  float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
-    //  vout.TexCoord = texCoord.xy;
     vout.TexCoord = mul(texCoord, matData.MatTransform).xy;
+
     return vout;
 }
 
@@ -129,7 +143,7 @@ float4 PS(VertexOut pin) : SV_Target
     float  Roughness = matData.Roughness;
   
     uint deffuseIndex = matData.DiffuseMapIndex;
-    diffuseAlbedo = gDiffuseMap[deffuseIndex].Sample(gsamLinearWrap, pin.TexCoord) * diffuseAlbedo;
+    diffuseAlbedo = gDiffuseMap[deffuseIndex].Sample(gsamPointWrap, pin.TexCoord) * diffuseAlbedo;
 
     pin.Normal = normalize(pin.Normal);
 

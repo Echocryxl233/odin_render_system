@@ -57,3 +57,8 @@ x64/Debug/Waves.obj
 .vs/OdinRenderSystem/v15/ipch/AutoPCH/bfab91c2962ec4fc/RENDERSYSTEM.ipch
 .vs/OdinRenderSystem/v15/ipch/AutoPCH/de68674abf9b2612/APPLICATION.ipch
 *.ipch
+*.db
+*.idb
+*.pdb
+*.opendb
+.vs/OdinRenderSystem/v16/.suo

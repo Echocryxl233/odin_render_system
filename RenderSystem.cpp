@@ -47,7 +47,7 @@ void RenderSystem::Draw(const GameTimer& gt)
 	  d3d_command_list_->SetGraphicsRootSignature(root_signature_.Get());
 
     auto material_buffer = current_frame_resource_->MaterialBuffer->Resource();
-	  d3d_command_list_->SetGraphicsRootShaderResourceView(1, material_buffer->GetGPUVirtualAddress());
+	  d3d_command_list_->SetGraphicsRootShaderResourceView(0, material_buffer->GetGPUVirtualAddress());
 
     UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
     auto passCB = current_frame_resource_->PassCB->Resource();
@@ -128,13 +128,8 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
     cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
     cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-   /* D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress();
-    objCBAddress += ri->ObjectCBIndex*objCBByteSize;*/
-
-    //  cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-
-    d3d_command_list_->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
-
+ 
+    d3d_command_list_->SetGraphicsRootShaderResourceView(1, instanceBuffer->GetGPUVirtualAddress());
     cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
   }
 }
@@ -285,15 +280,16 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
 
       camera_frustum_.Transform(local_frustum, local_to_view);
 
-      //if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT) {
-        InstanceData instance_data;
-        XMStoreFloat4x4(&instance_data.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
-        XMStoreFloat4x4(&instance_data.TexTransform, XMMatrixTranspose(tex_transform));  
-        instance_data.MaterialIndex = item->Mat->MatCBIndex;
+      if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT || (!enable_frustum_culling_)) {
+        InstanceData data;
+        XMStoreFloat4x4(&data.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
+        XMStoreFloat4x4(&data.TexTransform, XMMatrixTranspose(tex_transform));  
+        //  data.MaterialIndex = item->Mat->MatCBIndex; 
+        data.MaterialIndex = instance_data.MaterialIndex;
 
-        current_instance_buffer->CopyData(visible_instance_count, instance_data);
+        current_instance_buffer->CopyData(visible_instance_count, data);
         visible_instance_count++;
-      //}
+      }
     }
 
     item->InstanceCount = visible_instance_count;
@@ -633,12 +629,29 @@ void RenderSystem::BuildSkullGeometry() {
   for (UINT i=0; i < vertex_count; ++i) {
     fin >> vertices_geo[i].Pos.x >> vertices_geo[i].Pos.y >> vertices_geo[i].Pos.z;
     fin >> vertices_geo[i].Normal.x >> vertices_geo[i].Normal.y >> vertices_geo[i].Normal.z;
-    vertices_geo[i].TexCoord = {0.0f, 0.0f};
+    
 
-    XMVECTOR p = XMLoadFloat3(&vertices_geo[i].Pos);
+    XMVECTOR pos = XMLoadFloat3(&vertices_geo[i].Pos);
 
-    v_min = XMVectorMin(v_min, p);  //  find the min point
-    v_max = XMVectorMax(v_max, p);  //  find the max point
+    XMFLOAT3 spherePos;
+		XMStoreFloat3(&spherePos, XMVector3Normalize(pos));
+
+		float theta = atan2f(spherePos.z, spherePos.x);
+
+		// Put in [0, 2pi].
+		if(theta < 0.0f)
+			theta += XM_2PI;
+
+		float phi = acosf(spherePos.y);
+
+		float u = theta / (2.0f*XM_PI);
+		float v = phi / XM_PI;
+
+    //  vertices_geo[i].TexCoord = { 0.0f, 0.0f };
+    vertices_geo[i].TexCoord = { u, v };
+
+    v_min = XMVectorMin(v_min, pos);  //  find the min point
+    v_max = XMVectorMax(v_max, pos);  //  find the max point
   }
 
   BoundingBox bounds;
@@ -927,6 +940,9 @@ void RenderSystem::BuildRenderItems() {
   //skull_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
   //items_layers_[(int)RenderLayer::kOpaque].push_back(skull_render_item.get());
 
+
+  //  ------------
+
  // auto floorRitem = std::make_unique<RenderItem>();
 	//floorRitem->World = MathHelper::Identity4x4();
 	//floorRitem->TexTransform = MathHelper::Identity4x4();
@@ -963,7 +979,7 @@ void RenderSystem::BuildRenderItems() {
  // XMStoreFloat4x4(&skullRitem->World, skull_world);
 	//skullRitem->TexTransform = MathHelper::Identity4x4();
 	//skullRitem->ObjectCBIndex = 2;
-	//skullRitem->Mat = materials_["skullMat"].get();
+	//skullRitem->Mat = materials_["bricks"].get();
 	//skullRitem->Geo = mesh_geos_["skullGeo"].get();
 	//skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	//skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
@@ -1013,23 +1029,27 @@ void RenderSystem::BuildRenderItems() {
 	//render_items_.push_back(std::move(shadowedSkullRitem));
 	//render_items_.push_back(std::move(mirrorRitem));
 
+  
+
   //  --------------
 
   
 
   //render_items_.push_back(std::move(skull_render_item));
 
-  XMMATRIX skullRotate = XMMatrixRotationY(0.5f*MathHelper::Pi);
-	XMMATRIX skullScale = XMMatrixScaling(0.45f, 0.45f, 0.45f);
-	XMMATRIX skullOffset = XMMatrixTranslation(-1.0f, 0.0f, -4.0f);
-  XMMATRIX skull_world = skullRotate * skullScale * skullOffset;
+ // XMMATRIX skullRotate = XMMatrixRotationY(0.5f*MathHelper::Pi);
+	//XMMATRIX skullScale = XMMatrixScaling(0.45f, 0.45f, 0.45f);
+	//XMMATRIX skullOffset = XMMatrixTranslation(-1.0f, 0.0f, -4.0f);
+ // XMMATRIX skull_world = skullRotate * skullScale * skullOffset;
 
   auto skullRitem = std::make_unique<RenderItem>();
   //  XMStoreFloat4x4(&skullRitem->World, skull_world);
   skullRitem->World = MathHelper::Identity4x4();
 	skullRitem->TexTransform = MathHelper::Identity4x4();
 	skullRitem->ObjectCBIndex = 0;
-	skullRitem->Mat = materials_["skullMat"].get();
+	//  skullRitem->Mat = materials_["skullMat"].get();
+  skullRitem->Mat = materials_["icemirror"].get();
+  
 	skullRitem->Geo = mesh_geos_["skullGeo"].get();
 	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
@@ -1071,6 +1091,8 @@ void RenderSystem::BuildRenderItems() {
 
 				XMStoreFloat4x4(&skullRitem->Instances[index].TexTransform, XMMatrixScaling(2.0f, 2.0f, 1.0f));
 				skullRitem->Instances[index].MaterialIndex = index % materials_.size();
+
+        //  skullRitem->Instances[index].MaterialIndex = materials_["icemirror"]->MatCBIndex;
 			}
 		}
 	}
@@ -1078,6 +1100,27 @@ void RenderSystem::BuildRenderItems() {
 	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
 
   render_items_.push_back(std::move(skullRitem));
+
+
+  //  ----------
+  //auto wallsRitem = std::make_unique<RenderItem>();
+  //wallsRitem->World = MathHelper::Identity4x4();
+  //wallsRitem->TexTransform = MathHelper::Identity4x4();
+  //wallsRitem->ObjectCBIndex = 1;
+  //wallsRitem->Mat = materials_["bricks"].get();
+  //wallsRitem->Geo = mesh_geos_["roomGeo"].get();
+  //wallsRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  //wallsRitem->IndexCount = wallsRitem->Geo->DrawArgs["wall"].IndexCount;
+  //wallsRitem->StartIndexLocation = wallsRitem->Geo->DrawArgs["wall"].StartIndexLocation;
+  //wallsRitem->BaseVertexLocation = wallsRitem->Geo->DrawArgs["wall"].BaseVertexLocation;
+
+  //items_layers_[(int)RenderLayer::kOpaque].push_back(wallsRitem.get());
+
+  //items_layers_[(int)RenderLayer::kOpaque].push_back(wallsRitem.get());
+
+  //render_items_.push_back(std::move(wallsRitem));
+
+  //  -----------
 }
 
 void RenderSystem::DrawRenderItems() {
@@ -1121,8 +1164,7 @@ void RenderSystem::BuildRootSignature() {
   
   
   slotRootParameter[0].InitAsShaderResourceView(0, 1);
-    slotRootParameter[1].InitAsShaderResourceView(1, 1);
-  //slotRootParameter[2].InitAsConstantBufferView(2);
+  slotRootParameter[1].InitAsShaderResourceView(1, 1);
   slotRootParameter[2].InitAsConstantBufferView(0);
   slotRootParameter[3].InitAsDescriptorTable(1, &tex_table, D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -1395,6 +1437,8 @@ void RenderSystem::OnResize() {
   }
 
   camera_.SetLens(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
+
+  BoundingFrustum::CreateFromMatrix(camera_frustum_, camera_.GetProj());
 }
 
 void RenderSystem::OnKeyboardInput(const GameTimer& gt) {
@@ -1411,6 +1455,12 @@ void RenderSystem::OnKeyboardInput(const GameTimer& gt) {
 
 	if(GetAsyncKeyState('D') & 0x8000)
 		camera_.Strafe(10.0f*dt);
+
+  if (GetAsyncKeyState('1') & 0x8000)
+    enable_frustum_culling_ = true;
+
+  if (GetAsyncKeyState('2') & 0x8000)
+    enable_frustum_culling_ = false;
 
 	camera_.UpdateViewMatrix();
 }
@@ -1460,15 +1510,7 @@ void RenderSystem::OnMouseMove(WPARAM btnState, int x, int y) {
 
 
 void RenderSystem::BuildMaterial() {
- // auto grass = std::make_unique<Material>();
-	//grass->Name = "grass";
-	//grass->MatCBIndex = 0;
- // grass->DiffuseSrvHeapIndex = 1;
- // //  grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
- // grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
- // 
- // grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
- // grass->Roughness = 0.125f;
+
 
  //   // This is not a good water material definition, but we do not have all the rendering
  //   // tools we need (transparency, environment reflection), so we fake it for now.
@@ -1533,12 +1575,21 @@ void RenderSystem::BuildMaterial() {
 	shadowMat->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
 	shadowMat->Roughness = 0.0f;
 
+   auto grass = std::make_unique<Material>();
+   grass->Name = "grass";
+   grass->MatCBIndex = 5;
+   grass->DiffuseSrvHeapIndex = 4;
+   //  grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
+   grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+   grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+   grass->Roughness = 0.125f;
+
 	materials_["bricks"] = std::move(bricks);
 	materials_["checkertile"] = std::move(checkertile);
 	materials_["icemirror"] = std::move(icemirror);
 	materials_["skullMat"] = std::move(skullMat);
 	materials_["shadowMat"] = std::move(shadowMat);
-  
+  //  materials_["grass"] = std::move(grass);
 }
 
 void RenderSystem::LoadTexture() {

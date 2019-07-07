@@ -174,6 +174,8 @@ private:
   BoundingFrustum camera_frustum_;
 
   UINT instance_count_;
+
+  bool enable_frustum_culling_;
 };
 
 }
