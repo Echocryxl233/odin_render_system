@@ -654,9 +654,19 @@ void RenderSystem::BuildSkullGeometry() {
     v_max = XMVectorMax(v_max, pos);  //  find the max point
   }
 
-  BoundingBox bounds;
+  //  BoundingBox bounds;
+  //  XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
+  //  XMStoreFloat3(&bounds.Extents, 0.5f * (v_max - v_min));
+
+
+  BoundingSphere bounds;
+
   XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
-  XMStoreFloat3(&bounds.Extents, 0.5f * (v_max - v_min ));
+  XMFLOAT3 d;
+  XMStoreFloat3(&d, 0.5f * (v_max - v_min ));
+  float ratio = 0.5f;
+  bounds.Radius = ratio * sqrtf(d.x * d.x + d.y * d.y + d.z * d.z);
+
 
   fin >> ignore >> ignore >> ignore;
 
