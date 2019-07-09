@@ -62,3 +62,9 @@ x64/Debug/Waves.obj
 *.pdb
 *.opendb
 .vs/OdinRenderSystem/v16/.suo
+x64/Debug/OdinRenderSystem.Build.CppClean.log
+x64/Debug/OdinRenderSystem.vcxproj.FileListAbsolute.txt
+*.xml
+*.sarif
+*.lastcodeanalysissucceeded
+*.tlog

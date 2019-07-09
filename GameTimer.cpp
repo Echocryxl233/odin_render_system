@@ -20,7 +20,7 @@ float GameTimer::DeltaTime() const {
 float GameTimer::TotalTime() const {
   __int64 head_time = stopped_ ? stop_time_ : curr_time_;
 
-  return (float)((head_time - pause_time_) - base_time_ ) * second_per_count_;
+  return (float)(((head_time - pause_time_) - base_time_ ) * second_per_count_);
 
 }
 
