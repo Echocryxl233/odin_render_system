@@ -17,8 +17,8 @@ struct SubmeshGeometry
 
   INT BaseVertexLocation = 0;
 
-  //  DirectX::BoundingBox Bounds;
-  DirectX::BoundingSphere Bounds;
+  DirectX::BoundingBox Bounds;
+  //  DirectX::BoundingSphere Bounds;
 };
 
 struct MeshGeometry

@@ -8,8 +8,20 @@
 #include "Light.h"
 
 using namespace DirectX;
+using namespace std;
 
 namespace OdinRenderSystem {
+
+enum class RenderLayer : int
+{
+  kOpaque = 0,
+  kMirrors,
+  kReflected,
+  kTransparent,
+  kShadow,
+  kMaxCount
+};
+
 
 struct Vertex {
 
@@ -96,7 +108,10 @@ struct FrameResource
   std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
   std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
 
-  std::unique_ptr<UploadBuffer<InstanceData>> InstanceBuffer = nullptr;
+  //  std::unique_ptr<UploadBuffer<InstanceData>> InstanceBuffer = nullptr;
+
+  vector<unique_ptr<UploadBuffer<InstanceData>>> InstanceBufferGroups;
+
   std::unique_ptr<UploadBuffer<MaterialData>> MaterialBuffer = nullptr;
 
   //  std::unique_ptr<UploadBuffer<Vertex>> WavesVB = nullptr;

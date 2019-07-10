@@ -56,8 +56,8 @@ void RenderSystem::Draw(const GameTimer& gt)
     
 
     d3d_command_list_->SetGraphicsRootDescriptorTable(3, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-
-    DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kOpaque]);
+    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
+    //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kOpaque]);
 
     //d3d_command_list_->OMSetStencilRef(1);
     //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_mirror].Get());
@@ -71,8 +71,9 @@ void RenderSystem::Draw(const GameTimer& gt)
     //  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
     //  d3d_command_list_->OMSetStencilRef(0);
 
-      //d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
-      //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
+    d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
+    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
+    //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
 
     blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
 		  pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
@@ -117,7 +118,7 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
  
 	auto objectCB = current_frame_resource_->ObjectCB->Resource();
   auto materialCB = current_frame_resource_->MaterialBuffer->Resource();
-  auto instanceBuffer = current_frame_resource_->InstanceBuffer->Resource();
+  auto instanceBuffer = current_frame_resource_->InstanceBufferGroups[(int)RenderLayer::kOpaque]->Resource();
 
   // For each render item...
   for(size_t i = 0; i < ritems.size(); ++i)
@@ -128,7 +129,30 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
     cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
     cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
- 
+    d3d_command_list_->SetGraphicsRootShaderResourceView(1, instanceBuffer->GetGPUVirtualAddress());
+    cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+  }
+}
+
+void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const int render_layer)
+{
+  UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+  UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
+
+  auto objectCB = current_frame_resource_->ObjectCB->Resource();
+  auto materialCB = current_frame_resource_->MaterialBuffer->Resource();
+  auto instanceBuffer = current_frame_resource_->InstanceBufferGroups[render_layer]->Resource();
+
+  // For each render item...
+  auto layer_render_items = items_layers_[render_layer];
+  for (size_t i = 0; i < layer_render_items.size(); ++i)
+  {
+    auto ri = layer_render_items[i];
+
+    cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
+    cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+    cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
+
     d3d_command_list_->SetGraphicsRootShaderResourceView(1, instanceBuffer->GetGPUVirtualAddress());
     cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
   }
@@ -263,48 +287,59 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
   auto view = camera_.GetView();
   auto inv_view = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 
-  auto current_instance_buffer = current_frame_resource_->InstanceBuffer.get();
-  
-  for(auto& item : render_items_) {
-    const auto& instances = item->Instances;
+  int visible_instance_count = 0;
+  int total_visible_count = 0;
+  int total_instance_count = 0;
+ 
+  for (int i = (int)RenderLayer::kOpaque; i < (int)RenderLayer::kMaxCount; ++i) {
 
-    int visible_instance_count = 0;
-    
-    for (auto& instance_data : instances) {
-      BoundingFrustum local_frustum;
+    auto layer_render_items = items_layers_[i];
 
-      XMMATRIX world = XMLoadFloat4x4(&instance_data.World);
-      XMMATRIX tex_transform = XMLoadFloat4x4(&instance_data.TexTransform);
-      XMMATRIX inv_world = XMMatrixInverse(&XMMatrixDeterminant(world), world);
-      XMMATRIX local_to_view = XMMatrixMultiply(inv_view, inv_world);
+    for (auto& item : layer_render_items) {
+      auto current_instance_buffer = current_frame_resource_->InstanceBufferGroups[i].get();
+      visible_instance_count = 0;
 
-      camera_frustum_.Transform(local_frustum, local_to_view);
+      const auto& instances = item->Instances;
+      total_instance_count += instances.size();
 
-      if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT || (!enable_frustum_culling_)) {
-        InstanceData data;
-        XMStoreFloat4x4(&data.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
-        XMStoreFloat4x4(&data.TexTransform, XMMatrixTranspose(tex_transform));  
-        //  data.MaterialIndex = item->Mat->MatCBIndex; 
-        data.MaterialIndex = instance_data.MaterialIndex;
+      for (auto& instance_data : instances) {
 
-        current_instance_buffer->CopyData(visible_instance_count, data);
-        visible_instance_count++;
+        BoundingFrustum local_frustum;
+        XMMATRIX world = XMLoadFloat4x4(&instance_data.World);
+        XMMATRIX tex_transform = XMLoadFloat4x4(&instance_data.TexTransform);
+        XMMATRIX inv_world = XMMatrixInverse(&XMMatrixDeterminant(world), world);
+        XMMATRIX local_to_view = XMMatrixMultiply(inv_view, inv_world);
+
+        camera_frustum_.Transform(local_frustum, local_to_view);
+
+        if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT || (!enable_frustum_culling_)) {
+          InstanceData data;
+          XMStoreFloat4x4(&data.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
+          XMStoreFloat4x4(&data.TexTransform, XMMatrixTranspose(tex_transform));  
+          //  data.MaterialIndex = item->Mat->MatCBIndex; 
+          data.MaterialIndex = instance_data.MaterialIndex;
+
+          current_instance_buffer->CopyData(visible_instance_count, data);
+          visible_instance_count++;
+        }
+
+        item->InstanceCount = visible_instance_count;
+        total_visible_count += visible_instance_count;
       }
     }
-
-    item->InstanceCount = visible_instance_count;
-
-    std::wostringstream outs;
-		outs.precision(0);
-		outs << L"Odin Instancing" <<
-			L"    " << item->InstanceCount <<
-			L" objects visible out of " << item->Instances.size();
-
-    main_wnd_caption_ = outs.str();
-
-    SetWindowText(h_window_, main_wnd_caption_.c_str());
-		//  mMainWndCaption = outs.str();
   }
+  
+
+  std::wostringstream outs;
+  outs.precision(0);
+  outs << L"Odin Instancing" <<
+    L"    " << total_visible_count <<
+    L" objects visible out of " << total_instance_count;
+
+  main_wnd_caption_ = outs.str();
+
+  if (!use_mouse_)
+    SetWindowText(h_window_, main_wnd_caption_.c_str());
 }
 
 void RenderSystem::UpdateMaterialBuffer(const GameTimer& gt) {
@@ -654,18 +689,18 @@ void RenderSystem::BuildSkullGeometry() {
     v_max = XMVectorMax(v_max, pos);  //  find the max point
   }
 
-  //  BoundingBox bounds;
-  //  XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
-  //  XMStoreFloat3(&bounds.Extents, 0.5f * (v_max - v_min));
+    BoundingBox bounds;
+    XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
+    XMStoreFloat3(&bounds.Extents, 0.5f * (v_max - v_min));
 
 
-  BoundingSphere bounds;
+  //BoundingSphere bounds;
 
-  XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
-  XMFLOAT3 d;
-  XMStoreFloat3(&d, 0.5f * (v_max - v_min ));
-  float ratio = 0.5f;
-  bounds.Radius = ratio * sqrtf(d.x * d.x + d.y * d.y + d.z * d.z);
+  //XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
+  //XMFLOAT3 d;
+  //XMStoreFloat3(&d, 0.5f * (v_max - v_min ));
+  //float ratio = 0.5f;
+  //bounds.Radius = ratio * sqrtf(d.x * d.x + d.y * d.y + d.z * d.z);
 
 
   fin >> ignore >> ignore >> ignore;
@@ -1058,7 +1093,7 @@ void RenderSystem::BuildRenderItems() {
 	skullRitem->TexTransform = MathHelper::Identity4x4();
 	skullRitem->ObjectCBIndex = 0;
 	//  skullRitem->Mat = materials_["skullMat"].get();
-  skullRitem->Mat = materials_["icemirror"].get();
+  skullRitem->Mat = materials_["bricks"].get();
   
 	skullRitem->Geo = mesh_geos_["skullGeo"].get();
 	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1075,81 +1110,84 @@ void RenderSystem::BuildRenderItems() {
 	skullRitem->Instances.resize(instance_count_);
 
 
-	float width = 200.0f;
-	float height = 200.0f;
-	float depth = 200.0f;
+	//float width = 200.0f;
+	//float height = 200.0f;
+	//float depth = 200.0f;
 
-	float x = -0.5f*width;
-	float y = -0.5f*height;
-	float z = -0.5f*depth;
-	float dx = width / (n - 1);
-	float dy = height / (n - 1);
-	float dz = depth / (n - 1);
-	for(int k = 0; k < n; ++k)
-	{
-		for(int i = 0; i < n; ++i)
-		{
-			for(int j = 0; j < n; ++j)
-			{
-				int index = k*n*n + i*n + j;
-				// Position instanced along a 3D grid.
-				skullRitem->Instances[index].World = XMFLOAT4X4(
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
-					x + j*dx, y + i*dy, z + k*dz, 1.0f);
+	//float x = -0.5f*width;
+	//float y = -0.5f*height;
+	//float z = -0.5f*depth;
+	//float dx = width / (n - 1);
+	//float dy = height / (n - 1);
+	//float dz = depth / (n - 1);
+	//for(int k = 0; k < n; ++k)
+	//{
+	//	for(int i = 0; i < n; ++i)
+	//	{
+	//		for(int j = 0; j < n; ++j)
+	//		{
+	//			int index = k*n*n + i*n + j;
+	//			// Position instanced along a 3D grid.
+	//			skullRitem->Instances[index].World = XMFLOAT4X4(
+	//				1.0f, 0.0f, 0.0f, 0.0f,
+	//				0.0f, 1.0f, 0.0f, 0.0f,
+	//				0.0f, 0.0f, 1.0f, 0.0f,
+	//				x + j*dx, y + i*dy, z + k*dz, 1.0f);
 
-				XMStoreFloat4x4(&skullRitem->Instances[index].TexTransform, XMMatrixScaling(2.0f, 2.0f, 1.0f));
-				skullRitem->Instances[index].MaterialIndex = index % materials_.size();
+	//			XMStoreFloat4x4(&skullRitem->Instances[index].TexTransform, XMMatrixScaling(2.0f, 2.0f, 1.0f));
+	//			//  skullRitem->Instances[index].MaterialIndex = index % materials_.size();
 
-        //  skullRitem->Instances[index].MaterialIndex = materials_["icemirror"]->MatCBIndex;
-			}
-		}
-	}
+ //       skullRitem->Instances[index].MaterialIndex = materials_["icemirror"]->MatCBIndex;
+	//		}
+	//	}
+	//}
+
+  int instance_count = 3;
+  skullRitem->Instances.resize(instance_count);
+
+  for (int i = 0; i < instance_count; ++i) {
+    XMMATRIX rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
+    XMMATRIX scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+    XMMATRIX offset = XMMatrixTranslation(10.0f * i, 0.0f, -0.0f);
+    XMMATRIX world = rotate * scale * offset;
+    XMStoreFloat4x4(&skullRitem->Instances[i].World, world);
+    skullRitem->Instances[i].MaterialIndex = materials_["bricks"]->MatCBIndex;
+  }
 
 	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
 
+  XMMATRIX pick_rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
+  XMMATRIX pick_scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+  XMMATRIX pick_offset = XMMatrixTranslation(3.0f, 3.0f, -0.0f);
+  XMMATRIX pick_world = pick_rotate * pick_scale * pick_offset;
+  auto pick_item = std::make_unique<RenderItem>();
+  //  pick_item->World = MathHelper::Identity4x4();
+  XMStoreFloat4x4(&pick_item->World, pick_world);
+  pick_item->TexTransform = MathHelper::Identity4x4();
+  pick_item->ObjectCBIndex = 0;
+  //  pick_item->Mat = materials_["skullMat"].get();
+  pick_item->Mat = materials_["icemirror"].get();
+
+  pick_item->Geo = mesh_geos_["skullGeo"].get();
+  pick_item->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  pick_item->IndexCount = pick_item->Geo->DrawArgs["skull"].IndexCount;
+  pick_item->StartIndexLocation = pick_item->Geo->DrawArgs["skull"].StartIndexLocation;
+  pick_item->BaseVertexLocation = pick_item->Geo->DrawArgs["skull"].BaseVertexLocation;
+
+  pick_item->Instances.resize(1);
+  XMStoreFloat4x4(&pick_item->Instances[0].World, pick_world);
+  //  pick_item->Instances[0].World = MathHelper::Identity4x4();
+  pick_item->Instances[0].MaterialIndex = pick_item->Mat->MatCBIndex;
+
+  picked_item_ = pick_item.get();
+  items_layers_[(int)RenderLayer::kTransparent].push_back(pick_item.get());
+
   render_items_.push_back(std::move(skullRitem));
-
-
-  //  ----------
-  //auto wallsRitem = std::make_unique<RenderItem>();
-  //wallsRitem->World = MathHelper::Identity4x4();
-  //wallsRitem->TexTransform = MathHelper::Identity4x4();
-  //wallsRitem->ObjectCBIndex = 1;
-  //wallsRitem->Mat = materials_["bricks"].get();
-  //wallsRitem->Geo = mesh_geos_["roomGeo"].get();
-  //wallsRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-  //wallsRitem->IndexCount = wallsRitem->Geo->DrawArgs["wall"].IndexCount;
-  //wallsRitem->StartIndexLocation = wallsRitem->Geo->DrawArgs["wall"].StartIndexLocation;
-  //wallsRitem->BaseVertexLocation = wallsRitem->Geo->DrawArgs["wall"].BaseVertexLocation;
-
-  //items_layers_[(int)RenderLayer::kOpaque].push_back(wallsRitem.get());
-
-  //items_layers_[(int)RenderLayer::kOpaque].push_back(wallsRitem.get());
-
-  //render_items_.push_back(std::move(wallsRitem));
-
-  //  -----------
+  render_items_.push_back(std::move(pick_item));
 }
 
 void RenderSystem::DrawRenderItems() {
   
-
-  //for (auto item : opaque_items_) {
-  //  d3d_command_list_->IASetVertexBuffers(0, 1, &item->Geo->VertexBufferView());
-  //  d3d_command_list_->IASetIndexBuffer(&item->Geo->IndexBufferView());
-  //  d3d_command_list_->IASetPrimitiveTopology(item->PrimitiveType);
-
-  //  int object_cbv_index = frame_resource_index_ * (UINT)opaque_items_.size() + item->ObjectCBIndex;
-  //  auto handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(cbv_heap_->GetGPUDescriptorHandleForHeapStart());
-  //  handle.Offset(object_cbv_index, cbv_srv_uav_descriptor_size);
-
-
-  //  d3d_command_list_->SetGraphicsRootDescriptorTable(0, cbv_heap_->GetGPUDescriptorHandleForHeapStart());
-
-  //  d3d_command_list_->DrawIndexedInstanced(item->IndexCount, 1, item->StartIndexLocation, item->BaseVertexLocation, 0);
-  //}
 }
 
 void RenderSystem::BuildShadersAndInputLayout() {
@@ -1243,75 +1281,7 @@ void RenderSystem::BuildPostProcessRootSignature() {
 		IID_PPV_ARGS(post_process_root_signature_.GetAddressOf())));
 }
 
-void RenderSystem::BuildDescriptorHeaps() {
-  const int textureDescriptorCount = 4;
-	const int blurDescriptorCount = 4;
 
-  D3D12_DESCRIPTOR_HEAP_DESC src_heap_desc = {};
-  src_heap_desc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
-  src_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-  
-  src_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-  ThrowIfFailed(d3d_device_->CreateDescriptorHeap(&src_heap_desc, IID_PPV_ARGS(srv_descriptor_heap_.GetAddressOf()) ));
-
-  //////-----------------------------
-
-  
-
-	//
-	// Create the SRV heap.
-	//
-	//D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	//srvHeapDesc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
- // //  srvHeapDesc.NumDescriptors = textureDescriptorCount;
-	//srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	//srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	//ThrowIfFailed(d3d_device_->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&srv_descriptor_heap_)));
-
-  CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart());
-
-  //auto wood_crate_tex = textures_["Wood"]->Resource;
-  //auto grass_tex = textures_["Grass"]->Resource;
-  //auto water1_tex = textures_["Water"]->Resource;
-
-  auto bricksTex = textures_["bricksTex"]->Resource;
-	auto checkboardTex = textures_["checkboardTex"]->Resource;
-	auto iceTex = textures_["iceTex"]->Resource;
-	auto white1x1Tex = textures_["white1x1Tex"]->Resource;
-
-  int offsetCount = 0;
-  D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srv_desc.Format = bricksTex->GetDesc().Format;
-	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srv_desc.Texture2D.MostDetailedMip = 0;
-	srv_desc.Texture2D.MipLevels = -1;  //  wood_crate_tex->GetDesc().MipLevels;
-	srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-  d3d_device_->CreateShaderResourceView(bricksTex.Get(), &srv_desc, hDescriptor);
-  ++offsetCount;
-
-  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
-  srv_desc.Format = checkboardTex->GetDesc().Format;
-  d3d_device_->CreateShaderResourceView(checkboardTex.Get(), &srv_desc, hDescriptor);
-  ++offsetCount;
-
-  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
-  srv_desc.Format = iceTex->GetDesc().Format;
-  d3d_device_->CreateShaderResourceView(iceTex.Get(), &srv_desc, hDescriptor);
-  ++offsetCount;
-
-  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
-  srv_desc.Format = white1x1Tex->GetDesc().Format;
-  d3d_device_->CreateShaderResourceView(white1x1Tex.Get(), &srv_desc, hDescriptor);
-  ++offsetCount;
-
-  blur_filter_->BuildDescriptors(
-		CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 4, cbv_srv_uav_descriptor_size),
-		CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart(), 4, cbv_srv_uav_descriptor_size),
-		cbv_srv_uav_descriptor_size);
-}
 
 void RenderSystem::BuildPipelineStateObjects() {
   D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc;
@@ -1476,14 +1446,28 @@ void RenderSystem::OnKeyboardInput(const GameTimer& gt) {
 }
 
 void RenderSystem::OnMouseDown(WPARAM btnState, int x, int y) {
-  last_mouse_pos.x = x;
-  last_mouse_pos.y = y;
+  if ((btnState & MK_LBUTTON) != 0) {
+    last_mouse_pos.x = x;
+    last_mouse_pos.y = y;
 
-  SetCapture(h_window_);
+    SetCapture(h_window_);
+  }
+  else if ((btnState & MK_RBUTTON) != 0) {
+    Pick(x, y);
+    use_mouse_ = true;
+    std::wostringstream outs;
+    outs.precision(0);
+    outs << "                                 (" << x << ", " << y << ")";
+    wstring log = outs.str();
+    //  main_wnd_caption_ = outs.str();
+
+    SetWindowText(h_window_, log.c_str());
+  }
 }
 
 void RenderSystem::OnMouseUp(WPARAM btnState, int x, int y) {
   ReleaseCapture();
+  use_mouse_ = false;
 }
 
 void RenderSystem::OnMouseMove(WPARAM btnState, int x, int y) {
@@ -1519,88 +1503,7 @@ void RenderSystem::OnMouseMove(WPARAM btnState, int x, int y) {
 }
 
 
-void RenderSystem::BuildMaterial() {
 
-
- //   // This is not a good water material definition, but we do not have all the rendering
- //   // tools we need (transparency, environment reflection), so we fake it for now.
-	//auto water = std::make_unique<Material>();
-	//water->Name = "water";
-	//water->MatCBIndex = 1;
- // water->DiffuseSrvHeapIndex = 2;
- // water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);
- // water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
- // water->Roughness = 0.0f;
-
- // auto wood_crate = std::make_unique<Material>();
-	//wood_crate->Name = "woodCrate";
-	//wood_crate->MatCBIndex = 2;
-	//wood_crate->DiffuseSrvHeapIndex = 0;
-	//wood_crate->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	//wood_crate->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-	//wood_crate->Roughness = 0.2f;
-
-	//materials_["woodCrate"] = std::move(wood_crate);
-
-	//materials_["grass"] = std::move(grass);
-	//materials_["water"] = std::move(water);
-
-  auto bricks = std::make_unique<Material>();
-	bricks->Name = "bricks";
-	bricks->MatCBIndex = 0;
-	bricks->DiffuseSrvHeapIndex = 0;
-	bricks->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	bricks->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-	bricks->Roughness = 0.25f;
-
-	auto checkertile = std::make_unique<Material>();
-	checkertile->Name = "checkertile";
-	checkertile->MatCBIndex = 1;
-	checkertile->DiffuseSrvHeapIndex = 1;
-	checkertile->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	checkertile->FresnelR0 = XMFLOAT3(0.07f, 0.07f, 0.07f);
-	checkertile->Roughness = 0.3f;
-
-	auto icemirror = std::make_unique<Material>();
-	icemirror->Name = "icemirror";
-	icemirror->MatCBIndex = 2;
-	icemirror->DiffuseSrvHeapIndex = 2;
-	icemirror->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
-	icemirror->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-	icemirror->Roughness = 0.5f;
-
-	auto skullMat = std::make_unique<Material>();
-	skullMat->Name = "skullMat";
-	skullMat->MatCBIndex = 3;
-	skullMat->DiffuseSrvHeapIndex = 3;
-	skullMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	skullMat->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-	skullMat->Roughness = 0.3f;
-
-	auto shadowMat = std::make_unique<Material>();
-	shadowMat->Name = "shadowMat";
-	shadowMat->MatCBIndex = 4;
-	shadowMat->DiffuseSrvHeapIndex = 3;
-	shadowMat->DiffuseAlbedo = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.5f);
-	shadowMat->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
-	shadowMat->Roughness = 0.0f;
-
-   auto grass = std::make_unique<Material>();
-   grass->Name = "grass";
-   grass->MatCBIndex = 5;
-   grass->DiffuseSrvHeapIndex = 4;
-   //  grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
-   grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-   grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-   grass->Roughness = 0.125f;
-
-	materials_["bricks"] = std::move(bricks);
-	materials_["checkertile"] = std::move(checkertile);
-	materials_["icemirror"] = std::move(icemirror);
-	materials_["skullMat"] = std::move(skullMat);
-	materials_["shadowMat"] = std::move(shadowMat);
-  //  materials_["grass"] = std::move(grass);
-}
 
 void RenderSystem::LoadTexture() {
   /*auto woodCrateTex = make_unique<Texture>();
@@ -1663,10 +1566,164 @@ void RenderSystem::LoadTexture() {
 		d3d_command_list_.Get(), white1x1Tex->Filename.c_str(),
 		white1x1Tex->Resource, white1x1Tex->UploadHeap));
 
+  auto grass_tex = make_unique<Texture>();
+  grass_tex->Name = "grass";
+  grass_tex->Filename = L"Textures\\grass.dds";
+
+  ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
+    d3d_command_list_.Get(), grass_tex->Filename.c_str(),
+    grass_tex->Resource, grass_tex->UploadHeap));
+
 	textures_[bricksTex->Name] = std::move(bricksTex);
 	textures_[checkboardTex->Name] = std::move(checkboardTex);
 	textures_[iceTex->Name] = std::move(iceTex);
 	textures_[white1x1Tex->Name] = std::move(white1x1Tex);
+  textures_[grass_tex->Name] = move(grass_tex);
+}
+
+void RenderSystem::BuildDescriptorHeaps() {
+  const int textureDescriptorCount = 4;
+  const int blurDescriptorCount = 4;
+
+  D3D12_DESCRIPTOR_HEAP_DESC src_heap_desc = {};
+  src_heap_desc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
+  src_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+  src_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+  ThrowIfFailed(d3d_device_->CreateDescriptorHeap(&src_heap_desc, IID_PPV_ARGS(srv_descriptor_heap_.GetAddressOf())));
+
+  CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart());
+
+  //auto wood_crate_tex = textures_["Wood"]->Resource;
+  //auto grass_tex = textures_["Grass"]->Resource;
+  //auto water1_tex = textures_["Water"]->Resource;
+
+  auto bricksTex = textures_["bricksTex"]->Resource;
+  auto checkboardTex = textures_["checkboardTex"]->Resource;
+  auto iceTex = textures_["iceTex"]->Resource;
+  auto white1x1Tex = textures_["white1x1Tex"]->Resource;
+  auto grassTex = textures_["grass"]->Resource;
+
+  int offsetCount = 0;
+  D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+  srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+  srv_desc.Format = bricksTex->GetDesc().Format;
+  srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  srv_desc.Texture2D.MostDetailedMip = 0;
+  srv_desc.Texture2D.MipLevels = -1;  //  wood_crate_tex->GetDesc().MipLevels;
+  srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+  d3d_device_->CreateShaderResourceView(bricksTex.Get(), &srv_desc, hDescriptor);
+  ++offsetCount;
+
+  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
+  srv_desc.Format = checkboardTex->GetDesc().Format;
+  d3d_device_->CreateShaderResourceView(checkboardTex.Get(), &srv_desc, hDescriptor);
+  ++offsetCount;
+
+  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
+  srv_desc.Format = iceTex->GetDesc().Format;
+  d3d_device_->CreateShaderResourceView(iceTex.Get(), &srv_desc, hDescriptor);
+  ++offsetCount;
+
+  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
+  srv_desc.Format = white1x1Tex->GetDesc().Format;
+  d3d_device_->CreateShaderResourceView(white1x1Tex.Get(), &srv_desc, hDescriptor);
+  ++offsetCount;
+
+  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
+  srv_desc.Format = grassTex->GetDesc().Format;
+  d3d_device_->CreateShaderResourceView(grassTex.Get(), &srv_desc, hDescriptor);
+  ++offsetCount;
+
+  blur_filter_->BuildDescriptors(
+    CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 4, cbv_srv_uav_descriptor_size),
+    CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart(), 4, cbv_srv_uav_descriptor_size),
+    cbv_srv_uav_descriptor_size);
+}
+
+void RenderSystem::BuildMaterial() {
+
+
+  //   // This is not a good water material definition, but we do not have all the rendering
+  //   // tools we need (transparency, environment reflection), so we fake it for now.
+   //auto water = std::make_unique<Material>();
+   //water->Name = "water";
+   //water->MatCBIndex = 1;
+  // water->DiffuseSrvHeapIndex = 2;
+  // water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);
+  // water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+  // water->Roughness = 0.0f;
+
+  // auto wood_crate = std::make_unique<Material>();
+   //wood_crate->Name = "woodCrate";
+   //wood_crate->MatCBIndex = 2;
+   //wood_crate->DiffuseSrvHeapIndex = 0;
+   //wood_crate->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+   //wood_crate->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+   //wood_crate->Roughness = 0.2f;
+
+   //materials_["woodCrate"] = std::move(wood_crate);
+
+   //materials_["grass"] = std::move(grass);
+   //materials_["water"] = std::move(water);
+
+  auto bricks = std::make_unique<Material>();
+  bricks->Name = "bricks";
+  bricks->MatCBIndex = 0;
+  bricks->DiffuseSrvHeapIndex = 0;
+  bricks->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+  bricks->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+  bricks->Roughness = 0.25f;
+
+  auto checkertile = std::make_unique<Material>();
+  checkertile->Name = "checkertile";
+  checkertile->MatCBIndex = 1;
+  checkertile->DiffuseSrvHeapIndex = 1;
+  checkertile->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+  checkertile->FresnelR0 = XMFLOAT3(0.07f, 0.07f, 0.07f);
+  checkertile->Roughness = 0.3f;
+
+  auto icemirror = std::make_unique<Material>();
+  icemirror->Name = "icemirror";
+  icemirror->MatCBIndex = 2;
+  icemirror->DiffuseSrvHeapIndex = 2;
+  icemirror->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
+  icemirror->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+  icemirror->Roughness = 0.5f;
+
+  auto skullMat = std::make_unique<Material>();
+  skullMat->Name = "skullMat";
+  skullMat->MatCBIndex = 3;
+  skullMat->DiffuseSrvHeapIndex = 3;
+  skullMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+  skullMat->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+  skullMat->Roughness = 0.3f;
+
+  auto shadowMat = std::make_unique<Material>();
+  shadowMat->Name = "shadowMat";
+  shadowMat->MatCBIndex = 4;
+  shadowMat->DiffuseSrvHeapIndex = 3;
+  shadowMat->DiffuseAlbedo = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.5f);
+  shadowMat->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
+  shadowMat->Roughness = 0.0f;
+
+  auto grass = std::make_unique<Material>();
+  grass->Name = "grass";
+  grass->MatCBIndex = 5;
+  grass->DiffuseSrvHeapIndex = 5;
+  //  grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
+  grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+  grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+  grass->Roughness = 0.125f;
+
+  materials_["bricks"] = std::move(bricks);
+  materials_["checkertile"] = std::move(checkertile);
+  materials_["icemirror"] = std::move(icemirror);
+  materials_["skullMat"] = std::move(skullMat);
+  materials_["shadowMat"] = std::move(shadowMat);
+  materials_["grass"] = std::move(grass);
 }
 
 float RenderSystem::GetHillsHeight(float x, float z)const
@@ -1743,6 +1800,115 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> RenderSystem::GetStaticSamplers
 		pointWrap, pointClamp,
 		linearWrap, linearClamp, 
 		anisotropicWrap, anisotropicClamp };
+}
+
+void RenderSystem::Pick(int sx, int sy) {
+  XMFLOAT4X4 proj = camera_.GetProj4x4f();
+
+  float vx = (2.0f * sx / client_width_ - 1.0f) * proj(0, 0);
+  float vy = (-2.0f * sy / client_height_ + 1.0f) * proj(1, 1);
+
+  XMVECTOR ray_origin = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+  XMVECTOR ray_direction = XMVectorSet(vx, vy, 1.0f, 0.0f);
+
+  XMMATRIX view = camera_.GetView();
+  XMMATRIX inv_view = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+
+  XMVECTOR ray_origin_local = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+  XMVECTOR ray_direction_local = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+
+
+  for (auto& ri : items_layers_[(int)RenderLayer::kOpaque]) {
+
+    const auto instances = ri->Instances;
+
+    //  for (auto& instance : instances) {
+    for (int i = 0; i < instances.size(); ++i) {
+      InstanceData instance = instances[i];
+      XMMATRIX world = XMLoadFloat4x4(&instance.World);
+      XMMATRIX inv_world = XMMatrixInverse(&XMMatrixDeterminant(world), world);
+
+      XMMATRIX to_local = XMMatrixMultiply(inv_view, inv_world);
+
+      ray_origin_local = XMVector3TransformCoord(ray_origin, to_local);
+      ray_direction_local = XMVector3TransformNormal(ray_direction, to_local);
+      ray_direction_local = XMVector3Normalize(ray_direction_local);
+
+      float ray_distance = 1.0f;
+
+      if (ri->Bounds.Intersects(ray_origin_local, ray_direction_local, ray_distance)) {
+        if (picked_instance_ != nullptr) {
+          picked_instance_->MaterialIndex = ri->Mat->MatCBIndex;
+        }
+        //picked_item_->Instances[0].World = instance.World;
+        ri->Instances[i].MaterialIndex = picked_item_->Mat->MatCBIndex;
+        picked_instance_ = &ri->Instances[i];
+        /*instance.MaterialIndex = picked_item_->Mat->MatCBIndex;
+        XMStoreFloat4x4(&, instance.World);*/
+        return;
+      }
+    }
+
+
+    /*auto geo = ri->Geo;
+    XMMATRIX world = XMLoadFloat4x4(&ri->World);
+    XMMATRIX inv_world = XMMatrixInverse(&XMMatrixDeterminant(world), world);
+
+    XMMATRIX to_local = XMMatrixMultiply(inv_view, inv_world);
+
+    ray_origin_local = XMVector3TransformCoord(ray_origin, to_local);
+    ray_direction_local = XMVector3TransformNormal(ray_direction, to_local);
+    ray_direction_local = XMVector3Normalize(ray_direction_local);*/
+
+    //float ray_distance = 1.0f;
+    //if (ri->Bounds.Intersects(ray_origin, ray_direction, ray_distance)) {
+    //  // NOTE: For the demo, we know what to cast the vertex/index data to.  If we were mixing
+    //  // formats, some metadata would be needed to figure out what to cast it to.
+    //  auto vertices = (Vertex*)geo->VertexBufferCpu->GetBufferPointer();
+    //  auto indices = (std::uint32_t*)geo->IndexBufferCpu->GetBufferPointer();
+    //  UINT triCount = ri->IndexCount / 3;
+
+    //  // Find the nearest ray/triangle intersection.
+    //  ray_distance = MathHelper::Infinity;
+    //  for (UINT i = 0; i < triCount; ++i)
+    //  {
+    //    // Indices for this triangle.
+    //    UINT i0 = indices[i * 3 + 0];
+    //    UINT i1 = indices[i * 3 + 1];
+    //    UINT i2 = indices[i * 3 + 2];
+
+    //    // Vertices for this triangle.
+    //    XMVECTOR v0 = XMLoadFloat3(&vertices[i0].Pos);
+    //    XMVECTOR v1 = XMLoadFloat3(&vertices[i1].Pos);
+    //    XMVECTOR v2 = XMLoadFloat3(&vertices[i2].Pos);
+
+    //    // We have to iterate over all the triangles in order to find the nearest intersection.
+    //    float t = 0.0f;
+    //    if (TriangleTests::Intersects(ray_origin, ray_direction, v0, v1, v2, t))
+    //    {
+    //      if (t < ray_distance)
+    //      {
+    //        // This is the new nearest picked triangle.
+    //        ray_distance = t;
+    //        UINT pickedTriangle = i;
+
+    //        //  picked_item_->Visible = true;
+    //        picked_item_->IndexCount = 3;
+    //        picked_item_->BaseVertexLocation = 0;
+
+    //        // Picked render item needs same world matrix as object picked.
+    //        picked_item_->World = ri->World;
+    //        //  mPickedRitem->NumFramesDirty = gNumFrameResources;
+    //        picked_item_->NumFrameDirty = kNumFrameResources;
+
+    //        // Offset to the picked triangle in the mesh index buffer.
+    //        picked_item_->StartIndexLocation = 3 * pickedTriangle;
+    //      }
+    //    }
+    //  }
+    //}
+  }
+
 }
 
 

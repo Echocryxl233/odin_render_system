@@ -27,8 +27,8 @@ struct RenderItem {
 
   D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-  //  BoundingBox Bounds;
-  BoundingSphere Bounds;
+  BoundingBox Bounds;
+  //  BoundingSphere Bounds;
   vector<InstanceData> Instances;
   UINT InstanceCount = 0;
 

@@ -23,17 +23,6 @@ using Microsoft::WRL::ComPtr;
 
 namespace OdinRenderSystem {
 
-enum class RenderLayer : int
-{
-	kOpaque = 0,
-	kMirrors ,
-	kReflected,
-	kTransparent,
-	kShadow,
-	Count
-};
-
-
 class RenderSystem : public OdinRenderSystem::Application
 {
  public:
@@ -48,6 +37,7 @@ class RenderSystem : public OdinRenderSystem::Application
   XMFLOAT3 GetHillsNormal(float x, float z) const;
 
   std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+  void Pick(int sx, int sy);
 
  protected:
    void Update(const GameTimer& gt) override;
@@ -65,6 +55,9 @@ class RenderSystem : public OdinRenderSystem::Application
    virtual void UpdateReflectedPassCB(const GameTimer& gt);
 
    void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
+   void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const int render_layer);
+
+   //void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems, );
 
    void OnResize() override;
 
@@ -142,7 +135,7 @@ private:
   vector< unique_ptr<RenderItem> > render_items_;
   //  vector <RenderItem*> opaque_items_;
 
-  vector <RenderItem*> items_layers_[(int)RenderLayer::Count];
+  vector <RenderItem*> items_layers_[(int)RenderLayer::kMaxCount];
 
   vector<unique_ptr<FrameResource>> frame_resources_;
   FrameResource* current_frame_resource_;
@@ -176,6 +169,12 @@ private:
   UINT instance_count_;
 
   bool enable_frustum_culling_;
+
+  bool use_mouse_ = false;
+
+  RenderItem* picked_item_;
+
+  InstanceData* picked_instance_ = nullptr;
 };
 
 }
