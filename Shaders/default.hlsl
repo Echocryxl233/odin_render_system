@@ -143,7 +143,7 @@ float4 PS(VertexOut pin) : SV_Target
     float  Roughness = matData.Roughness;
   
     uint deffuseIndex = matData.DiffuseMapIndex;
-    diffuseAlbedo = gDiffuseMap[deffuseIndex].Sample(gsamPointWrap, pin.TexCoord) * diffuseAlbedo;
+    diffuseAlbedo = gDiffuseMap[deffuseIndex].Sample(gsamLinearWrap, pin.TexCoord) * diffuseAlbedo;
 
     pin.Normal = normalize(pin.Normal);
 

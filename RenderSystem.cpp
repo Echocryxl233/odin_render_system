@@ -75,21 +75,21 @@ void RenderSystem::Draw(const GameTimer& gt)
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
     //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
 
-    blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
-		  pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
+    //  blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
+		//    pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
 
-    d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		  D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
+    //  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		//    D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
 	  //  d3d_command_list_->CopyResource(CurrentBackBuffer(), blur_filter_->Output());
 
     // Transition to PRESENT state.
-	  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		  D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));
+	  //  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		//    D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));
 
     // Indicate a state transition on the resource usage.
-	 // d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		//D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		  D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     // Done recording commands.
     ThrowIfFailed(d3d_command_list_->Close());
@@ -1317,7 +1317,8 @@ void RenderSystem::BuildPipelineStateObjects() {
   pso_desc.SampleDesc.Count = use_4x_msaa_state_ ? 4 : 1;
 
   //  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pipeline_state_object_)));
-  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pipeline_state_objects_["Opaque"])));
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, 
+    IID_PPV_ARGS(&pipeline_state_objects_["Opaque"])));
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = pso_desc;
   D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
@@ -1332,7 +1333,9 @@ void RenderSystem::BuildPipelineStateObjects() {
   transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
   transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
   transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
-  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&pipeline_state_objects_[pso_name_transparent])));
+
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&transparentPsoDesc, 
+    IID_PPV_ARGS(&pipeline_state_objects_[pso_name_transparent])));
 
   D3D12_DEPTH_STENCIL_DESC mirrorDss;
   mirrorDss.DepthEnable = true;
@@ -1381,7 +1384,8 @@ void RenderSystem::BuildPipelineStateObjects() {
   reflectionPsoDesc.DepthStencilState = reflectionDss;
   reflectionPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
   reflectionPsoDesc.RasterizerState.FrontCounterClockwise = true;
-  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&reflectionPsoDesc, IID_PPV_ARGS(&pipeline_state_objects_[pso_name_reflection])));
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&reflectionPsoDesc, 
+    IID_PPV_ARGS(&pipeline_state_objects_[pso_name_reflection])));
 
 
   D3D12_COMPUTE_PIPELINE_STATE_DESC horzBlurPSO = {};
@@ -1392,7 +1396,8 @@ void RenderSystem::BuildPipelineStateObjects() {
 		shaders_["horzBlurCS"]->GetBufferSize()
 	};
 	horzBlurPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-	ThrowIfFailed(d3d_device_->CreateComputePipelineState(&horzBlurPSO, IID_PPV_ARGS(&pipeline_state_objects_["horzBlur"])));
+	ThrowIfFailed(d3d_device_->CreateComputePipelineState(&horzBlurPSO, 
+    IID_PPV_ARGS(&pipeline_state_objects_["horzBlur"])));
 
 
   D3D12_COMPUTE_PIPELINE_STATE_DESC vertBlurPSO = {};
@@ -1403,7 +1408,8 @@ void RenderSystem::BuildPipelineStateObjects() {
 		shaders_["vertBlurCS"]->GetBufferSize() 
 	};
   vertBlurPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-  ThrowIfFailed(d3d_device_->CreateComputePipelineState(&vertBlurPSO, IID_PPV_ARGS(&pipeline_state_objects_["vertBlur"])));
+  ThrowIfFailed(d3d_device_->CreateComputePipelineState(&vertBlurPSO, 
+    IID_PPV_ARGS(&pipeline_state_objects_["vertBlur"])));
 }
 
 void RenderSystem::OnResize() {
@@ -1441,6 +1447,9 @@ void RenderSystem::OnKeyboardInput(const GameTimer& gt) {
 
   if (GetAsyncKeyState('2') & 0x8000)
     enable_frustum_culling_ = false;
+
+  if (GetAsyncKeyState('3') & 0x8000)
+    use_4x_msaa_state_ = !use_4x_msaa_state_;
 
 	camera_.UpdateViewMatrix();
 }
@@ -1502,87 +1511,30 @@ void RenderSystem::OnMouseMove(WPARAM btnState, int x, int y) {
   last_mouse_pos.y = y;
 }
 
-
-
-
 void RenderSystem::LoadTexture() {
-  /*auto woodCrateTex = make_unique<Texture>();
-  woodCrateTex->Name = "wood";
-  woodCrateTex->Filename = L"Textures\\WoodCrate01.dds";
+  std::map<string, wstring> texs = {
+    {"bricksTex", L"Textures/bricks3.dds"},
+    {"checkboardTex", L"Textures/checkboard.dds"},
+    {"iceTex", L"Textures/ice.dds"},
+    {"white1x1Tex", L"Textures/white1x1.dds"},
+    {"grass", L"Textures/grass.dds"},
+    {"skyCubeMap", L"Textures/grasscube1024.dds"}
+  };
 
-  ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
-		d3d_command_list_.Get(), woodCrateTex->Filename.c_str(),
-		woodCrateTex->Resource, woodCrateTex->UploadHeap));
+  for (auto& it : texs) {
+    auto texture = std::make_unique<Texture>();
+    texture->Name = it.first;
+    texture->Filename = it.second;
+    ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
+      d3d_command_list_.Get(), texture->Filename.c_str(),
+      texture->Resource, texture->UploadHeap));
 
-  textures_["Wood"] = move(woodCrateTex);
-
-  auto grass_tex = make_unique<Texture>();
-  grass_tex->Name = "grass";
-  grass_tex->Filename = L"Textures\\grass.dds";
-
-  ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
-		d3d_command_list_.Get(), grass_tex->Filename.c_str(),
-		grass_tex->Resource, grass_tex->UploadHeap));
-
-  textures_["Grass"] = move(grass_tex);
-
-  auto water1_tex = make_unique<Texture>();
-  water1_tex->Name = "water1";
-  water1_tex->Filename = L"Textures\\water1.dds";
-
-  ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
-		d3d_command_list_.Get(), water1_tex->Filename.c_str(),
-		water1_tex->Resource, water1_tex->UploadHeap));
-
-  textures_["Water"] = move(water1_tex);*/
-
-  //  ----------------
-
-  auto bricksTex = std::make_unique<Texture>();
-	bricksTex->Name = "bricksTex";
-	bricksTex->Filename = L"Textures/bricks3.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
-		d3d_command_list_.Get(), bricksTex->Filename.c_str(),
-		bricksTex->Resource, bricksTex->UploadHeap));
-
-	auto checkboardTex = std::make_unique<Texture>();
-	checkboardTex->Name = "checkboardTex";
-	checkboardTex->Filename = L"Textures/checkboard.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
-		d3d_command_list_.Get(), checkboardTex->Filename.c_str(),
-		checkboardTex->Resource, checkboardTex->UploadHeap));
-
-	auto iceTex = std::make_unique<Texture>();
-	iceTex->Name = "iceTex";
-	iceTex->Filename = L"Textures/ice.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
-		d3d_command_list_.Get(), iceTex->Filename.c_str(),
-		iceTex->Resource, iceTex->UploadHeap));
-
-	auto white1x1Tex = std::make_unique<Texture>();
-	white1x1Tex->Name = "white1x1Tex";
-	white1x1Tex->Filename = L"Textures/white1x1.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
-		d3d_command_list_.Get(), white1x1Tex->Filename.c_str(),
-		white1x1Tex->Resource, white1x1Tex->UploadHeap));
-
-  auto grass_tex = make_unique<Texture>();
-  grass_tex->Name = "grass";
-  grass_tex->Filename = L"Textures\\grass.dds";
-
-  ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(d3d_device_.Get(),
-    d3d_command_list_.Get(), grass_tex->Filename.c_str(),
-    grass_tex->Resource, grass_tex->UploadHeap));
-
-	textures_[bricksTex->Name] = std::move(bricksTex);
-	textures_[checkboardTex->Name] = std::move(checkboardTex);
-	textures_[iceTex->Name] = std::move(iceTex);
-	textures_[white1x1Tex->Name] = std::move(white1x1Tex);
-  textures_[grass_tex->Name] = move(grass_tex);
+    textures_[texture->Name] = std::move(texture);
+  }
 }
 
 void RenderSystem::BuildDescriptorHeaps() {
-  const int textureDescriptorCount = 4;
+  const int textureDescriptorCount = 6;
   const int blurDescriptorCount = 4;
 
   D3D12_DESCRIPTOR_HEAP_DESC src_heap_desc = {};
@@ -1604,6 +1556,7 @@ void RenderSystem::BuildDescriptorHeaps() {
   auto iceTex = textures_["iceTex"]->Resource;
   auto white1x1Tex = textures_["white1x1Tex"]->Resource;
   auto grassTex = textures_["grass"]->Resource;
+  auto skyTex = textures_["skyCubeMap"]->Resource;
 
   int offsetCount = 0;
   D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -1611,14 +1564,14 @@ void RenderSystem::BuildDescriptorHeaps() {
   srv_desc.Format = bricksTex->GetDesc().Format;
   srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
   srv_desc.Texture2D.MostDetailedMip = 0;
-  srv_desc.Texture2D.MipLevels = -1;  //  wood_crate_tex->GetDesc().MipLevels;
+  srv_desc.Texture2D.MipLevels = bricksTex->GetDesc().MipLevels;  //  wood_crate_tex->GetDesc().MipLevels;
   srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
-
   d3d_device_->CreateShaderResourceView(bricksTex.Get(), &srv_desc, hDescriptor);
   ++offsetCount;
 
   hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
   srv_desc.Format = checkboardTex->GetDesc().Format;
+  srv_desc.Texture2D.MipLevels = checkboardTex->GetDesc().MipLevels;
   d3d_device_->CreateShaderResourceView(checkboardTex.Get(), &srv_desc, hDescriptor);
   ++offsetCount;
 
@@ -1636,6 +1589,13 @@ void RenderSystem::BuildDescriptorHeaps() {
   srv_desc.Format = grassTex->GetDesc().Format;
   d3d_device_->CreateShaderResourceView(grassTex.Get(), &srv_desc, hDescriptor);
   ++offsetCount;
+
+  srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+  srv_desc.TextureCube.MostDetailedMip = 0;
+  srv_desc.TextureCube.MipLevels = skyTex->GetDesc().MipLevels;
+  srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
+  srv_desc.Format = skyTex->GetDesc().Format;
+  d3d_device_->CreateShaderResourceView(skyTex.Get(), &srv_desc, hDescriptor);
 
   blur_filter_->BuildDescriptors(
     CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 4, cbv_srv_uav_descriptor_size),
@@ -1718,12 +1678,21 @@ void RenderSystem::BuildMaterial() {
   grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
   grass->Roughness = 0.125f;
 
+  auto sky = std::make_unique<Material>();
+  sky->Name = "sky";
+  sky->MatCBIndex = 6;
+  sky->DiffuseSrvHeapIndex = 6;
+  sky->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+  sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+  sky->Roughness = 1.0f;
+
   materials_["bricks"] = std::move(bricks);
   materials_["checkertile"] = std::move(checkertile);
   materials_["icemirror"] = std::move(icemirror);
   materials_["skullMat"] = std::move(skullMat);
   materials_["shadowMat"] = std::move(shadowMat);
   materials_["grass"] = std::move(grass);
+  materials_["sky"] = std::move(sky);
 }
 
 float RenderSystem::GetHillsHeight(float x, float z)const
@@ -1840,73 +1809,13 @@ void RenderSystem::Pick(int sx, int sy) {
         if (picked_instance_ != nullptr) {
           picked_instance_->MaterialIndex = ri->Mat->MatCBIndex;
         }
-        //picked_item_->Instances[0].World = instance.World;
         ri->Instances[i].MaterialIndex = picked_item_->Mat->MatCBIndex;
         picked_instance_ = &ri->Instances[i];
-        /*instance.MaterialIndex = picked_item_->Mat->MatCBIndex;
-        XMStoreFloat4x4(&, instance.World);*/
+
         return;
       }
     }
 
-
-    /*auto geo = ri->Geo;
-    XMMATRIX world = XMLoadFloat4x4(&ri->World);
-    XMMATRIX inv_world = XMMatrixInverse(&XMMatrixDeterminant(world), world);
-
-    XMMATRIX to_local = XMMatrixMultiply(inv_view, inv_world);
-
-    ray_origin_local = XMVector3TransformCoord(ray_origin, to_local);
-    ray_direction_local = XMVector3TransformNormal(ray_direction, to_local);
-    ray_direction_local = XMVector3Normalize(ray_direction_local);*/
-
-    //float ray_distance = 1.0f;
-    //if (ri->Bounds.Intersects(ray_origin, ray_direction, ray_distance)) {
-    //  // NOTE: For the demo, we know what to cast the vertex/index data to.  If we were mixing
-    //  // formats, some metadata would be needed to figure out what to cast it to.
-    //  auto vertices = (Vertex*)geo->VertexBufferCpu->GetBufferPointer();
-    //  auto indices = (std::uint32_t*)geo->IndexBufferCpu->GetBufferPointer();
-    //  UINT triCount = ri->IndexCount / 3;
-
-    //  // Find the nearest ray/triangle intersection.
-    //  ray_distance = MathHelper::Infinity;
-    //  for (UINT i = 0; i < triCount; ++i)
-    //  {
-    //    // Indices for this triangle.
-    //    UINT i0 = indices[i * 3 + 0];
-    //    UINT i1 = indices[i * 3 + 1];
-    //    UINT i2 = indices[i * 3 + 2];
-
-    //    // Vertices for this triangle.
-    //    XMVECTOR v0 = XMLoadFloat3(&vertices[i0].Pos);
-    //    XMVECTOR v1 = XMLoadFloat3(&vertices[i1].Pos);
-    //    XMVECTOR v2 = XMLoadFloat3(&vertices[i2].Pos);
-
-    //    // We have to iterate over all the triangles in order to find the nearest intersection.
-    //    float t = 0.0f;
-    //    if (TriangleTests::Intersects(ray_origin, ray_direction, v0, v1, v2, t))
-    //    {
-    //      if (t < ray_distance)
-    //      {
-    //        // This is the new nearest picked triangle.
-    //        ray_distance = t;
-    //        UINT pickedTriangle = i;
-
-    //        //  picked_item_->Visible = true;
-    //        picked_item_->IndexCount = 3;
-    //        picked_item_->BaseVertexLocation = 0;
-
-    //        // Picked render item needs same world matrix as object picked.
-    //        picked_item_->World = ri->World;
-    //        //  mPickedRitem->NumFramesDirty = gNumFrameResources;
-    //        picked_item_->NumFrameDirty = kNumFrameResources;
-
-    //        // Offset to the picked triangle in the mesh index buffer.
-    //        picked_item_->StartIndexLocation = 3 * pickedTriangle;
-    //      }
-    //    }
-    //  }
-    //}
   }
 
 }
