@@ -1,6 +1,13 @@
 # OdinRenderSystem
 primery code about DX12 with beginning
-for learning
+just for learning
+
+2019-07-17
+1. Sky render item
+2. Sky cube map
+3. Sky box shader
+4. Some issuses still here, such as sky item visibility
+5. The root signature, can i swap [4] and [5]?
 
 2019-07-11
 1. Devide render layer and patch buffer, primery render queue
