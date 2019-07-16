@@ -19,6 +19,7 @@ enum class RenderLayer : int
   kReflected,
   kTransparent,
   kShadow,
+  kSky,
   kMaxCount
 };
 

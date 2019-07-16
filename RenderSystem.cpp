@@ -53,11 +53,17 @@ void RenderSystem::Draw(const GameTimer& gt)
     auto passCB = current_frame_resource_->PassCB->Resource();
 	  d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-    
 
-    d3d_command_list_->SetGraphicsRootDescriptorTable(3, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+    CD3DX12_GPU_DESCRIPTOR_HANDLE skyTexDescriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+    skyTexDescriptor.Offset(5, cbv_srv_uav_descriptor_size);
+    d3d_command_list_->SetGraphicsRootDescriptorTable(3, skyTexDescriptor);
+
+    d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
     //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kOpaque]);
+
+    d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
+    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
 
     //d3d_command_list_->OMSetStencilRef(1);
     //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_mirror].Get());
@@ -357,6 +363,8 @@ void RenderSystem::UpdateMaterialBuffer(const GameTimer& gt) {
       mat_data.DiffuseAlbedo = material->DiffuseAlbedo;
       XMStoreFloat4x4(&mat_data.MatTransform, XMMatrixTranspose(matTransform));
       mat_data.DiffuseMapIndex = material->DiffuseSrvHeapIndex;
+      //  mat_data.DiffuseMapIndex = material->MatCBIndex;
+      
 
       material_cb->CopyData(material->MatCBIndex, mat_data);
       material->NumFrameDirty --;
@@ -438,14 +446,14 @@ void RenderSystem::BuildFrameResource() {
 
 void RenderSystem::BuildShapeGeometry() {
   GeometryGenerator geo_generator;
-  auto mesh_box = geo_generator.CreateBox(1.0f, 1.0f, 1.0f, 0);
+  auto mesh_shpere = geo_generator.CreateSphere(0.5f, 20, 20);
 
-  vector<Vertex> vertices_geo(mesh_box.Vertices.size());
-  vector<uint16_t> indices_geo = mesh_box.GetIndices16();
-  for (int i=0; i<mesh_box.Vertices.size(); ++i) {
-    vertices_geo[i].Pos = mesh_box.Vertices[i].Position;
-    vertices_geo[i].Normal =  mesh_box.Vertices[i].Normal;
-    vertices_geo[i].TexCoord =  mesh_box.Vertices[i].TexC;
+  vector<Vertex> vertices_geo(mesh_shpere.Vertices.size());
+  vector<uint16_t> indices_geo = mesh_shpere.GetIndices16();
+  for (int i=0; i<mesh_shpere.Vertices.size(); ++i) {
+    vertices_geo[i].Pos = mesh_shpere.Vertices[i].Position;
+    vertices_geo[i].Normal =  mesh_shpere.Vertices[i].Normal;
+    vertices_geo[i].TexCoord =  mesh_shpere.Vertices[i].TexC;
   }
 
   //for (int i=0; i<mesh_sphere.Vertices.size(); ++i, ++k) {
@@ -488,7 +496,7 @@ void RenderSystem::BuildShapeGeometry() {
 
   ////  geo->IndexCount = (UINT)indices_geo.size();
 
-  geo->DrawArgs["Box"] = std::move(box_sub_mesh_geo);
+  geo->DrawArgs["Sphere"] = std::move(box_sub_mesh_geo);
   //geo->DrawArgs["Sphere"] = std::move(sphere_sub_mesh_geo);
   //
   mesh_geos_[geo->Name] = std::move(geo);
@@ -1093,7 +1101,7 @@ void RenderSystem::BuildRenderItems() {
 	skullRitem->TexTransform = MathHelper::Identity4x4();
 	skullRitem->ObjectCBIndex = 0;
 	//  skullRitem->Mat = materials_["skullMat"].get();
-  skullRitem->Mat = materials_["bricks"].get();
+  skullRitem->Mat = materials_["grass"].get();
   
 	skullRitem->Geo = mesh_geos_["skullGeo"].get();
 	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1151,10 +1159,32 @@ void RenderSystem::BuildRenderItems() {
     XMMATRIX offset = XMMatrixTranslation(10.0f * i, 0.0f, -0.0f);
     XMMATRIX world = rotate * scale * offset;
     XMStoreFloat4x4(&skullRitem->Instances[i].World, world);
-    skullRitem->Instances[i].MaterialIndex = materials_["bricks"]->MatCBIndex;
+    skullRitem->Instances[i].MaterialIndex = materials_["grass"]->MatCBIndex;
   }
 
 	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
+
+  auto sky_render_item = std::make_unique<RenderItem>();
+  sky_render_item->Geo = mesh_geos_["ShapeGeo"].get();
+  sky_render_item->Mat = materials_["grass"].get();
+  sky_render_item->ObjectCBIndex = 0;
+
+  
+  
+  //  XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-5.0f, 0.0f, 0.0f));
+  sky_render_item->IndexCount = sky_render_item->Geo->DrawArgs["Sphere"].IndexCount;
+  sky_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  sky_render_item->StartIndexLocation = sky_render_item->Geo->DrawArgs["Sphere"].StartIndexLocation;
+  sky_render_item->BaseVertexLocation = sky_render_item->Geo->DrawArgs["Sphere"].BaseVertexLocation;
+  sky_render_item->Instances.resize(1);
+  XMStoreFloat4x4(&sky_render_item->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f)* XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+
+  //  sky_render_item->Instances[0].World = MathHelper::Identity4x4();
+  //  pick_item->Instances[0].World = MathHelper::Identity4x4();
+  sky_render_item->Instances[0].MaterialIndex = sky_render_item->Mat->MatCBIndex;
+
+  items_layers_[(int)RenderLayer::kSky].push_back(sky_render_item.get());
+  
 
   XMMATRIX pick_rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
   XMMATRIX pick_scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
@@ -1183,18 +1213,19 @@ void RenderSystem::BuildRenderItems() {
   items_layers_[(int)RenderLayer::kTransparent].push_back(pick_item.get());
 
   render_items_.push_back(std::move(skullRitem));
+  render_items_.push_back(std::move(sky_render_item));
   render_items_.push_back(std::move(pick_item));
 }
 
-void RenderSystem::DrawRenderItems() {
-  
-}
 
 void RenderSystem::BuildShadersAndInputLayout() {
   shaders_["standardVS"] = d3dUtil::CompileShader(L"Shaders\\default.hlsl", nullptr, "VS", "vs_5_1");
 	shaders_["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\default.hlsl", nullptr, "PS", "ps_5_1");
   shaders_["horzBlurCS"] = d3dUtil::CompileShader(L"Shaders\\Blur.hlsl", nullptr, "HorzBlurCS", "cs_5_0");
 	shaders_["vertBlurCS"] = d3dUtil::CompileShader(L"Shaders\\Blur.hlsl", nullptr, "VertBlurCS", "cs_5_0");
+
+  shaders_["skyVS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "SkyVS", "vs_5_1");
+  shaders_["skyPS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "SkyPS", "ps_5_1");
 	
   input_layout_ =
   {
@@ -1205,20 +1236,34 @@ void RenderSystem::BuildShadersAndInputLayout() {
 }
 
 void RenderSystem::BuildRootSignature() {
-  CD3DX12_DESCRIPTOR_RANGE tex_table;
-	tex_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0);
+  
 
-  CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+  CD3DX12_DESCRIPTOR_RANGE tex_table1;
+  tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+
+  CD3DX12_DESCRIPTOR_RANGE tex_table2;
+  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 1, 0);
+
+  //  CD3DX12_DESCRIPTOR_RANGE tex_table2;
+  //  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 0, 0);
+
+
+  const int parameter_count = 5;
+
+  CD3DX12_ROOT_PARAMETER slotRootParameter[parameter_count];
   
   
   slotRootParameter[0].InitAsShaderResourceView(0, 1);
   slotRootParameter[1].InitAsShaderResourceView(1, 1);
   slotRootParameter[2].InitAsConstantBufferView(0);
-  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table1, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[4].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
+
+  //  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
 
   auto static_samplers = GetStaticSamplers();
 
-  CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter, 
+  CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(parameter_count, slotRootParameter,
     (UINT)static_samplers.size(), static_samplers.data(), 
       D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -1410,6 +1455,49 @@ void RenderSystem::BuildPipelineStateObjects() {
   vertBlurPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
   ThrowIfFailed(d3d_device_->CreateComputePipelineState(&vertBlurPSO, 
     IID_PPV_ARGS(&pipeline_state_objects_["vertBlur"])));
+
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC sky_pso_desc = pso_desc;
+  sky_pso_desc.pRootSignature = root_signature_.Get();
+  sky_pso_desc.VS = { 
+    reinterpret_cast<BYTE*>(shaders_["skyVS"]->GetBufferPointer()),
+    shaders_["skyVS"]->GetBufferSize() 
+  };
+  sky_pso_desc.PS = {
+    reinterpret_cast<BYTE*>(shaders_["skyPS"]->GetBufferPointer()),
+    shaders_["skyPS"]->GetBufferSize()
+  };
+  sky_pso_desc.RasterizerState.CullMode = D3D12_CULL_MODE::D3D12_CULL_MODE_NONE;
+  sky_pso_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&sky_pso_desc,
+    IID_PPV_ARGS(&pipeline_state_objects_["sky"])));
+
+  ////
+  //// PSO for sky.
+  ////
+  //D3D12_GRAPHICS_PIPELINE_STATE_DESC sky_pso_desc = pso_desc;
+
+  // The camera is inside the sky sphere, so just turn off culling.
+  // sky_pso_desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+
+  // Make sure the depth function is LESS_EQUAL and not just LESS.  
+  // Otherwise, the normalized depth values at z = 1 (NDC) will 
+  // fail the depth test if the depth buffer was cleared to 1.
+  //  sky_pso_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+  //sky_pso_desc.pRootSignature = root_signature_.Get();
+  //sky_pso_desc.VS =
+  //{
+  //  reinterpret_cast<BYTE*>(shaders_["skyVS"]->GetBufferPointer()),
+  //  shaders_["skyVS"]->GetBufferSize()
+  //};
+  //sky_pso_desc.PS =
+  //{
+  //  reinterpret_cast<BYTE*>(shaders_["skyPS"]->GetBufferPointer()),
+  //  shaders_["skyPS"]->GetBufferSize()
+  //};
+  //ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&sky_pso_desc,
+  //  IID_PPV_ARGS(&pipeline_state_objects_["sky"])));
+
 }
 
 void RenderSystem::OnResize() {
@@ -1535,10 +1623,11 @@ void RenderSystem::LoadTexture() {
 
 void RenderSystem::BuildDescriptorHeaps() {
   const int textureDescriptorCount = 6;
-  const int blurDescriptorCount = 4;
+  //const int blurDescriptorCount = 4;
 
   D3D12_DESCRIPTOR_HEAP_DESC src_heap_desc = {};
-  src_heap_desc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
+  //  src_heap_desc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
+  src_heap_desc.NumDescriptors = textureDescriptorCount;
   src_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
   src_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -1566,41 +1655,45 @@ void RenderSystem::BuildDescriptorHeaps() {
   srv_desc.Texture2D.MostDetailedMip = 0;
   srv_desc.Texture2D.MipLevels = bricksTex->GetDesc().MipLevels;  //  wood_crate_tex->GetDesc().MipLevels;
   srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
-  d3d_device_->CreateShaderResourceView(bricksTex.Get(), &srv_desc, hDescriptor);
+  d3d_device_->CreateShaderResourceView(bricksTex.Get(), &srv_desc, hDescriptor); //  0
   ++offsetCount;
 
   hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
   srv_desc.Format = checkboardTex->GetDesc().Format;
   srv_desc.Texture2D.MipLevels = checkboardTex->GetDesc().MipLevels;
-  d3d_device_->CreateShaderResourceView(checkboardTex.Get(), &srv_desc, hDescriptor);
+  d3d_device_->CreateShaderResourceView(checkboardTex.Get(), &srv_desc, hDescriptor); //  1
   ++offsetCount;
 
   hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
   srv_desc.Format = iceTex->GetDesc().Format;
-  d3d_device_->CreateShaderResourceView(iceTex.Get(), &srv_desc, hDescriptor);
+  d3d_device_->CreateShaderResourceView(iceTex.Get(), &srv_desc, hDescriptor);  //  4
   ++offsetCount;
 
   hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
   srv_desc.Format = white1x1Tex->GetDesc().Format;
-  d3d_device_->CreateShaderResourceView(white1x1Tex.Get(), &srv_desc, hDescriptor);
+  srv_desc.Texture2D.MipLevels = white1x1Tex->GetDesc().MipLevels;
+  d3d_device_->CreateShaderResourceView(white1x1Tex.Get(), &srv_desc, hDescriptor); //  3
   ++offsetCount;
 
   hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
   srv_desc.Format = grassTex->GetDesc().Format;
-  d3d_device_->CreateShaderResourceView(grassTex.Get(), &srv_desc, hDescriptor);
+  srv_desc.Texture2D.MipLevels = grassTex->GetDesc().MipLevels;
+  d3d_device_->CreateShaderResourceView(grassTex.Get(), &srv_desc, hDescriptor);  //  2
   ++offsetCount;
+ 
 
+  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
   srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
   srv_desc.TextureCube.MostDetailedMip = 0;
   srv_desc.TextureCube.MipLevels = skyTex->GetDesc().MipLevels;
   srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
   srv_desc.Format = skyTex->GetDesc().Format;
-  d3d_device_->CreateShaderResourceView(skyTex.Get(), &srv_desc, hDescriptor);
+  d3d_device_->CreateShaderResourceView(skyTex.Get(), &srv_desc, hDescriptor);  //  5
 
-  blur_filter_->BuildDescriptors(
-    CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 4, cbv_srv_uav_descriptor_size),
-    CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart(), 4, cbv_srv_uav_descriptor_size),
-    cbv_srv_uav_descriptor_size);
+  //blur_filter_->BuildDescriptors(
+  //  CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
+  //  CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
+  //  cbv_srv_uav_descriptor_size);
 }
 
 void RenderSystem::BuildMaterial() {
@@ -1672,8 +1765,8 @@ void RenderSystem::BuildMaterial() {
   auto grass = std::make_unique<Material>();
   grass->Name = "grass";
   grass->MatCBIndex = 5;
-  grass->DiffuseSrvHeapIndex = 5;
-  //  grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
+  grass->DiffuseSrvHeapIndex = 4;
+  //grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
   grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
   grass->Roughness = 0.125f;
@@ -1681,7 +1774,7 @@ void RenderSystem::BuildMaterial() {
   auto sky = std::make_unique<Material>();
   sky->Name = "sky";
   sky->MatCBIndex = 6;
-  sky->DiffuseSrvHeapIndex = 6;
+  sky->DiffuseSrvHeapIndex = 5;
   sky->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
   sky->Roughness = 1.0f;
