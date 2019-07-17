@@ -16,6 +16,7 @@
 #include "BlurFilter.h"
 
 #include "Common/Camera.h"
+#include "CubeRenderTarget.h"
 
 using namespace std;
 using namespace DirectX;
@@ -44,6 +45,8 @@ class RenderSystem : public OdinRenderSystem::Application
    void Draw(const GameTimer& gt) override;
    void OnKeyboardInput(const GameTimer& gt);
 
+
+   void UpdateSkullAnimate(const GameTimer& gt);
    virtual void UpdateCamera(const GameTimer& gt);
    virtual void UpdateObjectCBs(const GameTimer& gt) ;
    virtual void UpdateMainPassCB(const GameTimer& gt);
@@ -85,6 +88,8 @@ class RenderSystem : public OdinRenderSystem::Application
    void LoadTexture();
    
    void BuildPostProcessRootSignature();
+
+   void BuildCubeFaceCamera(float x, float y, float z);
 
 private:
   //  ComPtr<ID3D12DescriptorHeap> cbv_heap_;
@@ -153,7 +158,7 @@ private:
 
   ComPtr<ID3D12DescriptorHeap> srv_descriptor_heap_ = nullptr;  //  use for srv_uav_cbv_heap
 
-  RenderItem* mSkullRitem = nullptr;
+  RenderItem* skull_render_item_ = nullptr;
 	RenderItem* mReflectedSkullRitem = nullptr;
 	RenderItem* mShadowedSkullRitem = nullptr;
   std::string pso_name_transparent = "Transparent";
@@ -164,6 +169,8 @@ private:
   std::unique_ptr<BlurFilter> blur_filter_;
 
   Camera camera_;
+  Camera cube_map_cameras_[6];
+
   BoundingFrustum camera_frustum_;
 
   UINT instance_count_;
@@ -175,6 +182,8 @@ private:
   RenderItem* picked_item_;
 
   InstanceData* picked_instance_ = nullptr;
+
+  unique_ptr<CubeRenderTarget> dynamic_cube_map_ = nullptr;
 };
 
 }

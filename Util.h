@@ -39,6 +39,8 @@ using Microsoft::WRL::ComPtr;
 
 const int kNumFrameResources = 3;
 
+const int kCubeMapSize = 512;
+
 class DxException
 {
 public:

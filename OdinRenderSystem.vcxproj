@@ -142,6 +142,7 @@
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="BlurFilter.cpp" />
     <ClCompile Include="Common\Camera.cpp" />
+    <ClCompile Include="CubeRenderTarget.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="GameTimer.cpp" />
@@ -157,6 +158,7 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="BlurFilter.h" />
     <ClInclude Include="Common\Camera.h" />
+    <ClInclude Include="CubeRenderTarget.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="FrameResource.h" />

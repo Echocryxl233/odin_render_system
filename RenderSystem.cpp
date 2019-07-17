@@ -62,6 +62,8 @@ void RenderSystem::Draw(const GameTimer& gt)
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
     //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kOpaque]);
 
+    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
+
     d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
 
@@ -183,6 +185,7 @@ void RenderSystem::Update(const GameTimer& gt) {
 	}
 
   //  AnimateMaterials(gt);
+  UpdateSkullAnimate(gt);
   UpdateObjectCBs(gt);
   UpdateInstanceData(gt);
   UpdateMainPassCB(gt);
@@ -190,6 +193,28 @@ void RenderSystem::Update(const GameTimer& gt) {
   UpdateReflectedPassCB(gt);
   //  UpdateWave(gt);
   
+}
+
+void RenderSystem::UpdateSkullAnimate(const GameTimer& gt) {
+
+  int index = 0;
+  for (auto& instance : skull_render_item_->Instances) {
+    //  XMStoreFloat4x4(&instance.World, 
+    XMMATRIX self_transform = XMLoadFloat4x4(&instance.World);
+   
+    XMMATRIX rotate_self = XMMatrixRotationY(2.0f*gt.DeltaTime());
+    XMMATRIX scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+    XMMATRIX offset = XMMatrixTranslation(10.0f, 0.0f, -0.0f);
+    
+    XMMATRIX world = rotate_self * self_transform * rotate_self;
+    //  XMMATRIX world = self_transform * scale * rotate_self * offset;
+
+    XMStoreFloat4x4(&instance.World, world);
+
+    skull_render_item_->NumFrameDirty = kNumFrameResources;
+
+    ++index;
+  }
 }
 
 void RenderSystem::UpdateCamera(const GameTimer& gt) {
@@ -295,7 +320,7 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
 
   int visible_instance_count = 0;
   int total_visible_count = 0;
-  int total_instance_count = 0;
+  size_t total_instance_count = 0;
  
   for (int i = (int)RenderLayer::kOpaque; i < (int)RenderLayer::kMaxCount; ++i) {
 
@@ -318,7 +343,7 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
 
         camera_frustum_.Transform(local_frustum, local_to_view);
 
-        if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT || (!enable_frustum_culling_)) {
+        if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT || (!enable_frustum_culling_) || item->Visible) {
           InstanceData data;
           XMStoreFloat4x4(&data.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
           XMStoreFloat4x4(&data.TexTransform, XMMatrixTranspose(tex_transform));  
@@ -328,10 +353,10 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
           current_instance_buffer->CopyData(visible_instance_count, data);
           visible_instance_count++;
         }
-
-        item->InstanceCount = visible_instance_count;
-        total_visible_count += visible_instance_count;
       }
+
+      item->InstanceCount = visible_instance_count;
+      total_visible_count += visible_instance_count;
     }
   }
   
@@ -408,6 +433,11 @@ bool RenderSystem::Initialize() {
   blur_filter_ = std::make_unique<BlurFilter>(d3d_device_.Get(), client_width_, client_height_, DXGI_FORMAT_R8G8B8A8_UNORM);
 
   camera_.SetPosition(0.0f, 2.0f, -15.0f);
+
+  BuildCubeFaceCamera(0.0f, 2.0f, 0.0f);
+
+  dynamic_cube_map_ = make_unique<CubeRenderTarget>(d3d_device_.Get(), kCubeMapSize,
+    kCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM);
 
   BuildRootSignature();
   BuildPostProcessRootSignature();
@@ -1110,7 +1140,7 @@ void RenderSystem::BuildRenderItems() {
 	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
   skullRitem->Bounds = skullRitem->Geo->DrawArgs["skull"].Bounds;
 
-	//  mSkullRitem = skullRitem.get();
+	skull_render_item_ = skullRitem.get();
 
   // Generate instance data.
 	const int n = 5;
@@ -1150,27 +1180,25 @@ void RenderSystem::BuildRenderItems() {
 	//	}
 	//}
 
-  int instance_count = 3;
+  int instance_count = 1;
   skullRitem->Instances.resize(instance_count);
 
   for (int i = 0; i < instance_count; ++i) {
     XMMATRIX rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
     XMMATRIX scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-    XMMATRIX offset = XMMatrixTranslation(10.0f * i, 0.0f, -0.0f);
+    XMMATRIX offset = XMMatrixTranslation(10.0f * (i+1), 0.0f, -0.0f);
     XMMATRIX world = rotate * scale * offset;
     XMStoreFloat4x4(&skullRitem->Instances[i].World, world);
-    skullRitem->Instances[i].MaterialIndex = materials_["grass"]->MatCBIndex;
+    skullRitem->Instances[i].MaterialIndex = materials_["skullMat"]->MatCBIndex;
   }
 
 	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
 
   auto sky_render_item = std::make_unique<RenderItem>();
   sky_render_item->Geo = mesh_geos_["ShapeGeo"].get();
-  sky_render_item->Mat = materials_["grass"].get();
+  sky_render_item->Mat = materials_["sky"].get();
   sky_render_item->ObjectCBIndex = 0;
 
-  
-  
   //  XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-5.0f, 0.0f, 0.0f));
   sky_render_item->IndexCount = sky_render_item->Geo->DrawArgs["Sphere"].IndexCount;
   sky_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1182,8 +1210,26 @@ void RenderSystem::BuildRenderItems() {
   //  sky_render_item->Instances[0].World = MathHelper::Identity4x4();
   //  pick_item->Instances[0].World = MathHelper::Identity4x4();
   sky_render_item->Instances[0].MaterialIndex = sky_render_item->Mat->MatCBIndex;
+  sky_render_item->Visible = true;
 
   items_layers_[(int)RenderLayer::kSky].push_back(sky_render_item.get());
+
+  auto ball_render_item = std::make_unique<RenderItem>();
+  ball_render_item->Geo = mesh_geos_["ShapeGeo"].get();
+  ball_render_item->Mat = materials_["mirror0"].get();
+  ball_render_item->ObjectCBIndex = 0;
+
+  //  XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-5.0f, 0.0f, 0.0f));
+  ball_render_item->IndexCount = ball_render_item->Geo->DrawArgs["Sphere"].IndexCount;
+  ball_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  ball_render_item->StartIndexLocation = ball_render_item->Geo->DrawArgs["Sphere"].StartIndexLocation;
+  ball_render_item->BaseVertexLocation = ball_render_item->Geo->DrawArgs["Sphere"].BaseVertexLocation;
+  ball_render_item->Instances.resize(1);
+  XMStoreFloat4x4(&ball_render_item->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f)* XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+
+  ball_render_item->Instances[0].MaterialIndex = ball_render_item->Mat->MatCBIndex;
+
+  items_layers_[(int)RenderLayer::kReflected].push_back(ball_render_item.get());
   
 
   XMMATRIX pick_rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
@@ -1214,6 +1260,7 @@ void RenderSystem::BuildRenderItems() {
 
   render_items_.push_back(std::move(skullRitem));
   render_items_.push_back(std::move(sky_render_item));
+  render_items_.push_back(std::move(ball_render_item));
   render_items_.push_back(std::move(pick_item));
 }
 
@@ -1762,9 +1809,17 @@ void RenderSystem::BuildMaterial() {
   shadowMat->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
   shadowMat->Roughness = 0.0f;
 
+  auto mirror0 = std::make_unique<Material>();
+  mirror0->Name = "mirror0";
+  mirror0->MatCBIndex = 5;
+  mirror0->DiffuseSrvHeapIndex = 3;
+  mirror0->DiffuseAlbedo = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+  mirror0->FresnelR0 = XMFLOAT3(0.98f, 0.97f, 0.95f);
+  mirror0->Roughness = 0.1f;
+
   auto grass = std::make_unique<Material>();
   grass->Name = "grass";
-  grass->MatCBIndex = 5;
+  grass->MatCBIndex = 6;
   grass->DiffuseSrvHeapIndex = 4;
   //grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
   grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1773,7 +1828,7 @@ void RenderSystem::BuildMaterial() {
 
   auto sky = std::make_unique<Material>();
   sky->Name = "sky";
-  sky->MatCBIndex = 6;
+  sky->MatCBIndex = 7;
   sky->DiffuseSrvHeapIndex = 5;
   sky->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
@@ -1784,6 +1839,7 @@ void RenderSystem::BuildMaterial() {
   materials_["icemirror"] = std::move(icemirror);
   materials_["skullMat"] = std::move(skullMat);
   materials_["shadowMat"] = std::move(shadowMat);
+  materials_["mirror0"] = std::move(mirror0);
   materials_["grass"] = std::move(grass);
   materials_["sky"] = std::move(sky);
 }
@@ -1913,6 +1969,43 @@ void RenderSystem::Pick(int sx, int sy) {
 
 }
 
+
+void RenderSystem::BuildCubeFaceCamera(float x, float y, float z)
+{
+  // Generate the cube map about the given position.
+  XMFLOAT3 center(x, y, z);
+  XMFLOAT3 worldUp(0.0f, 1.0f, 0.0f);
+
+  // Look along each coordinate axis.
+  XMFLOAT3 targets[6] =
+  {
+    XMFLOAT3(x + 1.0f, y, z), // +X
+    XMFLOAT3(x - 1.0f, y, z), // -X
+    XMFLOAT3(x, y + 1.0f, z), // +Y
+    XMFLOAT3(x, y - 1.0f, z), // -Y
+    XMFLOAT3(x, y, z + 1.0f), // +Z
+    XMFLOAT3(x, y, z - 1.0f)  // -Z
+  };
+
+  // Use world up vector (0,1,0) for all directions except +Y/-Y.  In these cases, we
+  // are looking down +Y or -Y, so we need a different "up" vector.
+  XMFLOAT3 ups[6] =
+  {
+    XMFLOAT3(0.0f, 1.0f, 0.0f),  // +X
+    XMFLOAT3(0.0f, 1.0f, 0.0f),  // -X
+    XMFLOAT3(0.0f, 0.0f, -1.0f), // +Y
+    XMFLOAT3(0.0f, 0.0f, +1.0f), // -Y
+    XMFLOAT3(0.0f, 1.0f, 0.0f),	 // +Z
+    XMFLOAT3(0.0f, 1.0f, 0.0f)	 // -Z
+  };
+
+  for (int i = 0; i < 6; ++i)
+  {
+    cube_map_cameras_[i].LookAt(center, targets[i], ups[i]);
+    cube_map_cameras_[i].SetLens(0.5f * XM_PI, 1.0f, 0.1f, 1000.0f);
+    cube_map_cameras_[i].UpdateViewMatrix();
+  }
+}
 
 }
 
