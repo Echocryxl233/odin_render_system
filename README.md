@@ -2,6 +2,9 @@
 primery code about DX12 with beginning
 just for learning
 
+2019-7-19
+1. Dynamic cube mapping
+
 2019-07-17
 1. Sky render item
 2. Sky cube map

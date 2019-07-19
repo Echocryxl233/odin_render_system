@@ -29,6 +29,8 @@ public:
 
   void OnResize(UINT newWidth, UINT newHeight);
 
+  inline int RTVCount() { return _countof(mhCpuRtv); };
+
 private:
   void BuildDescriptors();
   void BuildResource();

@@ -34,11 +34,17 @@ class RenderSystem : public OdinRenderSystem::Application
  protected:
   void DrawRenderItems() ;
 
+  void DrawSceneToCubeMap();
+
   float GetHillsHeight(float x, float z) const;
   XMFLOAT3 GetHillsNormal(float x, float z) const;
 
   std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
   void Pick(int sx, int sy);
+  void CreateRtvAndDsvDescriptorHeaps() override;
+
+  void BuildCubeDepthStencil();
+  void UpdateCubeMapFacePassCBs();
 
  protected:
    void Update(const GameTimer& gt) override;
@@ -50,6 +56,7 @@ class RenderSystem : public OdinRenderSystem::Application
    virtual void UpdateCamera(const GameTimer& gt);
    virtual void UpdateObjectCBs(const GameTimer& gt) ;
    virtual void UpdateMainPassCB(const GameTimer& gt);
+   virtual void UpdateCubeMapFacePassCBs(const GameTimer& gt);
    // virtual void UpdateWave(const GameTimer& gt);
    virtual void UpdateInstanceData(const GameTimer& gt);
    virtual void UpdateMaterialBuffer(const GameTimer& gt);
@@ -157,6 +164,7 @@ private:
 	float mSunPhi = XM_PIDIV4;
 
   ComPtr<ID3D12DescriptorHeap> srv_descriptor_heap_ = nullptr;  //  use for srv_uav_cbv_heap
+  ComPtr<ID3D12Resource> cube_depth_stencil_buffer_;
 
   RenderItem* skull_render_item_ = nullptr;
 	RenderItem* mReflectedSkullRitem = nullptr;
@@ -184,6 +192,11 @@ private:
   InstanceData* picked_instance_ = nullptr;
 
   unique_ptr<CubeRenderTarget> dynamic_cube_map_ = nullptr;
+
+  CD3DX12_CPU_DESCRIPTOR_HANDLE cube_dsv_;
+
+  int sky_heap_index_;
+  int dynamic_heap_index_;
 };
 
 }

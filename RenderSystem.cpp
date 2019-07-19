@@ -18,105 +18,113 @@ RenderSystem::~RenderSystem()
 
 void RenderSystem::Draw(const GameTimer& gt)
 {
-    auto cmdListAlloc = current_frame_resource_->CmdListAlloc;
+  auto cmdListAlloc = current_frame_resource_->CmdListAlloc;
 
-    // Reuse the memory associated with command recording.
-    // We can only reset when the associated command lists have finished execution on the GPU.
-    ThrowIfFailed(cmdListAlloc->Reset());
+  // Reuse the memory associated with command recording.
+  // We can only reset when the associated command lists have finished execution on the GPU.
+  ThrowIfFailed(cmdListAlloc->Reset());
 
-    //  ThrowIfFailed(d3d_command_list_->Reset(cmdListAlloc.Get(), pipeline_state_object_.Get()));
-    ThrowIfFailed(d3d_command_list_->Reset(cmdListAlloc.Get(), pipeline_state_objects_["Opaque"].Get()));
+  //  ThrowIfFailed(d3d_command_list_->Reset(cmdListAlloc.Get(), pipeline_state_object_.Get()));
+  ThrowIfFailed(d3d_command_list_->Reset(cmdListAlloc.Get(), pipeline_state_objects_["opaque"].Get()));
 
-    d3d_command_list_->RSSetViewports(1, &screen_viewport_);
-    d3d_command_list_->RSSetScissorRects(1, &scissor_rect_);
+  ID3D12DescriptorHeap* descriptorHeaps[] = { srv_descriptor_heap_.Get() };
+  d3d_command_list_->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-    // Indicate a state transition on the resource usage.
-	  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+  d3d_command_list_->SetGraphicsRootSignature(root_signature_.Get());
 
-    // Clear the back buffer and depth buffer.
-    d3d_command_list_->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
-    d3d_command_list_->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+  auto material_buffer = current_frame_resource_->MaterialBuffer->Resource();
+  d3d_command_list_->SetGraphicsRootShaderResourceView(0, material_buffer->GetGPUVirtualAddress());
 
-    // Specify the buffers we are going to render to.
-    d3d_command_list_->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+  CD3DX12_GPU_DESCRIPTOR_HANDLE sky_tex_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+  sky_tex_descriptor.Offset(sky_heap_index_, cbv_srv_uav_descriptor_size);
+  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
 
-    ID3D12DescriptorHeap* descriptorHeaps[] = { srv_descriptor_heap_.Get() };
-	  d3d_command_list_->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+  d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
 
-	  d3d_command_list_->SetGraphicsRootSignature(root_signature_.Get());
+  DrawSceneToCubeMap();
 
-    auto material_buffer = current_frame_resource_->MaterialBuffer->Resource();
-	  d3d_command_list_->SetGraphicsRootShaderResourceView(0, material_buffer->GetGPUVirtualAddress());
+  d3d_command_list_->RSSetViewports(1, &screen_viewport_);
+  d3d_command_list_->RSSetScissorRects(1, &scissor_rect_);
 
-    UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-    auto passCB = current_frame_resource_->PassCB->Resource();
-	  d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+  // Indicate a state transition on the resource usage.
+  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+    D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
+  // Clear the back buffer and depth buffer.
+  d3d_command_list_->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
+  d3d_command_list_->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE skyTexDescriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-    skyTexDescriptor.Offset(5, cbv_srv_uav_descriptor_size);
-    d3d_command_list_->SetGraphicsRootDescriptorTable(3, skyTexDescriptor);
+  // Specify the buffers we are going to render to.
+  d3d_command_list_->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
-    d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
-    //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kOpaque]);
+  UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+  auto passCB = current_frame_resource_->PassCB->Resource();
+  d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
+  CD3DX12_GPU_DESCRIPTOR_HANDLE dynamic_tex_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+  dynamic_tex_descriptor.Offset(sky_heap_index_ + 1, cbv_srv_uav_descriptor_size);
+  d3d_command_list_->SetGraphicsRootDescriptorTable(3, dynamic_tex_descriptor);
 
-    d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
-    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
+  //  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
 
-    //d3d_command_list_->OMSetStencilRef(1);
-    //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_mirror].Get());
-    //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kMirrors]);
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
 
-    ////  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress() + 1*passCBByteSize);
-    //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_reflection].Get());
-    //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kReflected]);
-    //
+  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
 
-    //  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
-    //  d3d_command_list_->OMSetStencilRef(0);
+  d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
 
-    d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
-    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
-    //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
+  //d3d_command_list_->OMSetStencilRef(1);
+  //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_mirror].Get());
+  //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kMirrors]);
 
-    //  blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
-		//    pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
+  ////  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress() + 1*passCBByteSize);
+  //d3d_command_list_->SetPipelineState(pipeline_state_objects_[pso_name_reflection].Get());
+  //DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kReflected]);
+  //
 
-    //  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		//    D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
+  //  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
+  //  d3d_command_list_->OMSetStencilRef(0);
 
-	  //  d3d_command_list_->CopyResource(CurrentBackBuffer(), blur_filter_->Output());
+  d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
+  //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
 
-    // Transition to PRESENT state.
-	  //  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		//    D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));
+  //  blur_filter_->Execute(d3d_command_list_.Get(), post_process_root_signature_.Get(), 
+  //    pipeline_state_objects_["horzBlur"].Get(), pipeline_state_objects_["vertBlur"].Get(), CurrentBackBuffer(), 4);
 
-    // Indicate a state transition on the resource usage.
-	  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		  D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+  //  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+  //    D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
-    // Done recording commands.
-    ThrowIfFailed(d3d_command_list_->Close());
+  //  d3d_command_list_->CopyResource(CurrentBackBuffer(), blur_filter_->Output());
 
-    // Add the command list to the queue for execution.
-    ID3D12CommandList* cmdsLists[] = { d3d_command_list_.Get() };
-    d3d_command_queue_->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+  // Transition to PRESENT state.
+  //  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+  //    D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT));
 
-    // Swap the back and front buffers
-    ThrowIfFailed(swap_chain_->Present(0, 0));
-	  current_back_buffer_index_ = (current_back_buffer_index_ + 1) % kSwapBufferCount;
+  // Indicate a state transition on the resource usage.
+  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+    D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-    // Advance the fence value to mark commands up to this fence point.
-    current_frame_resource_->Fence = ++current_fence_;
-    
-    // Add an instruction to the command queue to set a new fence point. 
-    // Because we are on the GPU timeline, the new fence point won't be 
-    // set until the GPU finishes processing all the commands prior to this Signal().
-    d3d_command_queue_->Signal(d3d_fence_.Get(), current_fence_);
+  // Done recording commands.
+  ThrowIfFailed(d3d_command_list_->Close());
+
+  // Add the command list to the queue for execution.
+  ID3D12CommandList* cmdsLists[] = { d3d_command_list_.Get() };
+  d3d_command_queue_->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+  // Swap the back and front buffers
+  ThrowIfFailed(swap_chain_->Present(0, 0));
+  current_back_buffer_index_ = (current_back_buffer_index_ + 1) % kSwapBufferCount;
+
+  // Advance the fence value to mark commands up to this fence point.
+  current_frame_resource_->Fence = ++current_fence_;
+
+  // Add an instruction to the command queue to set a new fence point. 
+  // Because we are on the GPU timeline, the new fence point won't be 
+  // set until the GPU finishes processing all the commands prior to this Signal().
+  d3d_command_queue_->Signal(d3d_fence_.Get(), current_fence_);
 }
 
 void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -167,6 +175,40 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const int
 }
 
 
+void RenderSystem::DrawSceneToCubeMap() {
+  d3d_command_list_->RSSetViewports(1, &dynamic_cube_map_->Viewport());
+  d3d_command_list_->RSSetScissorRects(1, &dynamic_cube_map_->ScissorRect());
+
+  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dynamic_cube_map_->Resource(),
+    D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+  auto current_pass_cb = current_frame_resource_->PassCB->Resource();
+  int pass_cb_byte_size = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+  for (int i = 0; i < 6; ++i) {
+    d3d_command_list_->ClearRenderTargetView(dynamic_cube_map_->Rtv(i), Colors::LightSteelBlue, 0, nullptr);
+    d3d_command_list_->ClearDepthStencilView(cube_dsv_, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+    d3d_command_list_->OMSetRenderTargets(1, &dynamic_cube_map_->Rtv(i), true, &cube_dsv_);
+
+    D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = current_pass_cb->GetGPUVirtualAddress() + (1 + i) * pass_cb_byte_size;
+    d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCBAddress);
+
+    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
+
+    d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
+    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
+
+    d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
+    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
+
+    d3d_command_list_->SetPipelineState(pipeline_state_objects_["opaque"].Get());
+  }
+
+  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dynamic_cube_map_->Resource(),
+    D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+}
+
 void RenderSystem::Update(const GameTimer& gt) {
   OnKeyboardInput(gt);
 
@@ -189,8 +231,9 @@ void RenderSystem::Update(const GameTimer& gt) {
   UpdateObjectCBs(gt);
   UpdateInstanceData(gt);
   UpdateMainPassCB(gt);
+  //  UpdateCubeMapFacePassCBs(gt);
   UpdateMaterialBuffer(gt);
-  UpdateReflectedPassCB(gt);
+  //  UpdateReflectedPassCB(gt);
   //  UpdateWave(gt);
   
 }
@@ -288,6 +331,72 @@ void RenderSystem::UpdateMainPassCB(const GameTimer& gt) {
 
   auto current_pass_cb = current_frame_resource_->PassCB.get();
   current_pass_cb->CopyData(0, main_pass_cb_);
+  //  UpdateCubeMapFacePassCBs(gt);
+  UpdateCubeMapFacePassCBs();
+}
+
+void RenderSystem::UpdateCubeMapFacePassCBs(const GameTimer& gt) {
+  const int pass_cb_index_offset = 1; //  the main pass cb is 0, so cube map pass cb start from 1
+  auto current_pass_cb = current_frame_resource_->PassCB.get();
+
+  for (int i = 0; i < 6; ++i) {
+    auto cube_face_pass_cb = main_pass_cb_;
+    Camera current_camera = cube_map_cameras_[i];
+
+    XMMATRIX view = current_camera.GetView();
+    XMMATRIX proj = current_camera.GetProj();
+
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+    XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+    XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+    XMStoreFloat4x4(&cube_face_pass_cb.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&cube_face_pass_cb.InvView, XMMatrixTranspose(invView));
+    XMStoreFloat4x4(&cube_face_pass_cb.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&cube_face_pass_cb.InvProj, XMMatrixTranspose(invProj));
+    XMStoreFloat4x4(&cube_face_pass_cb.ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&cube_face_pass_cb.InvViewProj, XMMatrixTranspose(invViewProj));
+
+    cube_face_pass_cb.EyePosW = current_camera.GetPosition3f();
+    cube_face_pass_cb.RenderTargetSize = XMFLOAT2((float)kCubeMapSize, (float)kCubeMapSize);
+    cube_face_pass_cb.InvRenderTargetSize = XMFLOAT2(1.0f / kCubeMapSize, 1.0f / kCubeMapSize);
+
+    // Cube map pass cbuffers are stored in elements 1-6.
+    current_pass_cb->CopyData(i + pass_cb_index_offset, cube_face_pass_cb);
+  }
+}
+
+void RenderSystem::UpdateCubeMapFacePassCBs()
+{
+  PassConstants cubeFacePassCB = main_pass_cb_;
+  for (int i = 0; i < 6; ++i)
+  {
+    Camera current_camera = cube_map_cameras_[i];
+
+    XMMATRIX view = cube_map_cameras_[i].GetView();
+    XMMATRIX proj = cube_map_cameras_[i].GetProj();
+
+    XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+    XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+    XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+    XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+    XMStoreFloat4x4(&cubeFacePassCB.View, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&cubeFacePassCB.InvView, XMMatrixTranspose(invView));
+    XMStoreFloat4x4(&cubeFacePassCB.Proj, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(&cubeFacePassCB.InvProj, XMMatrixTranspose(invProj));
+    XMStoreFloat4x4(&cubeFacePassCB.ViewProj, XMMatrixTranspose(viewProj));
+    XMStoreFloat4x4(&cubeFacePassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+    cubeFacePassCB.EyePosW = current_camera.GetPosition3f();
+    cubeFacePassCB.RenderTargetSize = XMFLOAT2((float)kCubeMapSize, (float)kCubeMapSize);
+    cubeFacePassCB.InvRenderTargetSize = XMFLOAT2(1.0f / kCubeMapSize, 1.0f / kCubeMapSize);
+
+    auto currPassCB = current_frame_resource_->PassCB.get();
+
+    // Cube map pass cbuffers are stored in elements 1-6.
+    currPassCB->CopyData(1 + i, cubeFacePassCB);
+  }
 }
 
 void RenderSystem::UpdateReflectedPassCB(const GameTimer& gt)
@@ -450,7 +559,7 @@ bool RenderSystem::Initialize() {
   BuildMaterial();
   LoadTexture();
   BuildDescriptorHeaps();
-
+  BuildCubeDepthStencil();
   BuildRenderItems();
   BuildFrameResource();
   //  BuildDescriptorHeaps();
@@ -465,10 +574,71 @@ bool RenderSystem::Initialize() {
   return true;
 }
 
+void RenderSystem::CreateRtvAndDsvDescriptorHeaps() {
+  D3D12_DESCRIPTOR_HEAP_DESC rtv_heap_desc;
+  rtv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+  rtv_heap_desc.NumDescriptors = kSwapBufferCount + dynamic_cube_map_->RTVCount();
+  rtv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+  rtv_heap_desc.NodeMask = 0;
+
+  ThrowIfFailed(d3d_device_->CreateDescriptorHeap(&rtv_heap_desc,
+    IID_PPV_ARGS(rtv_heap_.GetAddressOf())));
+
+  D3D12_DESCRIPTOR_HEAP_DESC dsv_heap_desc;
+  dsv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+  dsv_heap_desc.NumDescriptors = 2;
+  dsv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+  dsv_heap_desc.NodeMask = 0;
+
+  ThrowIfFailed(d3d_device_->CreateDescriptorHeap(&dsv_heap_desc,
+    IID_PPV_ARGS(dsv_heap_.GetAddressOf())));
+
+  cube_dsv_ = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+    dsv_heap_->GetCPUDescriptorHandleForHeapStart(),
+    1,
+    dsv_descriptor_size);
+}
+
+void RenderSystem::BuildCubeDepthStencil()
+{
+  // Create the depth/stencil buffer and view.
+  D3D12_RESOURCE_DESC depthStencilDesc;
+  depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+  depthStencilDesc.Alignment = 0;
+  depthStencilDesc.Width = kCubeMapSize;
+  depthStencilDesc.Height = kCubeMapSize;
+  depthStencilDesc.DepthOrArraySize = 1;
+  depthStencilDesc.MipLevels = 1;
+  depthStencilDesc.Format = depth_stencil_format_;  // mDepthStencilFormat;
+  depthStencilDesc.SampleDesc.Count = 1;
+  depthStencilDesc.SampleDesc.Quality = 0;
+  depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+  depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+  D3D12_CLEAR_VALUE optClear;
+  optClear.Format = depth_stencil_format_;  // mDepthStencilFormat;
+  optClear.DepthStencil.Depth = 1.0f;
+  optClear.DepthStencil.Stencil = 0;
+  ThrowIfFailed(d3d_device_->CreateCommittedResource(
+    &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+    D3D12_HEAP_FLAG_NONE,
+    &depthStencilDesc,
+    D3D12_RESOURCE_STATE_COMMON, 
+    &optClear,
+    IID_PPV_ARGS(cube_depth_stencil_buffer_.GetAddressOf())));
+
+  // Create descriptor to mip level 0 of entire resource using the format of the resource.
+  d3d_device_->CreateDepthStencilView(cube_depth_stencil_buffer_.Get(), nullptr, cube_dsv_);
+
+  // Transition the resource from its initial state to be used as a depth buffer.
+   d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(cube_depth_stencil_buffer_.Get(),
+    D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+}
+
 void RenderSystem::BuildFrameResource() {
 
   for (size_t i=0; i<kNumFrameResources; ++i) {
-    frame_resources_.push_back(std::make_unique<FrameResource>(d3d_device_.Get(), 1, 
+    frame_resources_.push_back(std::make_unique<FrameResource>(d3d_device_.Get(), 1 + dynamic_cube_map_->RTVCount(),
       (UINT)render_items_.size(), instance_count_, (UINT)materials_.size(), waves_->VertexCount()));
   }
 
@@ -1234,7 +1404,7 @@ void RenderSystem::BuildRenderItems() {
 
   XMMATRIX pick_rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
   XMMATRIX pick_scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-  XMMATRIX pick_offset = XMMatrixTranslation(3.0f, 3.0f, -0.0f);
+  XMMATRIX pick_offset = XMMatrixTranslation(-5.0f, 0.0f, -0.0f);
   XMMATRIX pick_world = pick_rotate * pick_scale * pick_offset;
   auto pick_item = std::make_unique<RenderItem>();
   //  pick_item->World = MathHelper::Identity4x4();
@@ -1293,12 +1463,9 @@ void RenderSystem::BuildRootSignature() {
 
   //  CD3DX12_DESCRIPTOR_RANGE tex_table2;
   //  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 0, 0);
-
-
   const int parameter_count = 5;
 
   CD3DX12_ROOT_PARAMETER slotRootParameter[parameter_count];
-  
   
   slotRootParameter[0].InitAsShaderResourceView(0, 1);
   slotRootParameter[1].InitAsShaderResourceView(1, 1);
@@ -1410,7 +1577,7 @@ void RenderSystem::BuildPipelineStateObjects() {
 
   //  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pipeline_state_object_)));
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, 
-    IID_PPV_ARGS(&pipeline_state_objects_["Opaque"])));
+    IID_PPV_ARGS(&pipeline_state_objects_["opaque"])));
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = pso_desc;
   D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
@@ -1669,8 +1836,7 @@ void RenderSystem::LoadTexture() {
 }
 
 void RenderSystem::BuildDescriptorHeaps() {
-  const int textureDescriptorCount = 6;
-  //const int blurDescriptorCount = 4;
+  const int textureDescriptorCount = 8;
 
   D3D12_DESCRIPTOR_HEAP_DESC src_heap_desc = {};
   //  src_heap_desc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
@@ -1685,62 +1851,64 @@ void RenderSystem::BuildDescriptorHeaps() {
 
   //auto wood_crate_tex = textures_["Wood"]->Resource;
   //auto grass_tex = textures_["Grass"]->Resource;
-  //auto water1_tex = textures_["Water"]->Resource;
+  //auto water1_tex = textures_["Water"]->Resource; 
 
-  auto bricksTex = textures_["bricksTex"]->Resource;
-  auto checkboardTex = textures_["checkboardTex"]->Resource;
-  auto iceTex = textures_["iceTex"]->Resource;
-  auto white1x1Tex = textures_["white1x1Tex"]->Resource;
-  auto grassTex = textures_["grass"]->Resource;
-  auto skyTex = textures_["skyCubeMap"]->Resource;
+  std::vector<ComPtr<ID3D12Resource>> texture2d_resources = {
+    textures_["bricksTex"]->Resource,
+    textures_["checkboardTex"]->Resource,
+    textures_["iceTex"]->Resource,
+    textures_["white1x1Tex"]->Resource,
+    textures_["grass"]->Resource,
+  };
 
-  int offsetCount = 0;
   D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
   srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-  srv_desc.Format = bricksTex->GetDesc().Format;
   srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
   srv_desc.Texture2D.MostDetailedMip = 0;
-  srv_desc.Texture2D.MipLevels = bricksTex->GetDesc().MipLevels;  //  wood_crate_tex->GetDesc().MipLevels;
   srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
-  d3d_device_->CreateShaderResourceView(bricksTex.Get(), &srv_desc, hDescriptor); //  0
-  ++offsetCount;
 
-  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
-  srv_desc.Format = checkboardTex->GetDesc().Format;
-  srv_desc.Texture2D.MipLevels = checkboardTex->GetDesc().MipLevels;
-  d3d_device_->CreateShaderResourceView(checkboardTex.Get(), &srv_desc, hDescriptor); //  1
-  ++offsetCount;
+  int offsetCount = 0;
+  for (auto& texture_resource : texture2d_resources) {
 
-  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
-  srv_desc.Format = iceTex->GetDesc().Format;
-  d3d_device_->CreateShaderResourceView(iceTex.Get(), &srv_desc, hDescriptor);  //  4
-  ++offsetCount;
+    srv_desc.Format = texture_resource->GetDesc().Format;
+    srv_desc.Texture2D.MipLevels = texture_resource->GetDesc().MipLevels;
+    d3d_device_->CreateShaderResourceView(texture_resource.Get(), &srv_desc, hDescriptor);
+    
+    hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
+    ++offsetCount;
+  }
 
-  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
-  srv_desc.Format = white1x1Tex->GetDesc().Format;
-  srv_desc.Texture2D.MipLevels = white1x1Tex->GetDesc().MipLevels;
-  d3d_device_->CreateShaderResourceView(white1x1Tex.Get(), &srv_desc, hDescriptor); //  3
-  ++offsetCount;
-
-  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
-  srv_desc.Format = grassTex->GetDesc().Format;
-  srv_desc.Texture2D.MipLevels = grassTex->GetDesc().MipLevels;
-  d3d_device_->CreateShaderResourceView(grassTex.Get(), &srv_desc, hDescriptor);  //  2
-  ++offsetCount;
- 
-
-  hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
+  auto skyTex = textures_["skyCubeMap"]->Resource;
   srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
   srv_desc.TextureCube.MostDetailedMip = 0;
   srv_desc.TextureCube.MipLevels = skyTex->GetDesc().MipLevels;
   srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
   srv_desc.Format = skyTex->GetDesc().Format;
   d3d_device_->CreateShaderResourceView(skyTex.Get(), &srv_desc, hDescriptor);  //  5
+  
 
   //blur_filter_->BuildDescriptors(
   //  CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
   //  CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
   //  cbv_srv_uav_descriptor_size);
+
+  sky_heap_index_ = offsetCount;
+  dynamic_heap_index_ = 1 + sky_heap_index_;
+
+  auto srv_cpu_start = srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart();
+  auto srv_gpu_start = srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart();
+  auto rtv_cpu_start = rtv_heap_->GetCPUDescriptorHandleForHeapStart();
+
+  int rtv_offset = kSwapBufferCount;
+
+  CD3DX12_CPU_DESCRIPTOR_HANDLE cubeRtvHandles[6];
+  for (int i = 0; i < 6; ++i)
+    cubeRtvHandles[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtv_cpu_start, rtv_offset + i, rtv_descriptor_size);
+
+  dynamic_cube_map_->BuildDescriptors(
+    CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
+    CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
+    cubeRtvHandles);
 }
 
 void RenderSystem::BuildMaterial() {

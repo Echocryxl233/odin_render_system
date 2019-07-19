@@ -111,7 +111,7 @@ bool Application::Initialize()
 	return true;
 }
  
-void Application::CreateDescriptorHeap() {
+void Application::CreateRtvAndDsvDescriptorHeaps() {
   D3D12_DESCRIPTOR_HEAP_DESC rtv_heap_desc;
   rtv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
   rtv_heap_desc.NumDescriptors = kSwapBufferCount;
@@ -438,7 +438,7 @@ bool Application::InitDirect3D() {
 
   CreateCommand();
   CreateSwapChain();
-  CreateDescriptorHeap();
+  CreateRtvAndDsvDescriptorHeaps();
 
   return true;
 }

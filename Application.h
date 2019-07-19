@@ -38,7 +38,7 @@ class Application {
 	virtual void OnMouseUp(WPARAM btnState, int x, int y)  { }
 	virtual void OnMouseMove(WPARAM btnState, int x, int y){ }
 
-  virtual void CreateDescriptorHeap();
+  virtual void CreateRtvAndDsvDescriptorHeaps();
 
  protected:
   void LogAdapters();
