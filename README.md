@@ -2,7 +2,12 @@
 primery code about DX12 with beginning
 just for learning
 
-2019-7-19
+2019-07-22
+1. Normal map.
+2. Different shaders for standard opaque and normal map opaque.
+3. Some issues of draw call
+
+2019-07-19
 1. Dynamic cube mapping
 
 2019-07-17

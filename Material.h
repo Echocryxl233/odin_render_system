@@ -31,6 +31,7 @@ struct Material
 
   int MatCBIndex = 0;
   int DiffuseSrvHeapIndex = 0;
+  int NormalSrvHeapIndex = 0;
 
   // Dirty flag indicating the material has changed and we need to
   // update the constant buffer. Because we have a material constant
@@ -50,6 +51,8 @@ struct Material
 struct Texture {
   std::string Name;
   std::wstring Filename;
+
+  int SrvHeapIndex = -1;
 
   Microsoft::WRL::ComPtr<ID3D12Resource> Resource;
   Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap;

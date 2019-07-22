@@ -62,15 +62,17 @@ void RenderSystem::Draw(const GameTimer& gt)
   d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
   CD3DX12_GPU_DESCRIPTOR_HANDLE dynamic_tex_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-  dynamic_tex_descriptor.Offset(sky_heap_index_ + 1, cbv_srv_uav_descriptor_size);
+  dynamic_tex_descriptor.Offset(dynamic_heap_index_, cbv_srv_uav_descriptor_size);
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, dynamic_tex_descriptor);
 
-  //  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
-
+  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
 
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
+
+  d3d_command_list_->SetPipelineState(pipeline_state_objects_["opaqueNormal"].Get());
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
 
   d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
@@ -195,6 +197,8 @@ void RenderSystem::DrawSceneToCubeMap() {
     d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCBAddress);
 
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
+
+    DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
 
     d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
@@ -497,6 +501,7 @@ void RenderSystem::UpdateMaterialBuffer(const GameTimer& gt) {
       mat_data.DiffuseAlbedo = material->DiffuseAlbedo;
       XMStoreFloat4x4(&mat_data.MatTransform, XMMatrixTranspose(matTransform));
       mat_data.DiffuseMapIndex = material->DiffuseSrvHeapIndex;
+      mat_data.NormalMapIndex = material->NormalSrvHeapIndex;
       //  mat_data.DiffuseMapIndex = material->MatCBIndex;
       
 
@@ -556,9 +561,10 @@ bool RenderSystem::Initialize() {
   BuildSkullGeometry();
   BuildRoomGeometry();
   //  BuildWavesGeometry();
-  BuildMaterial();
+
   LoadTexture();
   BuildDescriptorHeaps();
+  BuildMaterial();
   BuildCubeDepthStencil();
   BuildRenderItems();
   BuildFrameResource();
@@ -1400,11 +1406,28 @@ void RenderSystem::BuildRenderItems() {
   ball_render_item->Instances[0].MaterialIndex = ball_render_item->Mat->MatCBIndex;
 
   items_layers_[(int)RenderLayer::kReflected].push_back(ball_render_item.get());
+
+  auto ball2_render_item = std::make_unique<RenderItem>();
+  ball2_render_item->Geo = mesh_geos_["ShapeGeo"].get();
+  ball2_render_item->Mat = materials_["tile0"].get();
+  ball2_render_item->ObjectCBIndex = 0;
+
+  //  XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-5.0f, 0.0f, 0.0f));
+  ball2_render_item->IndexCount = ball2_render_item->Geo->DrawArgs["Sphere"].IndexCount;
+  ball2_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  ball2_render_item->StartIndexLocation = ball2_render_item->Geo->DrawArgs["Sphere"].StartIndexLocation;
+  ball2_render_item->BaseVertexLocation = ball2_render_item->Geo->DrawArgs["Sphere"].BaseVertexLocation;
+  ball2_render_item->Instances.resize(1);
+  XMStoreFloat4x4(&ball2_render_item->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f)* XMMatrixTranslation(0.0f, 15.0f, 0.0f));
+
+  ball2_render_item->Instances[0].MaterialIndex = ball2_render_item->Mat->MatCBIndex;
+
+  items_layers_[(int)RenderLayer::kMirrors].push_back(ball2_render_item.get());
   
 
   XMMATRIX pick_rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
   XMMATRIX pick_scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-  XMMATRIX pick_offset = XMMatrixTranslation(-5.0f, 0.0f, -0.0f);
+  XMMATRIX pick_offset = XMMatrixTranslation(-7.0f, 0.0f, -0.0f);
   XMMATRIX pick_world = pick_rotate * pick_scale * pick_offset;
   auto pick_item = std::make_unique<RenderItem>();
   //  pick_item->World = MathHelper::Identity4x4();
@@ -1430,6 +1453,7 @@ void RenderSystem::BuildRenderItems() {
 
   render_items_.push_back(std::move(skullRitem));
   render_items_.push_back(std::move(sky_render_item));
+  render_items_.push_back(std::move(ball2_render_item));
   render_items_.push_back(std::move(ball_render_item));
   render_items_.push_back(std::move(pick_item));
 }
@@ -1438,6 +1462,8 @@ void RenderSystem::BuildRenderItems() {
 void RenderSystem::BuildShadersAndInputLayout() {
   shaders_["standardVS"] = d3dUtil::CompileShader(L"Shaders\\default.hlsl", nullptr, "VS", "vs_5_1");
 	shaders_["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\default.hlsl", nullptr, "PS", "ps_5_1");
+  shaders_["standardNormalVS"] = d3dUtil::CompileShader(L"Shaders\\StandardNormal.hlsl", nullptr, "VS", "vs_5_1");
+  shaders_["standardNormalPS"] = d3dUtil::CompileShader(L"Shaders\\StandardNormal.hlsl", nullptr, "PS", "ps_5_1");
   shaders_["horzBlurCS"] = d3dUtil::CompileShader(L"Shaders\\Blur.hlsl", nullptr, "HorzBlurCS", "cs_5_0");
 	shaders_["vertBlurCS"] = d3dUtil::CompileShader(L"Shaders\\Blur.hlsl", nullptr, "VertBlurCS", "cs_5_0");
 
@@ -1449,6 +1475,7 @@ void RenderSystem::BuildShadersAndInputLayout() {
       { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
       { "NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
       { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+      { "TANGENT", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
   };
 }
 
@@ -1459,7 +1486,7 @@ void RenderSystem::BuildRootSignature() {
   tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
 
   CD3DX12_DESCRIPTOR_RANGE tex_table2;
-  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 1, 0);
+  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 1, 0);
 
   //  CD3DX12_DESCRIPTOR_RANGE tex_table2;
   //  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 0, 0);
@@ -1578,6 +1605,20 @@ void RenderSystem::BuildPipelineStateObjects() {
   //  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pipeline_state_object_)));
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, 
     IID_PPV_ARGS(&pipeline_state_objects_["opaque"])));
+
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC standardNormalPsoDesc = pso_desc; 
+  //standardNormalPsoDesc.VS =
+  //{
+  //  reinterpret_cast<BYTE*>(shaders_["standardNormalVS"]->GetBufferPointer()),
+  //  shaders_["standardNormalVS"]->GetBufferSize()
+  //};
+  standardNormalPsoDesc.PS =
+  {
+    reinterpret_cast<BYTE*>(shaders_["standardNormalPS"]->GetBufferPointer()),
+    shaders_["standardNormalPS"]->GetBufferSize()
+  };
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&standardNormalPsoDesc,
+    IID_PPV_ARGS(&pipeline_state_objects_["opaqueNormal"])));
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = pso_desc;
   D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
@@ -1817,10 +1858,13 @@ void RenderSystem::LoadTexture() {
   std::map<string, wstring> texs = {
     {"bricksTex", L"Textures/bricks3.dds"},
     {"checkboardTex", L"Textures/checkboard.dds"},
+    {"tileDiffuseMap", L"Textures/tile.dds"},
+    {"tileNormalMap", L"Textures/tile_nmap.dds"},
     {"iceTex", L"Textures/ice.dds"},
     {"white1x1Tex", L"Textures/white1x1.dds"},
     {"grass", L"Textures/grass.dds"},
-    {"skyCubeMap", L"Textures/grasscube1024.dds"}
+    {"skyCubeMap", L"Textures/grasscube1024.dds"},
+    {"snowcube", L"Textures/snowcube1024.dds"}
   };
 
   for (auto& it : texs) {
@@ -1836,7 +1880,17 @@ void RenderSystem::LoadTexture() {
 }
 
 void RenderSystem::BuildDescriptorHeaps() {
-  const int textureDescriptorCount = 8;
+  std::vector<Texture*> texture2d = {
+    textures_["bricksTex"].get(),
+    textures_["checkboardTex"].get(),
+    textures_["iceTex"].get(),
+    textures_["white1x1Tex"].get(),
+    textures_["grass"].get(),
+    textures_["tileDiffuseMap"].get(),
+    textures_["tileNormalMap"].get(),
+  };
+
+  const int textureDescriptorCount = texture2d.size() + 2;
 
   D3D12_DESCRIPTOR_HEAP_DESC src_heap_desc = {};
   //  src_heap_desc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
@@ -1853,13 +1907,7 @@ void RenderSystem::BuildDescriptorHeaps() {
   //auto grass_tex = textures_["Grass"]->Resource;
   //auto water1_tex = textures_["Water"]->Resource; 
 
-  std::vector<ComPtr<ID3D12Resource>> texture2d_resources = {
-    textures_["bricksTex"]->Resource,
-    textures_["checkboardTex"]->Resource,
-    textures_["iceTex"]->Resource,
-    textures_["white1x1Tex"]->Resource,
-    textures_["grass"]->Resource,
-  };
+  
 
   D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
   srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -1868,24 +1916,27 @@ void RenderSystem::BuildDescriptorHeaps() {
   srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
 
   int offsetCount = 0;
-  for (auto& texture_resource : texture2d_resources) {
+  for (auto& texture : texture2d) {
+    texture->SrvHeapIndex = offsetCount;
 
-    srv_desc.Format = texture_resource->GetDesc().Format;
-    srv_desc.Texture2D.MipLevels = texture_resource->GetDesc().MipLevels;
-    d3d_device_->CreateShaderResourceView(texture_resource.Get(), &srv_desc, hDescriptor);
+    auto desc = texture->Resource->GetDesc();
+
+    srv_desc.Format = desc.Format;
+    srv_desc.Texture2D.MipLevels = desc.MipLevels;
+    d3d_device_->CreateShaderResourceView(texture->Resource.Get(), &srv_desc, hDescriptor);
     
     hDescriptor.Offset(1, cbv_srv_uav_descriptor_size);
     ++offsetCount;
   }
 
-  auto skyTex = textures_["skyCubeMap"]->Resource;
+  auto skyTex = textures_["snowcube"]->Resource;
   srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
   srv_desc.TextureCube.MostDetailedMip = 0;
   srv_desc.TextureCube.MipLevels = skyTex->GetDesc().MipLevels;
   srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
   srv_desc.Format = skyTex->GetDesc().Format;
   d3d_device_->CreateShaderResourceView(skyTex.Get(), &srv_desc, hDescriptor);  //  5
-  
+  textures_["snowcube"]->SrvHeapIndex = offsetCount;
 
   //blur_filter_->BuildDescriptors(
   //  CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
@@ -1905,7 +1956,13 @@ void RenderSystem::BuildDescriptorHeaps() {
   for (int i = 0; i < 6; ++i)
     cubeRtvHandles[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtv_cpu_start, rtv_offset + i, rtv_descriptor_size);
 
+  //CD3DX12_CPU_DESCRIPTOR_HANDLE(
+  //  rtv_heap_->GetCPUDescriptorHandleForHeapStart(),
+  //  current_back_buffer_index_,
+  //  rtv_descriptor_size);
+
   dynamic_cube_map_->BuildDescriptors(
+
     CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
     CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
     cubeRtvHandles);
@@ -1940,7 +1997,7 @@ void RenderSystem::BuildMaterial() {
   auto bricks = std::make_unique<Material>();
   bricks->Name = "bricks";
   bricks->MatCBIndex = 0;
-  bricks->DiffuseSrvHeapIndex = 0;
+  bricks->DiffuseSrvHeapIndex = textures_["bricksTex"]->SrvHeapIndex;
   bricks->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   bricks->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
   bricks->Roughness = 0.25f;
@@ -1948,7 +2005,7 @@ void RenderSystem::BuildMaterial() {
   auto checkertile = std::make_unique<Material>();
   checkertile->Name = "checkertile";
   checkertile->MatCBIndex = 1;
-  checkertile->DiffuseSrvHeapIndex = 1;
+  checkertile->DiffuseSrvHeapIndex = textures_["checkboardTex"]->SrvHeapIndex;
   checkertile->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   checkertile->FresnelR0 = XMFLOAT3(0.07f, 0.07f, 0.07f);
   checkertile->Roughness = 0.3f;
@@ -1956,7 +2013,7 @@ void RenderSystem::BuildMaterial() {
   auto icemirror = std::make_unique<Material>();
   icemirror->Name = "icemirror";
   icemirror->MatCBIndex = 2;
-  icemirror->DiffuseSrvHeapIndex = 2;
+  icemirror->DiffuseSrvHeapIndex = textures_["iceTex"]->SrvHeapIndex;
   icemirror->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
   icemirror->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
   icemirror->Roughness = 0.5f;
@@ -1988,16 +2045,26 @@ void RenderSystem::BuildMaterial() {
   auto grass = std::make_unique<Material>();
   grass->Name = "grass";
   grass->MatCBIndex = 6;
-  grass->DiffuseSrvHeapIndex = 4;
+  grass->DiffuseSrvHeapIndex = textures_["grass"]->SrvHeapIndex;
   //grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
   grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
   grass->Roughness = 0.125f;
 
+  auto tile0 = std::make_unique<Material>();
+  tile0->Name = "tile0";
+  tile0->MatCBIndex = 7;
+  tile0->DiffuseSrvHeapIndex = textures_["tileDiffuseMap"]->SrvHeapIndex;
+  tile0->NormalSrvHeapIndex = textures_["tileNormalMap"]->SrvHeapIndex; 
+  //  grass->DiffuseSrvHeapIndex = textures_["grass"]->SrvHeapIndex;
+  tile0->DiffuseAlbedo = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
+  tile0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
+  tile0->Roughness = 0.1f;
+
   auto sky = std::make_unique<Material>();
   sky->Name = "sky";
-  sky->MatCBIndex = 7;
-  sky->DiffuseSrvHeapIndex = 5;
+  sky->MatCBIndex = 8;
+  sky->DiffuseSrvHeapIndex = textures_["skyCubeMap"]->SrvHeapIndex;
   sky->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
   sky->Roughness = 1.0f;
@@ -2009,6 +2076,7 @@ void RenderSystem::BuildMaterial() {
   materials_["shadowMat"] = std::move(shadowMat);
   materials_["mirror0"] = std::move(mirror0);
   materials_["grass"] = std::move(grass);
+  materials_["tile0"] = std::move(tile0);
   materials_["sky"] = std::move(sky);
 }
 
