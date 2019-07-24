@@ -17,6 +17,7 @@
 
 #include "Common/Camera.h"
 #include "CubeRenderTarget.h"
+#include "ShadowMap.h"
 
 using namespace std;
 using namespace DirectX;
@@ -35,6 +36,7 @@ class RenderSystem : public OdinRenderSystem::Application
   void DrawRenderItems() ;
 
   void DrawSceneToCubeMap();
+  void DrawSceneToShadowMap();
 
   float GetHillsHeight(float x, float z) const;
   XMFLOAT3 GetHillsNormal(float x, float z) const;
@@ -80,7 +82,7 @@ class RenderSystem : public OdinRenderSystem::Application
  protected:
    void BuildShadersAndInputLayout();
    void BuildRootSignature();
-   void BuildPipelineStateObjects();
+   void BuildPSOs();
    void BuildLandGeometry();
    void BuildWavesGeometry();
    void BuildRenderItems();
@@ -197,6 +199,14 @@ private:
 
   int sky_heap_index_;
   int dynamic_heap_index_;
+
+  unique_ptr<ShadowMap> shadow_map_;
+
+  int shadow_heap_index;
+  int mNullCubeSrvIndex;
+  int mNullTexSrvIndex;
+
+  CD3DX12_GPU_DESCRIPTOR_HANDLE null_cube_srv_handle_gpu;
 };
 
 }

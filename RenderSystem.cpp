@@ -41,7 +41,7 @@ void RenderSystem::Draw(const GameTimer& gt)
 
   d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
 
-  DrawSceneToCubeMap();
+  //  DrawSceneToCubeMap();
 
   d3d_command_list_->RSSetViewports(1, &screen_viewport_);
   d3d_command_list_->RSSetScissorRects(1, &scissor_rect_);
@@ -61,9 +61,9 @@ void RenderSystem::Draw(const GameTimer& gt)
   auto passCB = current_frame_resource_->PassCB->Resource();
   d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-  CD3DX12_GPU_DESCRIPTOR_HANDLE dynamic_tex_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-  dynamic_tex_descriptor.Offset(dynamic_heap_index_, cbv_srv_uav_descriptor_size);
-  d3d_command_list_->SetGraphicsRootDescriptorTable(3, dynamic_tex_descriptor);
+  //CD3DX12_GPU_DESCRIPTOR_HANDLE dynamic_tex_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+  //dynamic_tex_descriptor.Offset(dynamic_heap_index_, cbv_srv_uav_descriptor_size);
+  //d3d_command_list_->SetGraphicsRootDescriptorTable(3, dynamic_tex_descriptor);
 
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
@@ -213,6 +213,26 @@ void RenderSystem::DrawSceneToCubeMap() {
     D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
+void RenderSystem::DrawSceneToShadowMap() {
+  d3d_command_list_->RSSetViewports(1, &shadow_map_->Viewport());
+  d3d_command_list_->RSSetScissorRects(1, &shadow_map_->ScissorRect());
+
+  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(shadow_map_->Resource(),
+    D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+  d3d_command_list_->ClearDepthStencilView(shadow_map_->Dsv(),
+    D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+  d3d_command_list_->OMSetRenderTargets(0, nullptr, true, &shadow_map_->Dsv());
+
+  auto current_pass_cb = current_frame_resource_->PassCB->Resource();
+  int pass_cb_byte_size = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+
+  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(shadow_map_->Resource(),
+    D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+}
+
 void RenderSystem::Update(const GameTimer& gt) {
   OnKeyboardInput(gt);
 
@@ -231,7 +251,7 @@ void RenderSystem::Update(const GameTimer& gt) {
 	}
 
   //  AnimateMaterials(gt);
-  UpdateSkullAnimate(gt);
+  //  UpdateSkullAnimate(gt);
   UpdateObjectCBs(gt);
   UpdateInstanceData(gt);
   UpdateMainPassCB(gt);
@@ -553,6 +573,8 @@ bool RenderSystem::Initialize() {
   dynamic_cube_map_ = make_unique<CubeRenderTarget>(d3d_device_.Get(), kCubeMapSize,
     kCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM);
 
+  shadow_map_ = make_unique<ShadowMap>(d3d_device_.Get(), kCubeMapSize, kCubeMapSize);
+
   BuildRootSignature();
   BuildPostProcessRootSignature();
   BuildShadersAndInputLayout();
@@ -570,7 +592,7 @@ bool RenderSystem::Initialize() {
   BuildFrameResource();
   //  BuildDescriptorHeaps();
   //  BuildConstBufferView();
-  BuildPipelineStateObjects();
+  BuildPSOs();
 
   ThrowIfFailed(d3d_command_list_->Close());
 	ID3D12CommandList* cmdsLists[] = { d3d_command_list_.Get() };
@@ -660,6 +682,7 @@ void RenderSystem::BuildShapeGeometry() {
     vertices_geo[i].Pos = mesh_shpere.Vertices[i].Position;
     vertices_geo[i].Normal =  mesh_shpere.Vertices[i].Normal;
     vertices_geo[i].TexCoord =  mesh_shpere.Vertices[i].TexC;
+    vertices_geo[i].TangentU = mesh_shpere.Vertices[i].TangentU;
   }
 
   //for (int i=0; i<mesh_sphere.Vertices.size(); ++i, ++k) {
@@ -1569,7 +1592,7 @@ void RenderSystem::BuildPostProcessRootSignature() {
 
 
 
-void RenderSystem::BuildPipelineStateObjects() {
+void RenderSystem::BuildPSOs() {
   D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc;
 
   ZeroMemory(&pso_desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -1687,6 +1710,8 @@ void RenderSystem::BuildPipelineStateObjects() {
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&reflectionPsoDesc, 
     IID_PPV_ARGS(&pipeline_state_objects_[pso_name_reflection])));
 
+  //D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = pso_desc;
+
 
   D3D12_COMPUTE_PIPELINE_STATE_DESC horzBlurPSO = {};
 	horzBlurPSO.pRootSignature = post_process_root_signature_.Get();
@@ -1726,32 +1751,6 @@ void RenderSystem::BuildPipelineStateObjects() {
 
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&sky_pso_desc,
     IID_PPV_ARGS(&pipeline_state_objects_["sky"])));
-
-  ////
-  //// PSO for sky.
-  ////
-  //D3D12_GRAPHICS_PIPELINE_STATE_DESC sky_pso_desc = pso_desc;
-
-  // The camera is inside the sky sphere, so just turn off culling.
-  // sky_pso_desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
-  // Make sure the depth function is LESS_EQUAL and not just LESS.  
-  // Otherwise, the normalized depth values at z = 1 (NDC) will 
-  // fail the depth test if the depth buffer was cleared to 1.
-  //  sky_pso_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-  //sky_pso_desc.pRootSignature = root_signature_.Get();
-  //sky_pso_desc.VS =
-  //{
-  //  reinterpret_cast<BYTE*>(shaders_["skyVS"]->GetBufferPointer()),
-  //  shaders_["skyVS"]->GetBufferSize()
-  //};
-  //sky_pso_desc.PS =
-  //{
-  //  reinterpret_cast<BYTE*>(shaders_["skyPS"]->GetBufferPointer()),
-  //  shaders_["skyPS"]->GetBufferSize()
-  //};
-  //ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&sky_pso_desc,
-  //  IID_PPV_ARGS(&pipeline_state_objects_["sky"])));
 
 }
 
@@ -1890,7 +1889,7 @@ void RenderSystem::BuildDescriptorHeaps() {
     textures_["tileNormalMap"].get(),
   };
 
-  const int textureDescriptorCount = texture2d.size() + 2;
+  const int textureDescriptorCount = texture2d.size() + 2 + 6;
 
   D3D12_DESCRIPTOR_HEAP_DESC src_heap_desc = {};
   //  src_heap_desc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
@@ -1936,19 +1935,20 @@ void RenderSystem::BuildDescriptorHeaps() {
   srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
   srv_desc.Format = skyTex->GetDesc().Format;
   d3d_device_->CreateShaderResourceView(skyTex.Get(), &srv_desc, hDescriptor);  //  5
-  textures_["snowcube"]->SrvHeapIndex = offsetCount;
+  textures_["snowcube"]->SrvHeapIndex = texture2d.size();
 
   //blur_filter_->BuildDescriptors(
   //  CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
   //  CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
   //  cbv_srv_uav_descriptor_size);
 
-  sky_heap_index_ = offsetCount;
+  sky_heap_index_ = texture2d.size();
   dynamic_heap_index_ = 1 + sky_heap_index_;
 
   auto srv_cpu_start = srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart();
   auto srv_gpu_start = srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart();
   auto rtv_cpu_start = rtv_heap_->GetCPUDescriptorHandleForHeapStart();
+  auto dsv_cpu_start = dsv_heap_->GetCPUDescriptorHandleForHeapStart();
 
   int rtv_offset = kSwapBufferCount;
 
@@ -1962,10 +1962,35 @@ void RenderSystem::BuildDescriptorHeaps() {
   //  rtv_descriptor_size);
 
   dynamic_cube_map_->BuildDescriptors(
-
     CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
     CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
     cubeRtvHandles);
+
+
+  shadow_heap_index = dynamic_heap_index_ + 1;
+  int mNullCubeSrvIndex = shadow_heap_index + 1;
+  int mNullTexSrvIndex = mNullCubeSrvIndex + 1;
+
+  shadow_map_->BuildDescriptors(
+    CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, shadow_heap_index, cbv_srv_uav_descriptor_size),
+    CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, shadow_heap_index, cbv_srv_uav_descriptor_size),
+    CD3DX12_CPU_DESCRIPTOR_HANDLE(dsv_cpu_start, 1, dsv_descriptor_size)
+  );
+
+  auto null_cube_srv_handle_cpu = CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, mNullCubeSrvIndex, cbv_srv_uav_descriptor_size);
+  null_cube_srv_handle_gpu = CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, mNullCubeSrvIndex, cbv_srv_uav_descriptor_size);
+
+  d3d_device_->CreateShaderResourceView(nullptr, &srv_desc, null_cube_srv_handle_cpu);
+
+  null_cube_srv_handle_cpu.Offset(1, cbv_srv_uav_descriptor_size);
+
+  srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  srv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+  srv_desc.Texture2D.MostDetailedMip = 0;
+  srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
+  srv_desc.Texture2D.MipLevels = 1;
+  d3d_device_->CreateShaderResourceView(nullptr, &srv_desc, null_cube_srv_handle_cpu);
+  
 }
 
 void RenderSystem::BuildMaterial() {

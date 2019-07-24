@@ -35,6 +35,7 @@ struct Vertex {
   //  XMFLOAT4 Color;
   XMFLOAT3 Normal;
   XMFLOAT2 TexCoord;
+  XMFLOAT3 TangentU;
 };
 
 struct ObjectConstants

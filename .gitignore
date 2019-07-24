@@ -69,3 +69,4 @@ x64/Debug/OdinRenderSystem.vcxproj.FileListAbsolute.txt
 *.lastcodeanalysissucceeded
 *.tlog
 x64/Debug/CubeRenderTarget.obj
+*.obj
