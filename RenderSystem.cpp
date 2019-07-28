@@ -39,11 +39,21 @@ void RenderSystem::Draw(const GameTimer& gt)
   sky_tex_descriptor.Offset(sky_heap_index_, cbv_srv_uav_descriptor_size);
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
 
-  d3d_command_list_->SetGraphicsRootDescriptorTable(5, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+  ////  CD3DX12_GPU_DESCRIPTOR_HANDLE
+  //CD3DX12_GPU_DESCRIPTOR_HANDLE debug_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+  //debug_descriptor.Offset(4, cbv_srv_uav_descriptor_size);
+  //d3d_command_list_->SetGraphicsRootDescriptorTable(4, debug_descriptor);
+  ////  d3d_command_list_->SetGraphicsRootDescriptorTable(4, shadow_map_->Dsv());
+  ////  d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+  ////  d3d_command_list_->SetGraphicsRootDescriptorTable(4, shadow_map_->Srv());
+
+  d3d_command_list_->SetGraphicsRootDescriptorTable(3, null_cube_srv_handle_gpu);
+
+  d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
 
   //  DrawSceneToCubeMap();
 
-  //  DrawSceneToShadowMap();
+  DrawSceneToShadowMap();
 
   d3d_command_list_->RSSetViewports(1, &screen_viewport_);
   d3d_command_list_->RSSetScissorRects(1, &scissor_rect_);
@@ -66,12 +76,10 @@ void RenderSystem::Draw(const GameTimer& gt)
   //CD3DX12_GPU_DESCRIPTOR_HANDLE dynamic_tex_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
   //dynamic_tex_descriptor.Offset(dynamic_heap_index_, cbv_srv_uav_descriptor_size);
   //d3d_command_list_->SetGraphicsRootDescriptorTable(3, dynamic_tex_descriptor);
-  
-  
-  
-  
 
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
+
+  d3d_command_list_->SetPipelineState(psos_["opaque"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
 
   //  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
@@ -641,7 +649,7 @@ bool RenderSystem::Initialize() {
   LoadTexture();
   BuildDescriptorHeaps();
   BuildMaterial();
-  BuildCubeDepthStencil();
+  //  BuildCubeDepthStencil();
   BuildRenderItems();
   BuildFrameResource();
   //  BuildDescriptorHeaps();
@@ -1644,17 +1652,17 @@ void RenderSystem::BuildRootSignature() {
   
 
   CD3DX12_DESCRIPTOR_RANGE tex_table1;
-  tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+  tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
 
-  CD3DX12_DESCRIPTOR_RANGE tex_table2;
-  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+  //CD3DX12_DESCRIPTOR_RANGE tex_table2;
+  //tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
 
   CD3DX12_DESCRIPTOR_RANGE tex_table3;
   tex_table3.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 2, 0);
 
   //  CD3DX12_DESCRIPTOR_RANGE tex_table2;
   //  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 0, 0);
-  const int parameter_count = 6;
+  const int parameter_count = 5;
 
   CD3DX12_ROOT_PARAMETER slotRootParameter[parameter_count];
   
@@ -1662,8 +1670,8 @@ void RenderSystem::BuildRootSignature() {
   slotRootParameter[1].InitAsShaderResourceView(1, 1);
   slotRootParameter[2].InitAsConstantBufferView(0);
   slotRootParameter[3].InitAsDescriptorTable(1, &tex_table1, D3D12_SHADER_VISIBILITY_PIXEL);
-  slotRootParameter[4].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
-  slotRootParameter[5].InitAsDescriptorTable(1, &tex_table3, D3D12_SHADER_VISIBILITY_PIXEL);
+  //  slotRootParameter[4].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[4].InitAsDescriptorTable(1, &tex_table3, D3D12_SHADER_VISIBILITY_PIXEL);
 
   //  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -2127,31 +2135,32 @@ void RenderSystem::BuildDescriptorHeaps() {
   //  cbv_srv_uav_descriptor_size);
 
   sky_heap_index_ = texture2d.size();
-  dynamic_heap_index_ = 1 + sky_heap_index_;
+  //  dynamic_heap_index_ = 1 + sky_heap_index_;
 
   auto srv_cpu_start = srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart();
   auto srv_gpu_start = srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart();
   auto rtv_cpu_start = rtv_heap_->GetCPUDescriptorHandleForHeapStart();
   auto dsv_cpu_start = dsv_heap_->GetCPUDescriptorHandleForHeapStart();
 
-  int rtv_offset = kSwapBufferCount;
+  //int rtv_offset = kSwapBufferCount;
 
-  CD3DX12_CPU_DESCRIPTOR_HANDLE cubeRtvHandles[6];
-  for (int i = 0; i < 6; ++i)
-    cubeRtvHandles[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtv_cpu_start, rtv_offset + i, rtv_descriptor_size);
+  //CD3DX12_CPU_DESCRIPTOR_HANDLE cubeRtvHandles[6];
+  //for (int i = 0; i < 6; ++i)
+  //  cubeRtvHandles[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtv_cpu_start, rtv_offset + i, rtv_descriptor_size);
 
   //CD3DX12_CPU_DESCRIPTOR_HANDLE(
   //  rtv_heap_->GetCPUDescriptorHandleForHeapStart(),
   //  current_back_buffer_index_,
   //  rtv_descriptor_size);
 
-  dynamic_cube_map_->BuildDescriptors(
-    CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
-    CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
-    cubeRtvHandles);
+  //dynamic_cube_map_->BuildDescriptors(
+  //  CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
+  //  CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, dynamic_heap_index_, cbv_srv_uav_descriptor_size),
+  //  cubeRtvHandles);
 
 
-  shadow_heap_index = dynamic_heap_index_ + 1;
+  //shadow_heap_index = dynamic_heap_index_ + 1;
+  shadow_heap_index = sky_heap_index_ + 1;
   int mNullCubeSrvIndex = shadow_heap_index + 1;
   int mNullTexSrvIndex = mNullCubeSrvIndex + 1;
 
