@@ -18,6 +18,7 @@
 #include "Common/Camera.h"
 #include "CubeRenderTarget.h"
 #include "ShadowMap.h"
+#include "MaterialManager.h"
 
 using namespace std;
 using namespace DirectX;
@@ -47,6 +48,8 @@ class RenderSystem : public OdinRenderSystem::Application
 
   void BuildCubeDepthStencil();
   void UpdateCubeMapFacePassCBs();
+
+  void UpdateShadowPassCB();
 
  protected:
    void Update(const GameTimer& gt) override;
@@ -126,7 +129,7 @@ private:
   //  ComPtr<ID3D12DescriptorHeap> cbv_srv_uav_descriptor_heap = nullptr;
 
 
-  unordered_map<string, ComPtr<ID3D12PipelineState>> pipeline_state_objects_;
+  unordered_map<string, ComPtr<ID3D12PipelineState>> psos_;
 
 
   float mTheta = 1.5f*XM_PI;

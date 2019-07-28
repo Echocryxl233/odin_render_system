@@ -148,6 +148,7 @@
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MaterialManager.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="MeshGeometry.cpp" />
     <ClCompile Include="RenderSystem.cpp" />
@@ -167,6 +168,7 @@
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
+    <ClInclude Include="MaterialManager.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="MeshGeometry.h" />
     <ClInclude Include="RenderItem.h" />

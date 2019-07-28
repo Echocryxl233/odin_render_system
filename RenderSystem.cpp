@@ -25,7 +25,7 @@ void RenderSystem::Draw(const GameTimer& gt)
   ThrowIfFailed(cmdListAlloc->Reset());
 
   //  ThrowIfFailed(d3d_command_list_->Reset(cmdListAlloc.Get(), pipeline_state_object_.Get()));
-  ThrowIfFailed(d3d_command_list_->Reset(cmdListAlloc.Get(), pipeline_state_objects_["opaque"].Get()));
+  ThrowIfFailed(d3d_command_list_->Reset(cmdListAlloc.Get(), psos_["opaque"].Get()));
 
   ID3D12DescriptorHeap* descriptorHeaps[] = { srv_descriptor_heap_.Get() };
   d3d_command_list_->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
@@ -39,9 +39,11 @@ void RenderSystem::Draw(const GameTimer& gt)
   sky_tex_descriptor.Offset(sky_heap_index_, cbv_srv_uav_descriptor_size);
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
 
-  d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+  d3d_command_list_->SetGraphicsRootDescriptorTable(5, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
 
   //  DrawSceneToCubeMap();
+
+  //  DrawSceneToShadowMap();
 
   d3d_command_list_->RSSetViewports(1, &screen_viewport_);
   d3d_command_list_->RSSetScissorRects(1, &scissor_rect_);
@@ -64,17 +66,24 @@ void RenderSystem::Draw(const GameTimer& gt)
   //CD3DX12_GPU_DESCRIPTOR_HANDLE dynamic_tex_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
   //dynamic_tex_descriptor.Offset(dynamic_heap_index_, cbv_srv_uav_descriptor_size);
   //d3d_command_list_->SetGraphicsRootDescriptorTable(3, dynamic_tex_descriptor);
+  
+  
+  
+  
 
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
 
-  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
+  //  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
 
-  d3d_command_list_->SetPipelineState(pipeline_state_objects_["opaqueNormal"].Get());
+  d3d_command_list_->SetPipelineState(psos_["debug"].Get());
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kDebug);
+
+  d3d_command_list_->SetPipelineState(psos_["opaqueNormal"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
 
-  d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
+  d3d_command_list_->SetPipelineState(psos_["sky"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
 
   //d3d_command_list_->OMSetStencilRef(1);
@@ -89,7 +98,7 @@ void RenderSystem::Draw(const GameTimer& gt)
   //  d3d_command_list_->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
   //  d3d_command_list_->OMSetStencilRef(0);
 
-  d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
+  d3d_command_list_->SetPipelineState(psos_["Transparent"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
   //  DrawRenderItems(d3d_command_list_.Get(), items_layers_[(int)RenderLayer::kTransparent]);
 
@@ -200,13 +209,13 @@ void RenderSystem::DrawSceneToCubeMap() {
 
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
 
-    d3d_command_list_->SetPipelineState(pipeline_state_objects_["sky"].Get());
+    d3d_command_list_->SetPipelineState(psos_["sky"].Get());
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
 
-    d3d_command_list_->SetPipelineState(pipeline_state_objects_["Transparent"].Get());
+    d3d_command_list_->SetPipelineState(psos_["Transparent"].Get());
     DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
 
-    d3d_command_list_->SetPipelineState(pipeline_state_objects_["opaque"].Get());
+    d3d_command_list_->SetPipelineState(psos_["opaque"].Get());
   }
 
   d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dynamic_cube_map_->Resource(),
@@ -227,7 +236,15 @@ void RenderSystem::DrawSceneToShadowMap() {
 
   auto current_pass_cb = current_frame_resource_->PassCB->Resource();
   int pass_cb_byte_size = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+  D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = current_pass_cb->GetGPUVirtualAddress() + 0 * pass_cb_byte_size;  
+  
+  d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCBAddress);
 
+  d3d_command_list_->SetPipelineState(psos_["shadow_opaque"].Get());
+
+  //  DrawRenderItems(d3d_command_list_.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
 
   d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(shadow_map_->Resource(),
     D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -356,7 +373,7 @@ void RenderSystem::UpdateMainPassCB(const GameTimer& gt) {
   auto current_pass_cb = current_frame_resource_->PassCB.get();
   current_pass_cb->CopyData(0, main_pass_cb_);
   //  UpdateCubeMapFacePassCBs(gt);
-  UpdateCubeMapFacePassCBs();
+  //  UpdateCubeMapFacePassCBs();
 }
 
 void RenderSystem::UpdateCubeMapFacePassCBs(const GameTimer& gt) {
@@ -391,6 +408,7 @@ void RenderSystem::UpdateCubeMapFacePassCBs(const GameTimer& gt) {
   }
 }
 
+
 void RenderSystem::UpdateCubeMapFacePassCBs()
 {
   PassConstants cubeFacePassCB = main_pass_cb_;
@@ -421,6 +439,36 @@ void RenderSystem::UpdateCubeMapFacePassCBs()
     // Cube map pass cbuffers are stored in elements 1-6.
     currPassCB->CopyData(1 + i, cubeFacePassCB);
   }
+}
+
+void RenderSystem::UpdateShadowPassCB()
+{
+  PassConstants cubeFacePassCB = main_pass_cb_;
+
+    //Camera current_camera = cube_map_cameras_[i];
+
+    //XMMATRIX view = cube_map_cameras_[i].GetView();
+    //XMMATRIX proj = cube_map_cameras_[i].GetProj();
+
+    //XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+    //XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+    //XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+    //XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+    //XMStoreFloat4x4(&cubeFacePassCB.View, XMMatrixTranspose(view));
+    //XMStoreFloat4x4(&cubeFacePassCB.InvView, XMMatrixTranspose(invView));
+    //XMStoreFloat4x4(&cubeFacePassCB.Proj, XMMatrixTranspose(proj));
+    //XMStoreFloat4x4(&cubeFacePassCB.InvProj, XMMatrixTranspose(invProj));
+    //XMStoreFloat4x4(&cubeFacePassCB.ViewProj, XMMatrixTranspose(viewProj));
+    //XMStoreFloat4x4(&cubeFacePassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+    //cubeFacePassCB.EyePosW = current_camera.GetPosition3f();
+    //cubeFacePassCB.RenderTargetSize = XMFLOAT2((float)kCubeMapSize, (float)kCubeMapSize);
+    //cubeFacePassCB.InvRenderTargetSize = XMFLOAT2(1.0f / kCubeMapSize, 1.0f / kCubeMapSize);
+
+    auto currPassCB = current_frame_resource_->PassCB.get();
+
+    // Cube map pass cbuffers are stored in elements 1-6.
+    currPassCB->CopyData(1, cubeFacePassCB);
 }
 
 void RenderSystem::UpdateReflectedPassCB(const GameTimer& gt)
@@ -509,10 +557,14 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
 void RenderSystem::UpdateMaterialBuffer(const GameTimer& gt) {
   auto material_cb = current_frame_resource_->MaterialBuffer.get();
 
-  for (auto& pair : materials_) {
-    auto material = pair.second.get();
-    if (material->NumFrameDirty > 0) {
+  auto instance = MaterialManager::GetInstance();
 
+  auto it = instance->Begin();
+
+  //  for (auto& pair : materials_) {
+  for (; it != instance->End(); ++it) {
+    auto material = it->second.get();
+    if (material->NumFrameDirty > 0) {
       XMMATRIX matTransform = XMLoadFloat4x4(&material->MatTransform);
 
       MaterialData mat_data;
@@ -534,7 +586,9 @@ void RenderSystem::UpdateMaterialBuffer(const GameTimer& gt) {
 void RenderSystem::AnimateMaterials(const GameTimer& gt)
 {
 	// Scroll the water material texture coordinates.
-	auto waterMat = materials_["water"].get();
+
+	//  auto waterMat = materials_["water"].get();
+  auto waterMat = MaterialManager::GetInstance()->GetMaterial("water");
 
 	float& tu = waterMat->MatTransform(3, 0);
 	float& tv = waterMat->MatTransform(3, 1);
@@ -667,7 +721,10 @@ void RenderSystem::BuildFrameResource() {
 
   for (size_t i=0; i<kNumFrameResources; ++i) {
     frame_resources_.push_back(std::make_unique<FrameResource>(d3d_device_.Get(), 1 + dynamic_cube_map_->RTVCount(),
-      (UINT)render_items_.size(), instance_count_, (UINT)materials_.size(), waves_->VertexCount()));
+      (UINT)render_items_.size(), instance_count_, 
+      //  (UINT)materials_.size(), 
+      (UINT)MaterialManager::GetInstance()->MaterialCount(),
+      waves_->VertexCount()));
   }
 
 }
@@ -729,6 +786,53 @@ void RenderSystem::BuildShapeGeometry() {
   //geo->DrawArgs["Sphere"] = std::move(sphere_sub_mesh_geo);
   //
   mesh_geos_[geo->Name] = std::move(geo);
+
+  //  ------------------------
+  auto mesh_quan = geo_generator.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+  //  auto mesh_quan = geo_generator.CreateSphere(1.0f, 20, 20); //
+
+  vector<Vertex> vertices_quan(mesh_quan.Vertices.size());
+  vector<uint16_t> indices_quan = mesh_quan.GetIndices16();
+  for (int i = 0; i < mesh_quan.Vertices.size(); ++i) {
+    vertices_quan[i].Pos = mesh_quan.Vertices[i].Position;
+    vertices_quan[i].Normal = mesh_quan.Vertices[i].Normal;
+    vertices_quan[i].TexCoord = mesh_quan.Vertices[i].TexC;
+    vertices_quan[i].TangentU = mesh_quan.Vertices[i].TangentU;
+  }
+
+  vertex_byte_size = (UINT)vertices_quan.size() * sizeof(Vertex);
+  index_byte_size = (UINT)indices_quan.size() * sizeof(std::uint16_t);
+
+
+  auto geo_quan = make_unique<MeshGeometry>();
+  geo_quan->Name = "QuanGeo";
+
+  ThrowIfFailed(D3DCreateBlob(vertex_byte_size, geo_quan->VertexBufferCpu.GetAddressOf()));
+  CopyMemory(geo_quan->VertexBufferCpu->GetBufferPointer(), vertices_quan.data(), vertex_byte_size);
+
+  geo_quan->VertexBufferGpu = d3dUtil::CreateDefaultBuffer(d3d_device_.Get(), d3d_command_list_.Get(),
+    vertices_quan.data(), vertex_byte_size, geo_quan->VertexBufferUpload);
+
+  ThrowIfFailed(D3DCreateBlob(index_byte_size, geo_quan->IndexBufferCpu.GetAddressOf()));
+  CopyMemory(geo_quan->IndexBufferCpu->GetBufferPointer(), indices_quan.data(), index_byte_size);
+
+  geo_quan->IndexBufferGpu = d3dUtil::CreateDefaultBuffer(d3d_device_.Get(), d3d_command_list_.Get(),
+    indices_quan.data(), index_byte_size, geo_quan->IndexBufferUpload);
+
+  geo_quan->VertexBufferSize = vertex_byte_size;
+  geo_quan->VertexByteStride = (UINT)sizeof(Vertex);
+
+  geo_quan->IndexBufferSize = index_byte_size;
+
+  SubmeshGeometry quan_sub_mesh_geo;
+  quan_sub_mesh_geo.IndexCount = (UINT)indices_quan.size();
+  quan_sub_mesh_geo.BaseVertexLocation = 0;
+  quan_sub_mesh_geo.StartIndexLocation = 0;
+
+  geo_quan->DrawArgs["Quan"] = std::move(quan_sub_mesh_geo);
+
+  mesh_geos_[geo_quan->Name] = std::move(geo_quan);
+
 }
 
 
@@ -1330,7 +1434,8 @@ void RenderSystem::BuildRenderItems() {
 	skullRitem->TexTransform = MathHelper::Identity4x4();
 	skullRitem->ObjectCBIndex = 0;
 	//  skullRitem->Mat = materials_["skullMat"].get();
-  skullRitem->Mat = materials_["grass"].get();
+  //  skullRitem->Mat = materials_["grass"].get();
+  skullRitem->Mat = MaterialManager::GetInstance()->GetMaterial("grass");
   
 	skullRitem->Geo = mesh_geos_["skullGeo"].get();
 	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1388,14 +1493,15 @@ void RenderSystem::BuildRenderItems() {
     XMMATRIX offset = XMMatrixTranslation(10.0f * (i+1), 0.0f, -0.0f);
     XMMATRIX world = rotate * scale * offset;
     XMStoreFloat4x4(&skullRitem->Instances[i].World, world);
-    skullRitem->Instances[i].MaterialIndex = materials_["skullMat"]->MatCBIndex;
+    skullRitem->Instances[i].MaterialIndex = MaterialManager::GetInstance()->GetMaterial("grass")->MatCBIndex; 
+    //  materials_["skullMat"]->MatCBIndex;
   }
 
 	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
 
   auto sky_render_item = std::make_unique<RenderItem>();
   sky_render_item->Geo = mesh_geos_["ShapeGeo"].get();
-  sky_render_item->Mat = materials_["sky"].get();
+  sky_render_item->Mat = MaterialManager::GetInstance()->GetMaterial("sky"); // materials_["sky"].get();
   sky_render_item->ObjectCBIndex = 0;
 
   //  XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-5.0f, 0.0f, 0.0f));
@@ -1415,7 +1521,7 @@ void RenderSystem::BuildRenderItems() {
 
   auto ball_render_item = std::make_unique<RenderItem>();
   ball_render_item->Geo = mesh_geos_["ShapeGeo"].get();
-  ball_render_item->Mat = materials_["mirror0"].get();
+  ball_render_item->Mat = MaterialManager::GetInstance()->GetMaterial("mirror0"); //  materials_[""].get();
   ball_render_item->ObjectCBIndex = 0;
 
   //  XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-5.0f, 0.0f, 0.0f));
@@ -1432,7 +1538,7 @@ void RenderSystem::BuildRenderItems() {
 
   auto ball2_render_item = std::make_unique<RenderItem>();
   ball2_render_item->Geo = mesh_geos_["ShapeGeo"].get();
-  ball2_render_item->Mat = materials_["tile0"].get();
+  ball2_render_item->Mat = MaterialManager::GetInstance()->GetMaterial("tile0"); 
   ball2_render_item->ObjectCBIndex = 0;
 
   //  XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-5.0f, 0.0f, 0.0f));
@@ -1446,6 +1552,29 @@ void RenderSystem::BuildRenderItems() {
   ball2_render_item->Instances[0].MaterialIndex = ball2_render_item->Mat->MatCBIndex;
 
   items_layers_[(int)RenderLayer::kMirrors].push_back(ball2_render_item.get());
+
+  //  --------------
+  auto quadRitem = std::make_unique<RenderItem>();
+  quadRitem->World = MathHelper::Identity4x4();
+  quadRitem->TexTransform = MathHelper::Identity4x4();
+  quadRitem->Mat = MaterialManager::GetInstance()->GetMaterial("tile0");  //  mMaterials["bricks0"].get();
+  quadRitem->Geo = mesh_geos_["QuanGeo"].get(); //mesh_geos_["skullGeo"].get();  //
+  quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  quadRitem->ObjectCBIndex = 0;
+  quadRitem->IndexCount = quadRitem->Geo->DrawArgs["Quan"].IndexCount;
+  quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["Quan"].StartIndexLocation;
+  quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["Quan"].BaseVertexLocation;
+  //quadRitem->IndexCount = quadRitem->Geo->DrawArgs["skull"].IndexCount;
+  //quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+  //quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+
+  quadRitem->Instances.resize(1);
+  quadRitem->Instances[0].World = MathHelper::Identity4x4();
+  quadRitem->Instances[0].MaterialIndex = quadRitem->Mat->MatCBIndex;
+  quadRitem->Visible = true;
+
+  items_layers_[(int)RenderLayer::kDebug].push_back(quadRitem.get());
+  //  ------------
   
 
   XMMATRIX pick_rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
@@ -1458,7 +1587,7 @@ void RenderSystem::BuildRenderItems() {
   pick_item->TexTransform = MathHelper::Identity4x4();
   pick_item->ObjectCBIndex = 0;
   //  pick_item->Mat = materials_["skullMat"].get();
-  pick_item->Mat = materials_["icemirror"].get();
+  pick_item->Mat = MaterialManager::GetInstance()->GetMaterial("icemirror"); // materials_["icemirror"].get();
 
   pick_item->Geo = mesh_geos_["skullGeo"].get();
   pick_item->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1479,6 +1608,9 @@ void RenderSystem::BuildRenderItems() {
   render_items_.push_back(std::move(ball2_render_item));
   render_items_.push_back(std::move(ball_render_item));
   render_items_.push_back(std::move(pick_item));
+  //mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
+  render_items_.push_back(std::move(quadRitem));
+
 }
 
 
@@ -1487,6 +1619,12 @@ void RenderSystem::BuildShadersAndInputLayout() {
 	shaders_["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\default.hlsl", nullptr, "PS", "ps_5_1");
   shaders_["standardNormalVS"] = d3dUtil::CompileShader(L"Shaders\\StandardNormal.hlsl", nullptr, "VS", "vs_5_1");
   shaders_["standardNormalPS"] = d3dUtil::CompileShader(L"Shaders\\StandardNormal.hlsl", nullptr, "PS", "ps_5_1");
+  shaders_["shadowVS"] = d3dUtil::CompileShader(L"Shaders\\Shadow.hlsl", nullptr, "VS", "vs_5_1");
+  shaders_["shadowOpaquePS"] = d3dUtil::CompileShader(L"Shaders\\Shadow.hlsl", nullptr, "PS", "ps_5_1");
+
+  shaders_["shadowDebugVS"] = d3dUtil::CompileShader(L"Shaders\\ShadowDebug.hlsl", nullptr, "VS", "vs_5_1");
+  shaders_["shadowDebugPS"] = d3dUtil::CompileShader(L"Shaders\\ShadowDebug.hlsl", nullptr, "PS", "ps_5_1");
+
   shaders_["horzBlurCS"] = d3dUtil::CompileShader(L"Shaders\\Blur.hlsl", nullptr, "HorzBlurCS", "cs_5_0");
 	shaders_["vertBlurCS"] = d3dUtil::CompileShader(L"Shaders\\Blur.hlsl", nullptr, "VertBlurCS", "cs_5_0");
 
@@ -1509,11 +1647,14 @@ void RenderSystem::BuildRootSignature() {
   tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
 
   CD3DX12_DESCRIPTOR_RANGE tex_table2;
-  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 1, 0);
+  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+
+  CD3DX12_DESCRIPTOR_RANGE tex_table3;
+  tex_table3.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 2, 0);
 
   //  CD3DX12_DESCRIPTOR_RANGE tex_table2;
   //  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 0, 0);
-  const int parameter_count = 5;
+  const int parameter_count = 6;
 
   CD3DX12_ROOT_PARAMETER slotRootParameter[parameter_count];
   
@@ -1522,6 +1663,7 @@ void RenderSystem::BuildRootSignature() {
   slotRootParameter[2].InitAsConstantBufferView(0);
   slotRootParameter[3].InitAsDescriptorTable(1, &tex_table1, D3D12_SHADER_VISIBILITY_PIXEL);
   slotRootParameter[4].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[5].InitAsDescriptorTable(1, &tex_table3, D3D12_SHADER_VISIBILITY_PIXEL);
 
   //  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -1627,7 +1769,31 @@ void RenderSystem::BuildPSOs() {
 
   //  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pipeline_state_object_)));
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, 
-    IID_PPV_ARGS(&pipeline_state_objects_["opaque"])));
+    IID_PPV_ARGS(&psos_["opaque"])));
+
+
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = pso_desc;
+  shadowPsoDesc.RasterizerState.DepthBias = 100000;
+  shadowPsoDesc.RasterizerState.DepthBiasClamp = 0.0f;
+  shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+  shadowPsoDesc.pRootSignature = root_signature_.Get();
+  shadowPsoDesc.VS =
+  {
+      reinterpret_cast<BYTE*>(shaders_["shadowVS"]->GetBufferPointer()),
+      shaders_["shadowVS"]->GetBufferSize()
+  };
+  shadowPsoDesc.PS =
+  {
+      reinterpret_cast<BYTE*>(shaders_["shadowOpaquePS"]->GetBufferPointer()),
+      shaders_["shadowOpaquePS"]->GetBufferSize()
+  };
+
+  // Shadow map pass does not have a render target.
+  shadowPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+  shadowPsoDesc.NumRenderTargets = 0;
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&shadowPsoDesc,
+    IID_PPV_ARGS(&psos_["shadow_opaque"])));
+
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC standardNormalPsoDesc = pso_desc; 
   //standardNormalPsoDesc.VS =
@@ -1641,7 +1807,25 @@ void RenderSystem::BuildPSOs() {
     shaders_["standardNormalPS"]->GetBufferSize()
   };
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&standardNormalPsoDesc,
-    IID_PPV_ARGS(&pipeline_state_objects_["opaqueNormal"])));
+    IID_PPV_ARGS(&psos_["opaqueNormal"])));
+
+  //  ----------
+
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC debugPsoDesc = pso_desc;
+  debugPsoDesc.pRootSignature = root_signature_.Get();
+  debugPsoDesc.VS =
+  {
+      reinterpret_cast<BYTE*>(shaders_["shadowDebugVS"]->GetBufferPointer()),
+      shaders_["shadowDebugVS"]->GetBufferSize()
+  };
+  debugPsoDesc.PS =
+  {
+      reinterpret_cast<BYTE*>(shaders_["shadowDebugPS"]->GetBufferPointer()),
+      shaders_["shadowDebugPS"]->GetBufferSize()
+  };
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&debugPsoDesc, IID_PPV_ARGS(&psos_["debug"])));
+
+  //  -----------
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = pso_desc;
   D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
@@ -1658,7 +1842,7 @@ void RenderSystem::BuildPSOs() {
   transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
 
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&transparentPsoDesc, 
-    IID_PPV_ARGS(&pipeline_state_objects_[pso_name_transparent])));
+    IID_PPV_ARGS(&psos_[pso_name_transparent])));
 
   D3D12_DEPTH_STENCIL_DESC mirrorDss;
   mirrorDss.DepthEnable = true;
@@ -1682,7 +1866,7 @@ void RenderSystem::BuildPSOs() {
   mirrorPsoDesc.DepthStencilState = mirrorDss;
   //mirrorPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
   //mirrorPsoDesc.RasterizerState.FrontCounterClockwise = true;
-  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&mirrorPsoDesc, IID_PPV_ARGS(&pipeline_state_objects_[pso_name_mirror])));
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&mirrorPsoDesc, IID_PPV_ARGS(&psos_[pso_name_mirror])));
 
 
   D3D12_DEPTH_STENCIL_DESC reflectionDss;
@@ -1708,9 +1892,9 @@ void RenderSystem::BuildPSOs() {
   reflectionPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
   reflectionPsoDesc.RasterizerState.FrontCounterClockwise = true;
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&reflectionPsoDesc, 
-    IID_PPV_ARGS(&pipeline_state_objects_[pso_name_reflection])));
+    IID_PPV_ARGS(&psos_[pso_name_reflection])));
 
-  //D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = pso_desc;
+
 
 
   D3D12_COMPUTE_PIPELINE_STATE_DESC horzBlurPSO = {};
@@ -1722,7 +1906,7 @@ void RenderSystem::BuildPSOs() {
 	};
 	horzBlurPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	ThrowIfFailed(d3d_device_->CreateComputePipelineState(&horzBlurPSO, 
-    IID_PPV_ARGS(&pipeline_state_objects_["horzBlur"])));
+    IID_PPV_ARGS(&psos_["horzBlur"])));
 
 
   D3D12_COMPUTE_PIPELINE_STATE_DESC vertBlurPSO = {};
@@ -1734,7 +1918,7 @@ void RenderSystem::BuildPSOs() {
 	};
   vertBlurPSO.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
   ThrowIfFailed(d3d_device_->CreateComputePipelineState(&vertBlurPSO, 
-    IID_PPV_ARGS(&pipeline_state_objects_["vertBlur"])));
+    IID_PPV_ARGS(&psos_["vertBlur"])));
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC sky_pso_desc = pso_desc;
   sky_pso_desc.pRootSignature = root_signature_.Get();
@@ -1750,7 +1934,7 @@ void RenderSystem::BuildPSOs() {
   sky_pso_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&sky_pso_desc,
-    IID_PPV_ARGS(&pipeline_state_objects_["sky"])));
+    IID_PPV_ARGS(&psos_["sky"])));
 
 }
 
@@ -2019,56 +2203,63 @@ void RenderSystem::BuildMaterial() {
    //materials_["grass"] = std::move(grass);
    //materials_["water"] = std::move(water);
 
-  auto bricks = std::make_unique<Material>();
-  bricks->Name = "bricks";
-  bricks->MatCBIndex = 0;
+  //  auto bricks = std::make_unique<Material>();
+  auto bricks = MaterialManager::GetInstance()->CreateMaterial("bricks");
+  //  bricks->Name = "bricks";
+  //  bricks->MatCBIndex = 0;
   bricks->DiffuseSrvHeapIndex = textures_["bricksTex"]->SrvHeapIndex;
   bricks->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   bricks->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
   bricks->Roughness = 0.25f;
 
-  auto checkertile = std::make_unique<Material>();
-  checkertile->Name = "checkertile";
-  checkertile->MatCBIndex = 1;
+  auto checkertile = MaterialManager::GetInstance()->CreateMaterial("checkertile");
+  //  auto checkertile = std::make_unique<Material>();
+  //  checkertile->Name = "checkertile";
+  //  checkertile->MatCBIndex = 1;
   checkertile->DiffuseSrvHeapIndex = textures_["checkboardTex"]->SrvHeapIndex;
   checkertile->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   checkertile->FresnelR0 = XMFLOAT3(0.07f, 0.07f, 0.07f);
   checkertile->Roughness = 0.3f;
 
-  auto icemirror = std::make_unique<Material>();
-  icemirror->Name = "icemirror";
-  icemirror->MatCBIndex = 2;
+  //  auto icemirror = std::make_unique<Material>();
+  auto icemirror = MaterialManager::GetInstance()->CreateMaterial("icemirror");
+  //  icemirror->Name = "icemirror";
+  //  icemirror->MatCBIndex = 2;
   icemirror->DiffuseSrvHeapIndex = textures_["iceTex"]->SrvHeapIndex;
   icemirror->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
   icemirror->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
   icemirror->Roughness = 0.5f;
 
-  auto skullMat = std::make_unique<Material>();
-  skullMat->Name = "skullMat";
-  skullMat->MatCBIndex = 3;
+  //  auto skullMat = std::make_unique<Material>();
+  auto skullMat = MaterialManager::GetInstance()->CreateMaterial("skullMat");
+  //  skullMat->Name = "skullMat";
+  //  skullMat->MatCBIndex = 3;
   skullMat->DiffuseSrvHeapIndex = 3;
   skullMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   skullMat->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
   skullMat->Roughness = 0.3f;
 
-  auto shadowMat = std::make_unique<Material>();
-  shadowMat->Name = "shadowMat";
-  shadowMat->MatCBIndex = 4;
+  //  auto shadowMat = std::make_unique<Material>();
+  auto shadowMat = MaterialManager::GetInstance()->CreateMaterial("shadowMat");
+  //  shadowMat->Name = "shadowMat";
+  //  shadowMat->MatCBIndex = 4;
   shadowMat->DiffuseSrvHeapIndex = 3;
   shadowMat->DiffuseAlbedo = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.5f);
   shadowMat->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
   shadowMat->Roughness = 0.0f;
 
-  auto mirror0 = std::make_unique<Material>();
-  mirror0->Name = "mirror0";
-  mirror0->MatCBIndex = 5;
+  //  auto mirror0 = std::make_unique<Material>();
+  auto mirror0 = MaterialManager::GetInstance()->CreateMaterial("mirror0");
+  //  mirror0->Name = "mirror0";
+  //  mirror0->MatCBIndex = 5;
   mirror0->DiffuseSrvHeapIndex = 3;
   mirror0->DiffuseAlbedo = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
   mirror0->FresnelR0 = XMFLOAT3(0.98f, 0.97f, 0.95f);
   mirror0->Roughness = 0.1f;
 
-  auto grass = std::make_unique<Material>();
-  grass->Name = "grass";
+  auto grass = MaterialManager::GetInstance()->CreateMaterial("grass");
+  //  auto grass = std::make_unique<Material>();
+  //  grass->Name = "grass";
   grass->MatCBIndex = 6;
   grass->DiffuseSrvHeapIndex = textures_["grass"]->SrvHeapIndex;
   //grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
@@ -2076,9 +2267,10 @@ void RenderSystem::BuildMaterial() {
   grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
   grass->Roughness = 0.125f;
 
-  auto tile0 = std::make_unique<Material>();
-  tile0->Name = "tile0";
-  tile0->MatCBIndex = 7;
+  //  auto tile0 = std::make_unique<Material>();
+  auto tile0 = MaterialManager::GetInstance()->CreateMaterial("tile0");
+  //  tile0->Name = "tile0";
+  //  tile0->MatCBIndex = 7;
   tile0->DiffuseSrvHeapIndex = textures_["tileDiffuseMap"]->SrvHeapIndex;
   tile0->NormalSrvHeapIndex = textures_["tileNormalMap"]->SrvHeapIndex; 
   //  grass->DiffuseSrvHeapIndex = textures_["grass"]->SrvHeapIndex;
@@ -2086,23 +2278,24 @@ void RenderSystem::BuildMaterial() {
   tile0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
   tile0->Roughness = 0.1f;
 
-  auto sky = std::make_unique<Material>();
-  sky->Name = "sky";
+  auto sky = MaterialManager::GetInstance()->CreateMaterial("sky");
+  //  auto sky = std::make_unique<Material>();
+  //  sky->Name = "sky";
   sky->MatCBIndex = 8;
   sky->DiffuseSrvHeapIndex = textures_["skyCubeMap"]->SrvHeapIndex;
   sky->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
   sky->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
   sky->Roughness = 1.0f;
 
-  materials_["bricks"] = std::move(bricks);
-  materials_["checkertile"] = std::move(checkertile);
-  materials_["icemirror"] = std::move(icemirror);
-  materials_["skullMat"] = std::move(skullMat);
-  materials_["shadowMat"] = std::move(shadowMat);
-  materials_["mirror0"] = std::move(mirror0);
-  materials_["grass"] = std::move(grass);
-  materials_["tile0"] = std::move(tile0);
-  materials_["sky"] = std::move(sky);
+  //materials_["bricks"] = std::move(bricks);
+  //materials_["checkertile"] = std::move(checkertile);
+  //materials_["icemirror"] = std::move(icemirror);
+  //materials_["skullMat"] = std::move(skullMat);
+  //materials_["shadowMat"] = std::move(shadowMat);
+  //materials_["mirror0"] = std::move(mirror0);
+  //materials_["grass"] = std::move(grass);
+  //materials_["tile0"] = std::move(tile0);
+  //materials_["sky"] = std::move(sky);
 }
 
 float RenderSystem::GetHillsHeight(float x, float z)const
