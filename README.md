@@ -2,6 +2,18 @@
 primery code about DX12 with beginning
 just for learning
 
+2019-07-30
+1. Shadow helper class
+2. 2d texture debug layer
+3. Depth map debug shader and pso ect..
+4. Floor render item to recieve shadow
+5. Shadow sampler
+6. Shadow in scene
+
+issues:
+Only a few area of light on the floor, not all the floor
+
+
 2019-07-22
 1. Normal map.
 2. Different shaders for standard opaque and normal map opaque.
