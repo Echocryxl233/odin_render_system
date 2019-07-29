@@ -9,6 +9,12 @@ namespace OdinRenderSystem {
 RenderSystem::RenderSystem(HINSTANCE h_instance)
   :Application(h_instance)
 {
+  // Estimate the scene bounding sphere manually since we know how the scene was constructed.
+// The grid is the "widest object" with a width of 20 and depth of 30.0f, and centered at
+// the world space origin.  In general, you need to loop over every world space vertex
+// position and compute the bounding sphere.
+  mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+  mSceneBounds.Radius = sqrtf(10.0f * 10.0f + 15.0f * 15.0f);
 }
 
 
@@ -358,12 +364,15 @@ void RenderSystem::UpdateMainPassCB(const GameTimer& gt) {
 	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
 	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
+  XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
+
 	XMStoreFloat4x4(&main_pass_cb_.View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&main_pass_cb_.InvView, XMMatrixTranspose(invView));
 	XMStoreFloat4x4(&main_pass_cb_.Proj, XMMatrixTranspose(proj));
 	XMStoreFloat4x4(&main_pass_cb_.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&main_pass_cb_.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&main_pass_cb_.InvViewProj, XMMatrixTranspose(invViewProj));
+  XMStoreFloat4x4(&main_pass_cb_.ShadowTransform, XMMatrixTranspose(shadowTransform));
 	//  main_pass_cb_.EyePosW = eye_position_;
   main_pass_cb_.EyePosW = camera_.GetPosition3f();
 	main_pass_cb_.RenderTargetSize = XMFLOAT2((float)client_width_, (float)client_height_);
@@ -384,6 +393,35 @@ void RenderSystem::UpdateMainPassCB(const GameTimer& gt) {
   current_pass_cb->CopyData(0, main_pass_cb_);
   //  UpdateCubeMapFacePassCBs(gt);
   //  UpdateCubeMapFacePassCBs();
+}
+
+void RenderSystem::UpdateShadowPassCB(const GameTimer& gt)
+{
+  XMMATRIX view = XMLoadFloat4x4(&mLightView);
+  XMMATRIX proj = XMLoadFloat4x4(&mLightProj);
+
+  XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+  XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+  XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+  XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+  UINT w = shadow_map_->Width();
+  UINT h = shadow_map_->Height();
+
+  XMStoreFloat4x4(&mShadowPassCB.View, XMMatrixTranspose(view));
+  XMStoreFloat4x4(&mShadowPassCB.InvView, XMMatrixTranspose(invView));
+  XMStoreFloat4x4(&mShadowPassCB.Proj, XMMatrixTranspose(proj));
+  XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
+  XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
+  XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+  mShadowPassCB.EyePosW = mLightPosW;
+  mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
+  mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
+  mShadowPassCB.NearZ = mLightNearZ;
+  mShadowPassCB.FarZ = mLightFarZ;
+
+  auto currPassCB = current_frame_resource_->PassCB.get();
+  currPassCB->CopyData(1, mShadowPassCB);
 }
 
 void RenderSystem::UpdateCubeMapFacePassCBs(const GameTimer& gt) {
@@ -592,6 +630,8 @@ void RenderSystem::UpdateMaterialBuffer(const GameTimer& gt) {
     }
   }
 }
+
+
 
 void RenderSystem::AnimateMaterials(const GameTimer& gt)
 {
@@ -2395,7 +2435,7 @@ XMFLOAT3 RenderSystem::GetHillsNormal(float x, float z)const
     return n;
 }
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> RenderSystem::GetStaticSamplers()
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, SAMPLER_COUNT> RenderSystem::GetStaticSamplers()
 {
 	// Applications usually only need a handful of samplers.  So just define them all up front
 	// and keep them available as part of the root signature.  

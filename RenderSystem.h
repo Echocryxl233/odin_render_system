@@ -1,5 +1,7 @@
 #pragma once
 
+#define SAMPLER_COUNT 6
+
 #ifndef RENDERSYSTEM_H
 #define RENDERSYSTEM_H
 
@@ -42,7 +44,7 @@ class RenderSystem : public OdinRenderSystem::Application
   float GetHillsHeight(float x, float z) const;
   XMFLOAT3 GetHillsNormal(float x, float z) const;
 
-  std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+  std::array<const CD3DX12_STATIC_SAMPLER_DESC, SAMPLER_COUNT> GetStaticSamplers();
   void Pick(int sx, int sy);
   void CreateRtvAndDsvDescriptorHeaps() override;
 
@@ -61,10 +63,12 @@ class RenderSystem : public OdinRenderSystem::Application
    virtual void UpdateCamera(const GameTimer& gt);
    virtual void UpdateObjectCBs(const GameTimer& gt) ;
    virtual void UpdateMainPassCB(const GameTimer& gt);
+   void UpdateShadowPassCB(const GameTimer& gt);
    virtual void UpdateCubeMapFacePassCBs(const GameTimer& gt);
    // virtual void UpdateWave(const GameTimer& gt);
    virtual void UpdateInstanceData(const GameTimer& gt);
    virtual void UpdateMaterialBuffer(const GameTimer& gt);
+   
    virtual void AnimateMaterials(const GameTimer& gt);
 
    virtual void UpdateReflectedPassCB(const GameTimer& gt);
@@ -204,12 +208,30 @@ private:
   int dynamic_heap_index_;
 
   unique_ptr<ShadowMap> shadow_map_;
+  PassConstants mShadowPassCB;// index 1 of pass cbuffer.
 
   int shadow_heap_index;
   int mNullCubeSrvIndex;
   int mNullTexSrvIndex;
 
   CD3DX12_GPU_DESCRIPTOR_HANDLE null_cube_srv_handle_gpu;
+
+  DirectX::BoundingSphere mSceneBounds;
+
+  float mLightNearZ = 0.0f;
+  float mLightFarZ = 0.0f;
+  XMFLOAT3 mLightPosW;
+  XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
+  XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
+  XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
+
+  float mLightRotationAngle = 0.0f;
+  XMFLOAT3 mBaseLightDirections[3] = {
+      XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
+      XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
+      XMFLOAT3(0.0f, -0.707f, -0.707f)
+  };
+  XMFLOAT3 mRotatedLightDirections[3];
 };
 
 }
