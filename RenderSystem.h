@@ -1,6 +1,6 @@
 #pragma once
 
-#define SAMPLER_COUNT 6
+#define SAMPLER_COUNT 7
 
 #ifndef RENDERSYSTEM_H
 #define RENDERSYSTEM_H
