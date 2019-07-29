@@ -62,6 +62,7 @@ class RenderSystem : public OdinRenderSystem::Application
    void UpdateSkullAnimate(const GameTimer& gt);
    virtual void UpdateCamera(const GameTimer& gt);
    virtual void UpdateObjectCBs(const GameTimer& gt) ;
+   void UpdateShadowTransform(const GameTimer& gt);
    virtual void UpdateMainPassCB(const GameTimer& gt);
    void UpdateShadowPassCB(const GameTimer& gt);
    virtual void UpdateCubeMapFacePassCBs(const GameTimer& gt);

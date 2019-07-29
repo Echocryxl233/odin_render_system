@@ -11,7 +11,8 @@ struct VertexIn
 struct VertexOut
 {
 	float4 PosH  : SV_POSITION;
-  float3 PosW  : POSITION;
+  float4 ShadowPosH : POSITION0;
+  float3 PosW    : POSITION1;
   float3 Normal : NORMAL; //  normal world
   float2 TexCoord : TEXCOORD;
   float3 TangentW : TANGENT;
@@ -33,18 +34,6 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     vout.MatIndex = matIndex;
 
     MaterialData matData = gMaterialData[matIndex];
-
-    //  ----------
-
-    
-    //float4x4 world = gWorld;
-    //float4x4 texTransform = gTexTransform;
-
-    //MaterialData matData = gMaterialData[MaterialIndex];
-    
-
-    //  ------------
-
     vout.TangentW = mul(vin.TangentU, (float3x3)world);
 
 	  // Transform to homogeneous clip space.
@@ -57,6 +46,8 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     vout.Normal = mul(vin.Normal, (float3x3)world);
     float4 texCoord = mul(float4(vin.TexCoord, 0.0f, 1.0f), texTransform);
     vout.TexCoord = mul(texCoord, matData.MatTransform).xy;
+
+    vout.ShadowPosH = mul(posW, gShadowTransform);
 
     return vout;
 }
@@ -84,9 +75,12 @@ float4 PS(VertexOut pin) : SV_TARGET
 
     float4 ambient = gAmbientLight*diffuseAlbedo;
 
+    float3 shadowFactor = 1.0f;
+    shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
+
     const float shininess = 1.0f - Roughness;
     Material mat = { diffuseAlbedo, FresnelR0, shininess };
-    float3 shadowFactor = 1.0f;
+
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
       pin.Normal, toEyeW, shadowFactor);
 

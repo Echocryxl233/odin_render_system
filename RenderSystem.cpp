@@ -96,8 +96,8 @@ void RenderSystem::Draw(const GameTimer& gt)
   d3d_command_list_->SetPipelineState(psos_["debug"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kDebug);
 
-  d3d_command_list_->SetPipelineState(psos_["opaqueNormal"].Get());
-  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
+  //d3d_command_list_->SetPipelineState(psos_["opaqueNormal"].Get());
+  //DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
 
   d3d_command_list_->SetPipelineState(psos_["sky"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
@@ -252,7 +252,7 @@ void RenderSystem::DrawSceneToShadowMap() {
 
   auto current_pass_cb = current_frame_resource_->PassCB->Resource();
   int pass_cb_byte_size = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-  D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = current_pass_cb->GetGPUVirtualAddress() + 0 * pass_cb_byte_size;  
+  D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = current_pass_cb->GetGPUVirtualAddress() + 1 * pass_cb_byte_size;  
   
   d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCBAddress);
 
@@ -261,6 +261,8 @@ void RenderSystem::DrawSceneToShadowMap() {
   //  DrawRenderItems(d3d_command_list_.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
+
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kShadow);
 
   d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(shadow_map_->Resource(),
     D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -283,11 +285,23 @@ void RenderSystem::Update(const GameTimer& gt) {
     CloseHandle(eventHandle);
 	}
 
+  mLightRotationAngle += 0.1f * gt.DeltaTime();
+
+  XMMATRIX R = XMMatrixRotationY(mLightRotationAngle);
+  for (int i = 0; i < 3; ++i)
+  {
+    XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[i]);
+    lightDir = XMVector3TransformNormal(lightDir, R);
+    XMStoreFloat3(&mRotatedLightDirections[i], lightDir);
+  }
+
   //  AnimateMaterials(gt);
   //  UpdateSkullAnimate(gt);
-  UpdateObjectCBs(gt);
+  //  UpdateObjectCBs(gt);
   UpdateInstanceData(gt);
+  UpdateShadowTransform(gt);
   UpdateMainPassCB(gt);
+  UpdateShadowPassCB(gt);
   //  UpdateCubeMapFacePassCBs(gt);
   UpdateMaterialBuffer(gt);
   //  UpdateReflectedPassCB(gt);
@@ -352,6 +366,46 @@ void RenderSystem::UpdateObjectCBs(const GameTimer& gt) {
   }
 }
 
+void RenderSystem::UpdateShadowTransform(const GameTimer& gt)
+{
+  // Only the first "main" light casts a shadow.
+  XMVECTOR lightDir = XMLoadFloat3(&mRotatedLightDirections[0]);
+  XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir;
+  XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
+  XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+  XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
+
+  XMStoreFloat3(&mLightPosW, lightPos);
+
+  // Transform bounding sphere to light space.
+  XMFLOAT3 sphereCenterLS;
+  XMStoreFloat3(&sphereCenterLS, XMVector3TransformCoord(targetPos, lightView));
+
+  // Ortho frustum in light space encloses scene.
+  float l = sphereCenterLS.x - mSceneBounds.Radius;
+  float b = sphereCenterLS.y - mSceneBounds.Radius;
+  float n = sphereCenterLS.z - mSceneBounds.Radius;
+  float r = sphereCenterLS.x + mSceneBounds.Radius;
+  float t = sphereCenterLS.y + mSceneBounds.Radius;
+  float f = sphereCenterLS.z + mSceneBounds.Radius;
+
+  mLightNearZ = n;
+  mLightFarZ = f;
+  XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+  // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+  XMMATRIX T(
+    0.5f, 0.0f, 0.0f, 0.0f,
+    0.0f, -0.5f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.5f, 0.5f, 0.0f, 1.0f);
+
+  XMMATRIX S = lightView * lightProj * T;
+  XMStoreFloat4x4(&mLightView, lightView);
+  XMStoreFloat4x4(&mLightProj, lightProj);
+  XMStoreFloat4x4(&mShadowTransform, S);
+}
+
 void RenderSystem::UpdateMainPassCB(const GameTimer& gt) {
   //  XMMATRIX view = XMLoadFloat4x4(&mView);
 	//  XMMATRIX proj = XMLoadFloat4x4(&mProj);
@@ -384,10 +438,11 @@ void RenderSystem::UpdateMainPassCB(const GameTimer& gt) {
 
   main_pass_cb_.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 
-  XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
-  XMStoreFloat3(&main_pass_cb_.Lights[0].Direction, lightDir);
-  main_pass_cb_.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
-  
+  //XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
+  //XMStoreFloat3(&main_pass_cb_.Lights[0].Direction, lightDir);
+  //main_pass_cb_.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+  main_pass_cb_.Lights[0].Direction = mRotatedLightDirections[0];
+  main_pass_cb_.Lights[0].Strength = { 0.9f, 0.8f, 0.7f };
 
   auto current_pass_cb = current_frame_resource_->PassCB.get();
   current_pass_cb->CopyData(0, main_pass_cb_);
@@ -491,32 +546,31 @@ void RenderSystem::UpdateCubeMapFacePassCBs()
 
 void RenderSystem::UpdateShadowPassCB()
 {
-  PassConstants cubeFacePassCB = main_pass_cb_;
+  XMMATRIX view = XMLoadFloat4x4(&mLightView);
+  XMMATRIX proj = XMLoadFloat4x4(&mLightProj);
 
-    //Camera current_camera = cube_map_cameras_[i];
+  XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+  XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+  XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+  XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
-    //XMMATRIX view = cube_map_cameras_[i].GetView();
-    //XMMATRIX proj = cube_map_cameras_[i].GetProj();
+  UINT w = shadow_map_->Width();
+  UINT h = shadow_map_->Height();
 
-    //XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-    //XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
-    //XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
-    //XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+  XMStoreFloat4x4(&mShadowPassCB.View, XMMatrixTranspose(view));
+  XMStoreFloat4x4(&mShadowPassCB.InvView, XMMatrixTranspose(invView));
+  XMStoreFloat4x4(&mShadowPassCB.Proj, XMMatrixTranspose(proj));
+  XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
+  XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
+  XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+  mShadowPassCB.EyePosW = mLightPosW;
+  mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
+  mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
+  mShadowPassCB.NearZ = mLightNearZ;
+  mShadowPassCB.FarZ = mLightFarZ;
 
-    //XMStoreFloat4x4(&cubeFacePassCB.View, XMMatrixTranspose(view));
-    //XMStoreFloat4x4(&cubeFacePassCB.InvView, XMMatrixTranspose(invView));
-    //XMStoreFloat4x4(&cubeFacePassCB.Proj, XMMatrixTranspose(proj));
-    //XMStoreFloat4x4(&cubeFacePassCB.InvProj, XMMatrixTranspose(invProj));
-    //XMStoreFloat4x4(&cubeFacePassCB.ViewProj, XMMatrixTranspose(viewProj));
-    //XMStoreFloat4x4(&cubeFacePassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-    //cubeFacePassCB.EyePosW = current_camera.GetPosition3f();
-    //cubeFacePassCB.RenderTargetSize = XMFLOAT2((float)kCubeMapSize, (float)kCubeMapSize);
-    //cubeFacePassCB.InvRenderTargetSize = XMFLOAT2(1.0f / kCubeMapSize, 1.0f / kCubeMapSize);
-
-    auto currPassCB = current_frame_resource_->PassCB.get();
-
-    // Cube map pass cbuffers are stored in elements 1-6.
-    currPassCB->CopyData(1, cubeFacePassCB);
+  auto currPassCB = current_frame_resource_->PassCB.get();
+  currPassCB->CopyData(1, mShadowPassCB);
 }
 
 void RenderSystem::UpdateReflectedPassCB(const GameTimer& gt)
@@ -677,7 +731,7 @@ bool RenderSystem::Initialize() {
   dynamic_cube_map_ = make_unique<CubeRenderTarget>(d3d_device_.Get(), kCubeMapSize,
     kCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM);
 
-  shadow_map_ = make_unique<ShadowMap>(d3d_device_.Get(), kCubeMapSize, kCubeMapSize);
+  shadow_map_ = make_unique<ShadowMap>(d3d_device_.Get(), 2048, 2048);
 
   BuildRootSignature();
   BuildPostProcessRootSignature();
@@ -1913,11 +1967,11 @@ void RenderSystem::BuildPSOs() {
 
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC standardNormalPsoDesc = pso_desc; 
-  //standardNormalPsoDesc.VS =
-  //{
-  //  reinterpret_cast<BYTE*>(shaders_["standardNormalVS"]->GetBufferPointer()),
-  //  shaders_["standardNormalVS"]->GetBufferSize()
-  //};
+  standardNormalPsoDesc.VS =
+  {
+    reinterpret_cast<BYTE*>(shaders_["standardNormalVS"]->GetBufferPointer()),
+    shaders_["standardNormalVS"]->GetBufferSize()
+  };
   standardNormalPsoDesc.PS =
   {
     reinterpret_cast<BYTE*>(shaders_["standardNormalPS"]->GetBufferPointer()),
