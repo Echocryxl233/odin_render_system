@@ -85,6 +85,8 @@ void RenderSystem::Draw(const GameTimer& gt)
   //  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
 
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kShadow);
+
   d3d_command_list_->SetPipelineState(psos_["debug"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kDebug);
 
@@ -841,6 +843,51 @@ void RenderSystem::BuildShapeGeometry() {
 
   mesh_geos_[geo_quan->Name] = std::move(geo_quan);
 
+  //  ---------------
+  auto mesh_grid = geo_generator.CreateGrid(20.0f, 30.0f, 60, 40);; //  CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+
+  vector<Vertex> vertices_grid(mesh_grid.Vertices.size());
+  vector<uint16_t> indices_grid = mesh_grid.GetIndices16();
+  for (int i = 0; i < mesh_grid.Vertices.size(); ++i) {
+    vertices_grid[i].Pos = mesh_grid.Vertices[i].Position;
+    vertices_grid[i].Normal = mesh_grid.Vertices[i].Normal;
+    vertices_grid[i].TexCoord = mesh_grid.Vertices[i].TexC;
+    vertices_grid[i].TangentU = mesh_grid.Vertices[i].TangentU;
+  }
+
+  vertex_byte_size = (UINT)vertices_grid.size() * sizeof(Vertex);
+  index_byte_size = (UINT)indices_grid.size() * sizeof(std::uint16_t);
+
+
+  auto geo_grid = make_unique<MeshGeometry>();
+  geo_grid->Name = "GridGeo";
+
+  ThrowIfFailed(D3DCreateBlob(vertex_byte_size, geo_grid->VertexBufferCpu.GetAddressOf()));
+  CopyMemory(geo_grid->VertexBufferCpu->GetBufferPointer(), vertices_grid.data(), vertex_byte_size);
+
+  geo_grid->VertexBufferGpu = d3dUtil::CreateDefaultBuffer(d3d_device_.Get(), d3d_command_list_.Get(),
+    vertices_grid.data(), vertex_byte_size, geo_grid->VertexBufferUpload);
+
+  ThrowIfFailed(D3DCreateBlob(index_byte_size, geo_grid->IndexBufferCpu.GetAddressOf()));
+  CopyMemory(geo_grid->IndexBufferCpu->GetBufferPointer(), indices_grid.data(), index_byte_size);
+
+  geo_grid->IndexBufferGpu = d3dUtil::CreateDefaultBuffer(d3d_device_.Get(), d3d_command_list_.Get(),
+    indices_grid.data(), index_byte_size, geo_grid->IndexBufferUpload);
+
+  geo_grid->VertexBufferSize = vertex_byte_size;
+  geo_grid->VertexByteStride = (UINT)sizeof(Vertex);
+
+  geo_grid->IndexBufferSize = index_byte_size;
+
+  SubmeshGeometry grid_sub_mesh_geo;
+  grid_sub_mesh_geo.IndexCount = (UINT)indices_grid.size();
+  grid_sub_mesh_geo.BaseVertexLocation = 0;
+  grid_sub_mesh_geo.StartIndexLocation = 0;
+
+  geo_grid->DrawArgs["Grid"] = std::move(grid_sub_mesh_geo);
+
+  mesh_geos_[geo_grid->Name] = std::move(geo_grid);
+
 }
 
 
@@ -1583,6 +1630,27 @@ void RenderSystem::BuildRenderItems() {
 
   items_layers_[(int)RenderLayer::kDebug].push_back(quadRitem.get());
   //  ------------
+
+  auto gridRitem = std::make_unique<RenderItem>();
+  gridRitem->World = MathHelper::Identity4x4();
+  gridRitem->TexTransform = MathHelper::Identity4x4();
+  gridRitem->Mat = MaterialManager::GetInstance()->GetMaterial("tile0");  //  mMaterials["bricks0"].get();
+  gridRitem->Geo = mesh_geos_["GridGeo"].get(); //mesh_geos_["skullGeo"].get();  //
+  gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  gridRitem->ObjectCBIndex = 0;
+  gridRitem->IndexCount = gridRitem->Geo->DrawArgs["Grid"].IndexCount;
+  gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["Grid"].StartIndexLocation;
+  gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["Grid"].BaseVertexLocation;
+
+  gridRitem->Instances.resize(1);
+  gridRitem->Instances[0].World = MathHelper::Identity4x4();
+  XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f)* XMMatrixTranslation(0.0f, -15.0f, 0.0f));
+  gridRitem->Instances[0].MaterialIndex = gridRitem->Mat->MatCBIndex;
+  gridRitem->Visible = true;
+
+  items_layers_[(int)RenderLayer::kShadow].push_back(gridRitem.get());
+
+  //  -----------
   
 
   XMMATRIX pick_rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
@@ -1618,6 +1686,7 @@ void RenderSystem::BuildRenderItems() {
   render_items_.push_back(std::move(pick_item));
   //mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
   render_items_.push_back(std::move(quadRitem));
+  render_items_.push_back(std::move(gridRitem));
 
 }
 
