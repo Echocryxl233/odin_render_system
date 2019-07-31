@@ -53,13 +53,13 @@ void RenderSystem::Draw(const GameTimer& gt)
   ////  d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
   ////  d3d_command_list_->SetGraphicsRootDescriptorTable(4, shadow_map_->Srv());
 
-  d3d_command_list_->SetGraphicsRootDescriptorTable(3, null_cube_srv_handle_gpu);
+  //  d3d_command_list_->SetGraphicsRootDescriptorTable(3, null_cube_srv_handle_gpu);
 
   d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
 
   //  DrawSceneToCubeMap();
 
-  DrawSceneToShadowMap();
+  //  DrawSceneToShadowMap();
 
   d3d_command_list_->RSSetViewports(1, &screen_viewport_);
   d3d_command_list_->RSSetScissorRects(1, &scissor_rect_);
@@ -91,10 +91,10 @@ void RenderSystem::Draw(const GameTimer& gt)
   //  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
 
-  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kShadow);
+  //  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kShadow);
 
-  d3d_command_list_->SetPipelineState(psos_["debug"].Get());
-  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kDebug);
+  //d3d_command_list_->SetPipelineState(psos_["debug"].Get());
+  //DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kDebug);
 
   //d3d_command_list_->SetPipelineState(psos_["opaqueNormal"].Get());
   //DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
@@ -262,7 +262,7 @@ void RenderSystem::DrawSceneToShadowMap() {
 
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
 
-  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kShadow);
+  //  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kShadow);
 
   d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(shadow_map_->Resource(),
     D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -2327,25 +2327,25 @@ void RenderSystem::BuildDescriptorHeaps() {
   int mNullCubeSrvIndex = shadow_heap_index + 1;
   int mNullTexSrvIndex = mNullCubeSrvIndex + 1;
 
-  shadow_map_->BuildDescriptors(
-    CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, shadow_heap_index, cbv_srv_uav_descriptor_size),
-    CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, shadow_heap_index, cbv_srv_uav_descriptor_size),
-    CD3DX12_CPU_DESCRIPTOR_HANDLE(dsv_cpu_start, 1, dsv_descriptor_size)
-  );
+  // shadow_map_->BuildDescriptors(
+  //   CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, shadow_heap_index, cbv_srv_uav_descriptor_size),
+  //   CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, shadow_heap_index, cbv_srv_uav_descriptor_size),
+  //   CD3DX12_CPU_DESCRIPTOR_HANDLE(dsv_cpu_start, 1, dsv_descriptor_size)
+  // );
 
-  auto null_cube_srv_handle_cpu = CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, mNullCubeSrvIndex, cbv_srv_uav_descriptor_size);
-  null_cube_srv_handle_gpu = CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, mNullCubeSrvIndex, cbv_srv_uav_descriptor_size);
+  // auto null_cube_srv_handle_cpu = CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, mNullCubeSrvIndex, cbv_srv_uav_descriptor_size);
+  // null_cube_srv_handle_gpu = CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_gpu_start, mNullCubeSrvIndex, cbv_srv_uav_descriptor_size);
 
-  d3d_device_->CreateShaderResourceView(nullptr, &srv_desc, null_cube_srv_handle_cpu);
+  // d3d_device_->CreateShaderResourceView(nullptr, &srv_desc, null_cube_srv_handle_cpu);
 
-  null_cube_srv_handle_cpu.Offset(1, cbv_srv_uav_descriptor_size);
+  // null_cube_srv_handle_cpu.Offset(1, cbv_srv_uav_descriptor_size);
 
-  srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-  srv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-  srv_desc.Texture2D.MostDetailedMip = 0;
-  srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
-  srv_desc.Texture2D.MipLevels = 1;
-  d3d_device_->CreateShaderResourceView(nullptr, &srv_desc, null_cube_srv_handle_cpu);
+  // srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  // srv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+  // srv_desc.Texture2D.MostDetailedMip = 0;
+  // srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
+  // srv_desc.Texture2D.MipLevels = 1;
+  // d3d_device_->CreateShaderResourceView(nullptr, &srv_desc, null_cube_srv_handle_cpu);
   
 }
 
