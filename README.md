@@ -2,6 +2,9 @@
 primery code about DX12 with beginning
 just for learning
 
+2019-08-01
+1. Fixed shadow issue with no scaling
+
 2019-07-30
 1. Shadow helper class
 2. 2d texture debug layer

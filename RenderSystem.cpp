@@ -14,7 +14,7 @@ RenderSystem::RenderSystem(HINSTANCE h_instance)
 // the world space origin.  In general, you need to loop over every world space vertex
 // position and compute the bounding sphere.
   mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-  mSceneBounds.Radius = sqrtf(10.0f * 10.0f + 15.0f * 15.0f);
+  mSceneBounds.Radius = sqrtf(15.0f * 15.0f + 20.0f * 20.0f);
 }
 
 
@@ -96,8 +96,8 @@ void RenderSystem::Draw(const GameTimer& gt)
   d3d_command_list_->SetPipelineState(psos_["debug"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kDebug);
 
-  //d3d_command_list_->SetPipelineState(psos_["opaqueNormal"].Get());
-  //DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
+  d3d_command_list_->SetPipelineState(psos_["opaqueNormal"].Get());
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
 
   d3d_command_list_->SetPipelineState(psos_["sky"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
@@ -263,6 +263,12 @@ void RenderSystem::DrawSceneToShadowMap() {
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
 
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kShadow);
+
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
+
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
+
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
 
   d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(shadow_map_->Resource(),
     D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -938,7 +944,7 @@ void RenderSystem::BuildShapeGeometry() {
   mesh_geos_[geo_quan->Name] = std::move(geo_quan);
 
   //  ---------------
-  auto mesh_grid = geo_generator.CreateGrid(20.0f, 30.0f, 60, 40);; //  CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+  auto mesh_grid = geo_generator.CreateGrid(30.0f, 40.0f, 60, 40);; //  CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
 
   vector<Vertex> vertices_grid(mesh_grid.Vertices.size());
   vector<uint16_t> indices_grid = mesh_grid.GetIndices16();
@@ -1633,13 +1639,13 @@ void RenderSystem::BuildRenderItems() {
 	//	}
 	//}
 
-  int instance_count = 1;
+  int instance_count = 3;
   skullRitem->Instances.resize(instance_count);
 
   for (int i = 0; i < instance_count; ++i) {
     XMMATRIX rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
-    XMMATRIX scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-    XMMATRIX offset = XMMatrixTranslation(-10.0f * (i+1), 0.0f, -5.0f);
+    XMMATRIX scale = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+    XMMATRIX offset = XMMatrixTranslation(8.0f * (i) - 6.0f, 1.0f, 3.0f * i - 4.0f);
     XMMATRIX world = rotate * scale * offset;
     XMStoreFloat4x4(&skullRitem->Instances[i].World, world);
     skullRitem->Instances[i].MaterialIndex = MaterialManager::GetInstance()->GetMaterial("grass")->MatCBIndex; 
@@ -1659,7 +1665,8 @@ void RenderSystem::BuildRenderItems() {
   sky_render_item->StartIndexLocation = sky_render_item->Geo->DrawArgs["Sphere"].StartIndexLocation;
   sky_render_item->BaseVertexLocation = sky_render_item->Geo->DrawArgs["Sphere"].BaseVertexLocation;
   sky_render_item->Instances.resize(1);
-  XMStoreFloat4x4(&sky_render_item->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f)* XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+  sky_render_item->Instances[0].World = MathHelper::Identity4x4();
+  //  XMStoreFloat4x4(&sky_render_item->Instances[0].World, XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 
   //  sky_render_item->Instances[0].World = MathHelper::Identity4x4();
   //  pick_item->Instances[0].World = MathHelper::Identity4x4();
@@ -1679,7 +1686,7 @@ void RenderSystem::BuildRenderItems() {
   ball_render_item->StartIndexLocation = ball_render_item->Geo->DrawArgs["Sphere"].StartIndexLocation;
   ball_render_item->BaseVertexLocation = ball_render_item->Geo->DrawArgs["Sphere"].BaseVertexLocation;
   ball_render_item->Instances.resize(1);
-  XMStoreFloat4x4(&ball_render_item->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f)* XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+  XMStoreFloat4x4(&ball_render_item->Instances[0].World, XMMatrixTranslation(0.0f, 5.0f, -4.0f));
 
   ball_render_item->Instances[0].MaterialIndex = ball_render_item->Mat->MatCBIndex;
 
@@ -1696,7 +1703,7 @@ void RenderSystem::BuildRenderItems() {
   ball2_render_item->StartIndexLocation = ball2_render_item->Geo->DrawArgs["Sphere"].StartIndexLocation;
   ball2_render_item->BaseVertexLocation = ball2_render_item->Geo->DrawArgs["Sphere"].BaseVertexLocation;
   ball2_render_item->Instances.resize(1);
-  XMStoreFloat4x4(&ball2_render_item->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f)* XMMatrixTranslation(0.0f, 15.0f, 0.0f));
+  XMStoreFloat4x4(&ball2_render_item->Instances[0].World, XMMatrixTranslation(0.0f, 5.0f, 0.0f));
 
   ball2_render_item->Instances[0].MaterialIndex = ball2_render_item->Mat->MatCBIndex;
 
@@ -1738,7 +1745,7 @@ void RenderSystem::BuildRenderItems() {
 
   gridRitem->Instances.resize(1);
   gridRitem->Instances[0].World = MathHelper::Identity4x4();
-  XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f)* XMMatrixTranslation(0.0f, -15.0f, 0.0f));
+  //  XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(10.0f, 10.0f, 10.0f));
   gridRitem->Instances[0].MaterialIndex = gridRitem->Mat->MatCBIndex;
   gridRitem->Visible = true;
 
@@ -1748,8 +1755,8 @@ void RenderSystem::BuildRenderItems() {
   
 
   XMMATRIX pick_rotate = XMMatrixRotationY(0.0f * MathHelper::Pi);
-  XMMATRIX pick_scale = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-  XMMATRIX pick_offset = XMMatrixTranslation(-7.0f, 0.0f, -0.0f);
+  XMMATRIX pick_scale = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+  XMMATRIX pick_offset = XMMatrixTranslation(-7.0f, 2.0f, 4.0f);
   XMMATRIX pick_world = pick_rotate * pick_scale * pick_offset;
   auto pick_item = std::make_unique<RenderItem>();
   //  pick_item->World = MathHelper::Identity4x4();

@@ -65,7 +65,7 @@ float4 PS(VertexOut pin) : SV_TARGET
     float3 toEyeW = normalize(gEyePosW - pin.PosW);
     float4 ambient = gAmbientLight*diffuseAlbedo;
 
-    float3 shadowFactor = 1.0f;
+    float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
     const float shininess = 1.0f - Roughness;
     Material mat = { diffuseAlbedo, FresnelR0, shininess };
     
