@@ -5,8 +5,10 @@
 
 
 #include <WindowsX.h>
+#include <algorithm>
 #include <assert.h>
 #include <array>
+
 #include <fstream>
 #include <memory>
 #include <map>

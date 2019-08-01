@@ -739,7 +739,10 @@ bool RenderSystem::Initialize() {
 
   shadow_map_ = make_unique<ShadowMap>(d3d_device_.Get(), 2048, 2048);
 
+  ssao_ = make_unique<Ssao>(d3d_device_.Get(), d3d_command_list_.Get(), client_width_, client_height_);
+
   BuildRootSignature();
+  BuildSsaoRootSignature();
   BuildPostProcessRootSignature();
   BuildShadersAndInputLayout();
   BuildShapeGeometry();
@@ -1808,6 +1811,9 @@ void RenderSystem::BuildShadersAndInputLayout() {
 
   shaders_["skyVS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "SkyVS", "vs_5_1");
   shaders_["skyPS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "SkyPS", "ps_5_1");
+
+  shaders_["ssaoVS"] = d3dUtil::CompileShader(L"Shaders\\Ssao.hlsl", nullptr, "VS", "vs_5_1");
+  shaders_["ssaoPS"] = d3dUtil::CompileShader(L"Shaders\\Ssao.hlsl", nullptr, "PS", "ps_5_1");
 	
   input_layout_ =
   {
@@ -1819,7 +1825,6 @@ void RenderSystem::BuildShadersAndInputLayout() {
 }
 
 void RenderSystem::BuildRootSignature() {
-  
 
   CD3DX12_DESCRIPTOR_RANGE tex_table1;
   tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
@@ -1871,6 +1876,85 @@ void RenderSystem::BuildRootSignature() {
 		IID_PPV_ARGS(root_signature_.GetAddressOf())));
 }
 
+void RenderSystem::BuildSsaoRootSignature() {
+  
+
+  CD3DX12_DESCRIPTOR_RANGE tex_table1;
+  tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
+
+
+  CD3DX12_DESCRIPTOR_RANGE tex_table3;
+  tex_table3.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+
+  const int parameter_count = 4;
+
+  CD3DX12_ROOT_PARAMETER slotRootParameter[parameter_count];
+
+  slotRootParameter[0].InitAsConstantBufferView(0);
+  slotRootParameter[1].InitAsConstants(1, 1);
+  slotRootParameter[2].InitAsDescriptorTable(1, &tex_table1, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table3, D3D12_SHADER_VISIBILITY_PIXEL);
+
+  const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+    0, // shaderRegister
+    D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+  const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+    1, // shaderRegister
+    D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+  const CD3DX12_STATIC_SAMPLER_DESC depthMapSam(
+    2, // shaderRegister
+    D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
+    0.0f,
+    0,
+    D3D12_COMPARISON_FUNC_LESS_EQUAL,
+    D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE); 
+
+  const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+    3, // shaderRegister
+    D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+  std::array<CD3DX12_STATIC_SAMPLER_DESC, 4> static_samplers =
+  {
+    pointClamp, linearClamp, depthMapSam, linearWrap
+  };
+
+  CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(parameter_count, slotRootParameter,
+    (UINT)static_samplers.size(), static_samplers.data(), 
+    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+  // create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
+  ComPtr<ID3DBlob> serializedRootSig = nullptr;
+  ComPtr<ID3DBlob> errorBlob = nullptr;
+  HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+    serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+
+  if(errorBlob != nullptr)
+  {
+    ::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+  }
+  ThrowIfFailed(hr);
+
+  ThrowIfFailed(d3d_device_->CreateRootSignature(
+    0,
+    serializedRootSig->GetBufferPointer(),
+    serializedRootSig->GetBufferSize(),
+    IID_PPV_ARGS(ssao_root_signature_.GetAddressOf())));
+}
+
 void RenderSystem::BuildPostProcessRootSignature() {
   CD3DX12_DESCRIPTOR_RANGE srvTable;
 	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
@@ -1913,18 +1997,18 @@ void RenderSystem::BuildPostProcessRootSignature() {
 
 
 void RenderSystem::BuildPSOs() {
-  D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc;
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC base_pso_desc;
 
-  ZeroMemory(&pso_desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-  pso_desc.InputLayout = { input_layout_.data(), (UINT)input_layout_.size() };
-  pso_desc.VS = 
+  ZeroMemory(&base_pso_desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+  base_pso_desc.InputLayout = { input_layout_.data(), (UINT)input_layout_.size() };
+  base_pso_desc.VS = 
 	{ 
 		/*reinterpret_cast<BYTE*>(vertex_shader_code_->GetBufferPointer()), 
 		vertex_shader_code_->GetBufferSize() */
     reinterpret_cast<BYTE*>(shaders_["standardVS"]->GetBufferPointer()), 
 		shaders_["standardVS"]->GetBufferSize() 
 	};
-  pso_desc.PS = 
+  base_pso_desc.PS = 
 	{ 
 		/*reinterpret_cast<BYTE*>(pixel_shader_code_->GetBufferPointer()), 
 		pixel_shader_code_->GetBufferSize() */
@@ -1932,25 +2016,25 @@ void RenderSystem::BuildPSOs() {
 		shaders_["opaquePS"]->GetBufferSize() 
 
 	};
-  pso_desc.pRootSignature = root_signature_.Get();
-  pso_desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-  pso_desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-  pso_desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-  pso_desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-  pso_desc.SampleMask = UINT_MAX;
-  pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-  pso_desc.NumRenderTargets = 1;
-  pso_desc.RTVFormats[0] = back_buffer_format_;
-  pso_desc.DSVFormat = depth_stencil_format_;
-  pso_desc.SampleDesc.Quality = use_4x_msaa_state_ ? (use_4x_msaa_quanlity_-1) : 0;
-  pso_desc.SampleDesc.Count = use_4x_msaa_state_ ? 4 : 1;
+  base_pso_desc.pRootSignature = root_signature_.Get();
+  base_pso_desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+  base_pso_desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+  base_pso_desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+  base_pso_desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+  base_pso_desc.SampleMask = UINT_MAX;
+  base_pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+  base_pso_desc.NumRenderTargets = 1;
+  base_pso_desc.RTVFormats[0] = back_buffer_format_;
+  base_pso_desc.DSVFormat = depth_stencil_format_;
+  base_pso_desc.SampleDesc.Quality = use_4x_msaa_state_ ? (use_4x_msaa_quanlity_-1) : 0;
+  base_pso_desc.SampleDesc.Count = use_4x_msaa_state_ ? 4 : 1;
 
   //  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&pipeline_state_object_)));
-  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&pso_desc, 
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&base_pso_desc, 
     IID_PPV_ARGS(&psos_["opaque"])));
 
 
-  D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = pso_desc;
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = base_pso_desc;
   shadowPsoDesc.RasterizerState.DepthBias = 100000;
   shadowPsoDesc.RasterizerState.DepthBiasClamp = 0.0f;
   shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
@@ -1973,7 +2057,7 @@ void RenderSystem::BuildPSOs() {
     IID_PPV_ARGS(&psos_["shadow_opaque"])));
 
 
-  D3D12_GRAPHICS_PIPELINE_STATE_DESC standardNormalPsoDesc = pso_desc; 
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC standardNormalPsoDesc = base_pso_desc; 
   standardNormalPsoDesc.VS =
   {
     reinterpret_cast<BYTE*>(shaders_["standardNormalVS"]->GetBufferPointer()),
@@ -1989,7 +2073,7 @@ void RenderSystem::BuildPSOs() {
 
   //  ----------
 
-  D3D12_GRAPHICS_PIPELINE_STATE_DESC debugPsoDesc = pso_desc;
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC debugPsoDesc = base_pso_desc;
   debugPsoDesc.pRootSignature = root_signature_.Get();
   debugPsoDesc.VS =
   {
@@ -2005,7 +2089,7 @@ void RenderSystem::BuildPSOs() {
 
   //  -----------
 
-  D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = pso_desc;
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = base_pso_desc;
   D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
   transparencyBlendDesc.BlendEnable = true;
   transparencyBlendDesc.LogicOpEnable = false;
@@ -2040,7 +2124,7 @@ void RenderSystem::BuildPSOs() {
   mirrorDss.BackFace.StencilPassOp = D3D12_STENCIL_OP::D3D12_STENCIL_OP_REPLACE;
   mirrorDss.BackFace.StencilFunc = D3D12_COMPARISON_FUNC::D3D12_COMPARISON_FUNC_ALWAYS;
 
-  D3D12_GRAPHICS_PIPELINE_STATE_DESC mirrorPsoDesc = pso_desc;
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC mirrorPsoDesc = base_pso_desc;
   mirrorPsoDesc.DepthStencilState = mirrorDss;
   //mirrorPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
   //mirrorPsoDesc.RasterizerState.FrontCounterClockwise = true;
@@ -2065,15 +2149,12 @@ void RenderSystem::BuildPSOs() {
   reflectionDss.BackFace.StencilPassOp = D3D12_STENCIL_OP::D3D12_STENCIL_OP_KEEP;
   reflectionDss.BackFace.StencilFunc = D3D12_COMPARISON_FUNC::D3D12_COMPARISON_FUNC_EQUAL;
 
-  D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectionPsoDesc = pso_desc;
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectionPsoDesc = base_pso_desc;
   reflectionPsoDesc.DepthStencilState = reflectionDss;
   reflectionPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
   reflectionPsoDesc.RasterizerState.FrontCounterClockwise = true;
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&reflectionPsoDesc, 
     IID_PPV_ARGS(&psos_[pso_name_reflection])));
-
-
-
 
   D3D12_COMPUTE_PIPELINE_STATE_DESC horzBlurPSO = {};
 	horzBlurPSO.pRootSignature = post_process_root_signature_.Get();
@@ -2098,7 +2179,7 @@ void RenderSystem::BuildPSOs() {
   ThrowIfFailed(d3d_device_->CreateComputePipelineState(&vertBlurPSO, 
     IID_PPV_ARGS(&psos_["vertBlur"])));
 
-  D3D12_GRAPHICS_PIPELINE_STATE_DESC sky_pso_desc = pso_desc;
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC sky_pso_desc = base_pso_desc;
   sky_pso_desc.pRootSignature = root_signature_.Get();
   sky_pso_desc.VS = { 
     reinterpret_cast<BYTE*>(shaders_["skyVS"]->GetBufferPointer()),
@@ -2113,6 +2194,28 @@ void RenderSystem::BuildPSOs() {
 
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&sky_pso_desc,
     IID_PPV_ARGS(&psos_["sky"])));
+
+
+  assert(ssao_root_signature_ != nullptr && "forgot to build ssao root signature");
+
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC ssao_pso_desc = base_pso_desc;
+  ssao_pso_desc.pRootSignature = ssao_root_signature_.Get();
+  ssao_pso_desc.VS = { 
+    reinterpret_cast<BYTE*>(shaders_["ssaoVS"]->GetBufferPointer()),
+    shaders_["ssaoVS"]->GetBufferSize() 
+  };
+  ssao_pso_desc.PS = {
+    reinterpret_cast<BYTE*>(shaders_["ssaoPS"]->GetBufferPointer()),
+    shaders_["ssaoPS"]->GetBufferSize()
+  };
+  ssao_pso_desc.DepthStencilState.DepthEnable = false;
+  ssao_pso_desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+  ssao_pso_desc.RTVFormats[0] = Ssao::AmbientMapFormat;
+  ssao_pso_desc.SampleDesc.Count = 1;
+  ssao_pso_desc.SampleDesc.Quality = 0;
+  ssao_pso_desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&ssao_pso_desc,
+    IID_PPV_ARGS(&psos_["ssao"])));
 
 }
 
