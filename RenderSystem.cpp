@@ -2354,7 +2354,7 @@ void RenderSystem::BuildDescriptorHeaps() {
     textures_["tileNormalMap"].get(),
   };
 
-  const int textureDescriptorCount = texture2d.size() + 2 + 6;
+  const int textureDescriptorCount = (int)texture2d.size() + 2 + 6;
 
   D3D12_DESCRIPTOR_HEAP_DESC src_heap_desc = {};
   //  src_heap_desc.NumDescriptors = textureDescriptorCount + blurDescriptorCount;
@@ -2400,14 +2400,14 @@ void RenderSystem::BuildDescriptorHeaps() {
   srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
   srv_desc.Format = skyTex->GetDesc().Format;
   d3d_device_->CreateShaderResourceView(skyTex.Get(), &srv_desc, hDescriptor);  //  5
-  textures_["snowcube"]->SrvHeapIndex = texture2d.size();
+  textures_["snowcube"]->SrvHeapIndex = (int)texture2d.size();
 
   //blur_filter_->BuildDescriptors(
   //  CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
   //  CD3DX12_GPU_DESCRIPTOR_HANDLE(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart(), 6, cbv_srv_uav_descriptor_size),
   //  cbv_srv_uav_descriptor_size);
 
-  sky_heap_index_ = texture2d.size();
+  sky_heap_index_ = (int)texture2d.size();
   //  dynamic_heap_index_ = 1 + sky_heap_index_;
 
   auto srv_cpu_start = srv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart();

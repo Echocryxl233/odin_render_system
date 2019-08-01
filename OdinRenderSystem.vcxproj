@@ -153,6 +153,7 @@
     <ClCompile Include="MeshGeometry.cpp" />
     <ClCompile Include="RenderSystem.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
+    <ClCompile Include="Ssao.cpp" />
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="Waves.cpp" />
   </ItemGroup>
@@ -174,6 +175,7 @@
     <ClInclude Include="RenderItem.h" />
     <ClInclude Include="RenderSystem.h" />
     <ClInclude Include="ShadowMap.h" />
+    <ClInclude Include="Ssao.h" />
     <ClInclude Include="UploadBuffer.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Waves.h" />

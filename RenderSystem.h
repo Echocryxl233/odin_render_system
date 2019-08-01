@@ -22,6 +22,8 @@
 #include "ShadowMap.h"
 #include "MaterialManager.h"
 
+#include "Ssao.h"
+
 using namespace std;
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
@@ -108,6 +110,8 @@ class RenderSystem : public OdinRenderSystem::Application
 
    void BuildCubeFaceCamera(float x, float y, float z);
 
+   void BuildSsaoRootSignature();
+
 private:
   //  ComPtr<ID3D12DescriptorHeap> cbv_heap_;
 
@@ -130,6 +134,7 @@ private:
   ComPtr<ID3D12RootSignature> root_signature_;
   //ComPtr<ID3D12PipelineState> pipeline_state_object_;
   ComPtr<ID3D12RootSignature> post_process_root_signature_;
+  ComPtr<ID3D12RootSignature> ssao_root_signature_;
 
   //  ComPtr<ID3D12DescriptorHeap> cbv_srv_uav_descriptor_heap = nullptr;
 
@@ -233,6 +238,8 @@ private:
       XMFLOAT3(0.0f, -0.707f, -0.707f)
   };
   XMFLOAT3 mRotatedLightDirections[3];
+
+  unique_ptr<Ssao> ssao_;
 };
 
 }
