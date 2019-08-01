@@ -55,6 +55,12 @@ class RenderSystem : public OdinRenderSystem::Application
 
   void UpdateShadowPassCB();
 
+  CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index) const;
+  CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index) const;
+  CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index) const;
+  CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index) const;
+
+
  protected:
    void Update(const GameTimer& gt) override;
    void Draw(const GameTimer& gt) override;
@@ -216,9 +222,11 @@ private:
   unique_ptr<ShadowMap> shadow_map_;
   PassConstants mShadowPassCB;// index 1 of pass cbuffer.
 
-  int shadow_heap_index;
+  int shadow_heap_index_;
   int mNullCubeSrvIndex;
   int mNullTexSrvIndex;
+  int ssao_heap_index_start_;
+  int ssao_ambient_map_index_;
 
   CD3DX12_GPU_DESCRIPTOR_HANDLE null_cube_srv_handle_gpu;
 

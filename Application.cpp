@@ -146,7 +146,7 @@ void Application::OnResize() {
   }*/
   for (int i = 0; i < kSwapBufferCount; ++i)
 		swap_chain_buffers_[i].Reset();
-  depth_stencil_buffer.Reset();
+  depth_stencil_buffer_.Reset();
 
   swap_chain_->ResizeBuffers(kSwapBufferCount, client_width_, client_height_,
     back_buffer_format_, DXGI_SWAP_CHAIN_FLAG::DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
@@ -159,7 +159,7 @@ void Application::OnResize() {
 	{
 		ThrowIfFailed(swap_chain_->GetBuffer(i, IID_PPV_ARGS(&swap_chain_buffers_[i])));
 		d3d_device_->CreateRenderTargetView(swap_chain_buffers_[i].Get(), nullptr, rtvHeapHandle);
-		rtvHeapHandle.Offset(1, rtv_descriptor_size);
+		rtvHeapHandle.Offset(1, rtv_descriptor_size_);
 	}
 
   D3D12_RESOURCE_DESC depth_stencil_desc;
@@ -186,17 +186,17 @@ void Application::OnResize() {
         &depth_stencil_desc,
 		D3D12_RESOURCE_STATE_COMMON,
         &optClear,
-        IID_PPV_ARGS(depth_stencil_buffer.GetAddressOf())));
+        IID_PPV_ARGS(depth_stencil_buffer_.GetAddressOf())));
   D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc;
   dsv_desc.Flags = D3D12_DSV_FLAG_NONE;
 	dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsv_desc.Format = depth_stencil_format_;
 	dsv_desc.Texture2D.MipSlice = 0;
 
-  d3d_device_->CreateDepthStencilView(depth_stencil_buffer.Get(), &dsv_desc, DepthStencilView());
+  d3d_device_->CreateDepthStencilView(depth_stencil_buffer_.Get(), &dsv_desc, DepthStencilView());
 
   // Transition the resource from its initial state to be used as a depth buffer.
-	d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depth_stencil_buffer.Get(),
+	d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depth_stencil_buffer_.Get(),
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
   // Execute the resize commands.
@@ -428,9 +428,9 @@ bool Application::InitDirect3D() {
     use_4x_msaa_quanlity_ = msQualityLevels.NumQualityLevels;
 	assert(use_4x_msaa_quanlity_ > 0 && "Unexpected MSAA quality level.");
 
-  rtv_descriptor_size = d3d_device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+  rtv_descriptor_size_ = d3d_device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	dsv_descriptor_size = d3d_device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	cbv_srv_uav_descriptor_size = d3d_device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	cbv_srv_uav_descriptor_size_ = d3d_device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 #ifdef _DEBUG
     LogAdapters();
@@ -511,7 +511,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE Application::CurrentBackBufferView()const
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
 		rtv_heap_->GetCPUDescriptorHandleForHeapStart(),
 		current_back_buffer_index_,
-		rtv_descriptor_size);
+		rtv_descriptor_size_);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Application::DepthStencilView()const

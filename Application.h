@@ -93,7 +93,7 @@ class Application {
   int current_back_buffer_index_;
   const static int kSwapBufferCount = 2;
   Microsoft::WRL::ComPtr<ID3D12Resource> swap_chain_buffers_[kSwapBufferCount];
-  Microsoft::WRL::ComPtr<ID3D12Resource> depth_stencil_buffer;
+  Microsoft::WRL::ComPtr<ID3D12Resource> depth_stencil_buffer_;
 
   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtv_heap_;  //  render target
   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsv_heap_;  //  depth/stencil 
@@ -101,9 +101,9 @@ class Application {
   D3D12_VIEWPORT screen_viewport_; 
   D3D12_RECT scissor_rect_;
    
-  UINT rtv_descriptor_size = 0;
+  UINT rtv_descriptor_size_ = 0;
   UINT dsv_descriptor_size = 0;
-	UINT cbv_srv_uav_descriptor_size = 0;
+	UINT cbv_srv_uav_descriptor_size_ = 0;
 
   std::wstring main_wnd_caption_ = L"Odin";
 
