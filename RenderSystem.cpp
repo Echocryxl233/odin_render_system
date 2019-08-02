@@ -95,23 +95,12 @@ void RenderSystem::Draw(const GameTimer& gt)
   auto material_buffer = current_frame_resource_->MaterialBuffer->Resource();
   d3d_command_list_->SetGraphicsRootShaderResourceView(0, material_buffer->GetGPUVirtualAddress());
 
-  //CD3DX12_GPU_DESCRIPTOR_HANDLE sky_tex_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-  //sky_tex_descriptor.Offset(sky_heap_index_, cbv_srv_uav_descriptor_size);
-
   auto sky_tex_descriptor = GetGpuSrv(sky_heap_index_);
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
 
-  ////  CD3DX12_GPU_DESCRIPTOR_HANDLE
-  //CD3DX12_GPU_DESCRIPTOR_HANDLE debug_descriptor(srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-  //debug_descriptor.Offset(4, cbv_srv_uav_descriptor_size);
-  //d3d_command_list_->SetGraphicsRootDescriptorTable(4, debug_descriptor);
-  ////  d3d_command_list_->SetGraphicsRootDescriptorTable(4, shadow_map_->Dsv());
-  ////  d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
-  ////  d3d_command_list_->SetGraphicsRootDescriptorTable(4, shadow_map_->Srv());
+  d3d_command_list_->SetGraphicsRootDescriptorTable(4, GetGpuSrv(shadow_heap_index_));
 
-  d3d_command_list_->SetGraphicsRootDescriptorTable(3, null_cube_srv_handle_gpu);
-
-  d3d_command_list_->SetGraphicsRootDescriptorTable(4, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
+  d3d_command_list_->SetGraphicsRootDescriptorTable(5, srv_descriptor_heap_->GetGPUDescriptorHandleForHeapStart());
 
   //  DrawSceneToCubeMap();
 
@@ -1844,17 +1833,17 @@ void RenderSystem::BuildShadersAndInputLayout() {
 void RenderSystem::BuildRootSignature() {
 
   CD3DX12_DESCRIPTOR_RANGE tex_table1;
-  tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
+  tex_table1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
 
-  //CD3DX12_DESCRIPTOR_RANGE tex_table2;
-  //tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+  CD3DX12_DESCRIPTOR_RANGE tex_table2;
+  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
 
   CD3DX12_DESCRIPTOR_RANGE tex_table3;
   tex_table3.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 2, 0);
 
   //  CD3DX12_DESCRIPTOR_RANGE tex_table2;
   //  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 0, 0);
-  const int parameter_count = 5;
+  const int parameter_count = 6;
 
   CD3DX12_ROOT_PARAMETER slotRootParameter[parameter_count];
   
@@ -1862,8 +1851,8 @@ void RenderSystem::BuildRootSignature() {
   slotRootParameter[1].InitAsShaderResourceView(1, 1);
   slotRootParameter[2].InitAsConstantBufferView(0);
   slotRootParameter[3].InitAsDescriptorTable(1, &tex_table1, D3D12_SHADER_VISIBILITY_PIXEL);
-  //  slotRootParameter[4].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
-  slotRootParameter[4].InitAsDescriptorTable(1, &tex_table3, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[4].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[5].InitAsDescriptorTable(1, &tex_table3, D3D12_SHADER_VISIBILITY_PIXEL);
 
   //  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
 
