@@ -28,7 +28,10 @@ struct InstanceData
 
 TextureCube gCubeMap : register(t0);
 Texture2D gShadowMap : register(t1);
-Texture2D gTextureMaps[7] : register(t2);
+// Texture2D gSsaoMap  : register(t2);
+Texture2D gTextureMaps[7] : register(t3);
+
+Texture2D gSsaoMap  : register(t0, space2);
 
 //  Texture2D gDiffuseMap[6] : register(t0);
 
@@ -48,6 +51,7 @@ cbuffer cbPass : register(b0)
   float4x4 gInvProj;
   float4x4 gViewProj;
   float4x4 gInvViewProj;
+  float4x4 gViewProjTex;
   float4x4 gShadowTransform;
   float3 gEyePosW;
   float cbPerObjectPad1;

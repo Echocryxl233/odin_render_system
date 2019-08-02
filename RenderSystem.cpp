@@ -106,6 +106,18 @@ void RenderSystem::Draw(const GameTimer& gt)
 
   DrawSceneToShadowMap();
 
+  DrawNormalsAndDepth();
+
+  if (ssao_map_switch_) {
+    d3d_command_list_->SetGraphicsRootSignature(ssao_root_signature_.Get());
+    ssao_->ComputeSsao(d3d_command_list_.Get(), current_frame_resource_, 3);
+
+  }
+
+  //  -----------------
+
+  d3d_command_list_->SetGraphicsRootSignature(root_signature_.Get());
+
   d3d_command_list_->RSSetViewports(1, &screen_viewport_);
   d3d_command_list_->RSSetScissorRects(1, &scissor_rect_);
 
@@ -130,7 +142,18 @@ void RenderSystem::Draw(const GameTimer& gt)
 
   d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
 
-  d3d_command_list_->SetPipelineState(psos_["opaque"].Get());
+
+  //  d3d_command_list_->SetGraphicsRootDescriptorTable(4, shadow_map_->Srv());
+  //  d3d_command_list_->SetGraphicsRootDescriptorTable(6, ssao_->NormalMapSrv());
+
+  CD3DX12_GPU_DESCRIPTOR_HANDLE debug_map = ssao_map_switch_ ? ssao_->AmbientMapSrv() : ssao_->NormalMapSrv();
+
+  d3d_command_list_->SetGraphicsRootDescriptorTable(6, debug_map);
+
+  auto base_pso = ssao_ps_switch_ ? psos_["opaqueSsao"].Get() : psos_["opaque"].Get();
+
+  //d3d_command_list_->SetPipelineState(psos_["opaque"].Get());
+  d3d_command_list_->SetPipelineState(base_pso);
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
 
   //  d3d_command_list_->SetGraphicsRootDescriptorTable(3, sky_tex_descriptor);
@@ -330,7 +353,6 @@ void RenderSystem::DrawNormalsAndDepth() {
     D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
   float clear_value[4] = {0.0f, 0.0f, 1.0f, 0.0f};
-
   d3d_command_list_->ClearRenderTargetView(normal_map_rtv, clear_value, 0, nullptr);
   d3d_command_list_->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
@@ -339,9 +361,15 @@ void RenderSystem::DrawNormalsAndDepth() {
   auto passCb = current_frame_resource_->PassCB->Resource();
   d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCb->GetGPUVirtualAddress());
 
-  //d3d_command_list_->SetPipelineState(mPSOs["drawNormals"].Get());
+  d3d_command_list_->SetPipelineState(psos_["drawNormals"].Get());
 
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
+
+  //  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kShadow);
+
+  //  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kReflected);
+
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kTransparent);
 
   d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normal_map,
     D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -381,6 +409,7 @@ void RenderSystem::Update(const GameTimer& gt) {
   UpdateShadowTransform(gt);
   UpdateMainPassCB(gt);
   UpdateShadowPassCB(gt);
+  UpdateSsaoPassCB(gt);
   //  UpdateCubeMapFacePassCBs(gt);
   UpdateMaterialBuffer(gt);
   //  UpdateReflectedPassCB(gt);
@@ -496,6 +525,7 @@ void RenderSystem::UpdateMainPassCB(const GameTimer& gt) {
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
 	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+  XMMATRIX viewProjTex = XMMatrixMultiply(viewProj, kTextureTransform);
 
   XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
 
@@ -505,6 +535,7 @@ void RenderSystem::UpdateMainPassCB(const GameTimer& gt) {
 	XMStoreFloat4x4(&main_pass_cb_.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&main_pass_cb_.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&main_pass_cb_.InvViewProj, XMMatrixTranspose(invViewProj));
+  XMStoreFloat4x4(&main_pass_cb_.ViewProjTex, XMMatrixTranspose(viewProjTex));
   XMStoreFloat4x4(&main_pass_cb_.ShadowTransform, XMMatrixTranspose(shadowTransform));
 	//  main_pass_cb_.EyePosW = eye_position_;
   main_pass_cb_.EyePosW = camera_.GetPosition3f();
@@ -623,33 +654,31 @@ void RenderSystem::UpdateCubeMapFacePassCBs()
   }
 }
 
-void RenderSystem::UpdateShadowPassCB()
-{
-  XMMATRIX view = XMLoadFloat4x4(&mLightView);
-  XMMATRIX proj = XMLoadFloat4x4(&mLightProj);
+void RenderSystem::UpdateSsaoPassCB(const GameTimer& gt) {
+  SsaoConstants ssaoCB;
 
-  XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-  XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
-  XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
-  XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+  ssaoCB.Proj = main_pass_cb_.Proj;
+  ssaoCB.InvProj = main_pass_cb_.InvProj;
 
-  UINT w = shadow_map_->Width();
-  UINT h = shadow_map_->Height();
+  XMMATRIX proj = camera_.GetProj();
+  XMStoreFloat4x4(&ssaoCB.ProjTex, XMMatrixTranspose(proj * kTextureTransform));
 
-  XMStoreFloat4x4(&mShadowPassCB.View, XMMatrixTranspose(view));
-  XMStoreFloat4x4(&mShadowPassCB.InvView, XMMatrixTranspose(invView));
-  XMStoreFloat4x4(&mShadowPassCB.Proj, XMMatrixTranspose(proj));
-  XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
-  XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
-  XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-  mShadowPassCB.EyePosW = mLightPosW;
-  mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
-  mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
-  mShadowPassCB.NearZ = mLightNearZ;
-  mShadowPassCB.FarZ = mLightFarZ;
+  ssao_->GetOffsetVectors(ssaoCB.OffsetVectors);
 
-  auto currPassCB = current_frame_resource_->PassCB.get();
-  currPassCB->CopyData(1, mShadowPassCB);
+  auto blurWeights = ssao_->CalcGaussWeights(2.5f);
+  ssaoCB.BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
+  ssaoCB.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
+  ssaoCB.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+
+  ssaoCB.InvRenderTargetSize = {1.0f / ssao_->SsaoMapWidth(), 1.0f / ssao_->SsaoMapHeight()};
+
+  ssaoCB.OcclusionRadius = 0.5f;
+  ssaoCB.OcclusionFadeStart = 0.2f;
+  ssaoCB.OcclusionFadeEnd = 1.0f;
+  ssaoCB.SurfaceEpsilon = 0.05f;
+
+  auto currPassCB = current_frame_resource_->SsaoCB.get();
+  currPassCB->CopyData(0, ssaoCB);
 }
 
 void RenderSystem::UpdateReflectedPassCB(const GameTimer& gt)
@@ -727,7 +756,7 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
   outs.precision(0);
   outs << L"Odin Instancing" <<
     L"    " << total_visible_count <<
-    L" objects visible out of " << total_instance_count;
+    L" objects visible out of " << total_instance_count << " SSAO: " << (ssao_ps_switch_ ? "ON" : "OFF");
 
   main_wnd_caption_ = outs.str();
 
@@ -1827,8 +1856,13 @@ void RenderSystem::BuildRenderItems() {
 
 
 void RenderSystem::BuildShadersAndInputLayout() {
+  D3D_SHADER_MACRO ssao_test[] = {
+    "SSAO", "1", NULL, NULL
+  };
+
   shaders_["standardVS"] = d3dUtil::CompileShader(L"Shaders\\default.hlsl", nullptr, "VS", "vs_5_1");
 	shaders_["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\default.hlsl", nullptr, "PS", "ps_5_1");
+  shaders_["opaqueSsaoPS"] = d3dUtil::CompileShader(L"Shaders\\default.hlsl", ssao_test, "PS", "ps_5_1");
   shaders_["standardNormalVS"] = d3dUtil::CompileShader(L"Shaders\\StandardNormal.hlsl", nullptr, "VS", "vs_5_1");
   shaders_["standardNormalPS"] = d3dUtil::CompileShader(L"Shaders\\StandardNormal.hlsl", nullptr, "PS", "ps_5_1");
   shaders_["shadowVS"] = d3dUtil::CompileShader(L"Shaders\\Shadow.hlsl", nullptr, "VS", "vs_5_1");
@@ -1870,11 +1904,16 @@ void RenderSystem::BuildRootSignature() {
   tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
 
   CD3DX12_DESCRIPTOR_RANGE tex_table3;
-  tex_table3.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 2, 0);
+  tex_table3.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 3, 0);
 
   //  CD3DX12_DESCRIPTOR_RANGE tex_table2;
   //  tex_table2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 0, 0);
-  const int parameter_count = 6;
+
+  CD3DX12_DESCRIPTOR_RANGE tex_table1_0;
+  tex_table1_0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2);
+
+
+  const int parameter_count = 7;
 
   CD3DX12_ROOT_PARAMETER slotRootParameter[parameter_count];
   
@@ -1884,6 +1923,7 @@ void RenderSystem::BuildRootSignature() {
   slotRootParameter[3].InitAsDescriptorTable(1, &tex_table1, D3D12_SHADER_VISIBILITY_PIXEL);
   slotRootParameter[4].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
   slotRootParameter[5].InitAsDescriptorTable(1, &tex_table3, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[6].InitAsDescriptorTable(1, &tex_table1_0, D3D12_SHADER_VISIBILITY_PIXEL);
 
   //  slotRootParameter[3].InitAsDescriptorTable(1, &tex_table2, D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -2070,6 +2110,15 @@ void RenderSystem::BuildPSOs() {
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&base_pso_desc, 
     IID_PPV_ARGS(&psos_["opaque"])));
 
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC base_ssao_pso_desc = base_pso_desc;
+  base_ssao_pso_desc.PS =
+  {
+      reinterpret_cast<BYTE*>(shaders_["opaqueSsaoPS"]->GetBufferPointer()),
+      shaders_["opaqueSsaoPS"]->GetBufferSize()
+  };
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&base_ssao_pso_desc,
+    IID_PPV_ARGS(&psos_["opaqueSsao"])));
+
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = base_pso_desc;
   shadowPsoDesc.RasterizerState.DepthBias = 100000;
@@ -2236,7 +2285,7 @@ void RenderSystem::BuildPSOs() {
 
   //  --------------
 
-  assert(shaders_["drawNormalsVS"] != nullptr && "forgot to build drawNormals shaders");
+  assert(shaders_["drawNormalsVS"] != nullptr && shaders_["drawNormalsPS"] != nullptr && "forgot to build drawNormals shaders");
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC draw_normals_pso_desc = base_pso_desc;
   draw_normals_pso_desc.VS = {
@@ -2335,6 +2384,14 @@ void RenderSystem::OnKeyboardInput(const GameTimer& gt) {
 
   if (GetAsyncKeyState('3') & 0x8000)
     use_4x_msaa_state_ = !use_4x_msaa_state_;
+
+
+  if (GetAsyncKeyState('8') & 0x8000)
+    ssao_ps_switch_ = !ssao_ps_switch_;
+  
+
+  if (GetAsyncKeyState('9') & 0x8000)
+    ssao_map_switch_ = !ssao_map_switch_;
 
 	camera_.UpdateViewMatrix();
 }
@@ -2528,7 +2585,6 @@ void RenderSystem::BuildDescriptorHeaps() {
     GetGpuSrv(shadow_heap_index_),
     GetDsv(1)
   );
-
   
   
   auto null_cube_srv_handle_cpu = GetCpuSrv(mNullCubeSrvIndex); //CD3DX12_CPU_DESCRIPTOR_HANDLE(srv_cpu_start, mNullCubeSrvIndex, cbv_srv_uav_descriptor_size);

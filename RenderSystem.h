@@ -54,7 +54,8 @@ class RenderSystem : public OdinRenderSystem::Application
   void BuildCubeDepthStencil();
   void UpdateCubeMapFacePassCBs();
 
-  void UpdateShadowPassCB();
+  //  void UpdateShadowPassCB();
+  //  void UpdateSsaoPassCB();
 
   CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index) const;
   CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index) const;
@@ -75,6 +76,7 @@ class RenderSystem : public OdinRenderSystem::Application
    virtual void UpdateMainPassCB(const GameTimer& gt);
    void UpdateShadowPassCB(const GameTimer& gt);
    virtual void UpdateCubeMapFacePassCBs(const GameTimer& gt);
+   void UpdateSsaoPassCB(const GameTimer& gt);
    // virtual void UpdateWave(const GameTimer& gt);
    virtual void UpdateInstanceData(const GameTimer& gt);
    virtual void UpdateMaterialBuffer(const GameTimer& gt);
@@ -249,6 +251,17 @@ private:
   XMFLOAT3 mRotatedLightDirections[3];
 
   unique_ptr<Ssao> ssao_;
+  bool ssao_map_switch_ = true;
+  bool ssao_ps_switch_ = true;
+
+  // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+  // NDC space is bottom to top, and texture space is up to down
+  const XMMATRIX kTextureTransform = {
+    0.5f, 0.0f, 0.0f, 0.0f,
+    0.0f, -0.5f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.5f, 0.5f, 0.0f, 1.0f,
+  };
 };
 
 }
