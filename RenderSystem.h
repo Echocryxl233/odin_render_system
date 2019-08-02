@@ -38,10 +38,11 @@ class RenderSystem : public OdinRenderSystem::Application
 
    virtual bool Initialize() override;
  protected:
-  void DrawRenderItems() ;
+  //  void DrawRenderItems() ;
 
   void DrawSceneToCubeMap();
   void DrawSceneToShadowMap();
+  void DrawNormalsAndDepth();
 
   float GetHillsHeight(float x, float z) const;
   XMFLOAT3 GetHillsNormal(float x, float z) const;

@@ -25,7 +25,6 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 {
     VertexOut vout = (VertexOut)0.0f;
 
-    //  -------------
     InstanceData instData = gInstanceData[instanceID];
 
     float4x4 world = instData.World;

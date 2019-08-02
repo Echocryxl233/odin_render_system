@@ -319,6 +319,34 @@ void RenderSystem::DrawSceneToShadowMap() {
     D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
+void RenderSystem::DrawNormalsAndDepth() {
+  d3d_command_list_->RSSetViewports(1, &screen_viewport_);
+  d3d_command_list_->RSSetScissorRects(1, &scissor_rect_);
+
+  auto normal_map = ssao_->NormalMap();
+  auto normal_map_rtv = ssao_->NormalMapRtv();
+
+  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normal_map,
+    D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+  float clear_value[4] = {0.0f, 0.0f, 1.0f, 0.0f};
+
+  d3d_command_list_->ClearRenderTargetView(normal_map_rtv, clear_value, 0, nullptr);
+  d3d_command_list_->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+  d3d_command_list_->OMSetRenderTargets(1, &normal_map_rtv, true, &DepthStencilView());
+
+  auto passCb = current_frame_resource_->PassCB->Resource();
+  d3d_command_list_->SetGraphicsRootConstantBufferView(2, passCb->GetGPUVirtualAddress());
+
+  //d3d_command_list_->SetPipelineState(mPSOs["drawNormals"].Get());
+
+  DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kOpaque);
+
+  d3d_command_list_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normal_map,
+    D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+}
+
 void RenderSystem::Update(const GameTimer& gt) {
   OnKeyboardInput(gt);
 
@@ -1820,13 +1848,16 @@ void RenderSystem::BuildShadersAndInputLayout() {
 
   shaders_["ssaoBlurVS"] = d3dUtil::CompileShader(L"Shaders\\SsaoBlur.hlsl", nullptr, "VS", "vs_5_1");
   shaders_["ssaoBlurPS"] = d3dUtil::CompileShader(L"Shaders\\SsaoBlur.hlsl", nullptr, "PS", "ps_5_1");
+
+  shaders_["drawNormalsVS"] = d3dUtil::CompileShader(L"Shaders\\DrawNormals.hlsl", nullptr, "VS", "vs_5_1");
+  shaders_["drawNormalsPS"] = d3dUtil::CompileShader(L"Shaders\\DrawNormals.hlsl", nullptr, "PS", "ps_5_1");
 	
   input_layout_ =
   {
       { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-      { "NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+      { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
       { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-      { "TANGENT", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+      { "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
   };
 }
 
@@ -2200,6 +2231,29 @@ void RenderSystem::BuildPSOs() {
 
   ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&sky_pso_desc,
     IID_PPV_ARGS(&psos_["sky"])));
+
+
+
+  //  --------------
+
+  assert(shaders_["drawNormalsVS"] != nullptr && "forgot to build drawNormals shaders");
+
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC draw_normals_pso_desc = base_pso_desc;
+  draw_normals_pso_desc.VS = {
+    reinterpret_cast<BYTE*>(shaders_["drawNormalsVS"]->GetBufferPointer()),
+    shaders_["drawNormalsVS"]->GetBufferSize()
+  };
+  draw_normals_pso_desc.PS = {
+    reinterpret_cast<BYTE*>(shaders_["drawNormalsPS"]->GetBufferPointer()),
+    shaders_["drawNormalsPS"]->GetBufferSize()
+  };
+  draw_normals_pso_desc.RTVFormats[0] = Ssao::NormalMapFormat;
+  draw_normals_pso_desc.SampleDesc.Count = 1;
+  draw_normals_pso_desc.SampleDesc.Quality = 0;
+  draw_normals_pso_desc.DSVFormat = depth_stencil_format_;
+  ThrowIfFailed(d3d_device_->CreateGraphicsPipelineState(&draw_normals_pso_desc,
+    IID_PPV_ARGS(&psos_["drawNormals"])));
+  //  --------------
 
 
   assert(ssao_root_signature_ != nullptr && "forgot to build ssao root signature");
