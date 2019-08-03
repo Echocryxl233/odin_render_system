@@ -31,6 +31,7 @@ struct RenderItem {
   //  BoundingSphere Bounds;
   vector<InstanceData> Instances;
   UINT InstanceCount = 0;
+  UINT InstanceOffset = 0;
 
   UINT IndexCount = 0;
   UINT StartIndexLocation = 0;

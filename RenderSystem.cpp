@@ -111,7 +111,6 @@ void RenderSystem::Draw(const GameTimer& gt)
   if (ssao_map_switch_) {
     d3d_command_list_->SetGraphicsRootSignature(ssao_root_signature_.Get());
     ssao_->ComputeSsao(d3d_command_list_.Get(), current_frame_resource_, 3);
-
   }
 
   //  -----------------
@@ -166,6 +165,7 @@ void RenderSystem::Draw(const GameTimer& gt)
 
   d3d_command_list_->SetPipelineState(psos_["opaqueNormal"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kMirrors);
+
 
   d3d_command_list_->SetPipelineState(psos_["sky"].Get());
   DrawRenderItems(d3d_command_list_.Get(), (int)RenderLayer::kSky);
@@ -250,9 +250,11 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const int
   UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
   UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
 
-  auto objectCB = current_frame_resource_->ObjectCB->Resource();
-  auto materialCB = current_frame_resource_->MaterialBuffer->Resource();
+  UINT instance_data_byte_size = sizeof(InstanceData);
+
   auto instanceBuffer = current_frame_resource_->InstanceBufferGroups[render_layer]->Resource();
+
+  D3D12_GPU_VIRTUAL_ADDRESS layer_buffer_start = instanceBuffer->GetGPUVirtualAddress();
 
   // For each render item...
   auto layer_render_items = items_layers_[render_layer];
@@ -264,7 +266,9 @@ void RenderSystem::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const int
     cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
     cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-    d3d_command_list_->SetGraphicsRootShaderResourceView(1, instanceBuffer->GetGPUVirtualAddress());
+    D3D12_GPU_VIRTUAL_ADDRESS item_buffer_start = layer_buffer_start + instance_data_byte_size * ri->InstanceOffset;
+
+    d3d_command_list_->SetGraphicsRootShaderResourceView(1, item_buffer_start );
     cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
   }
 }
@@ -457,21 +461,21 @@ void RenderSystem::UpdateCamera(const GameTimer& gt) {
 }
 
 void RenderSystem::UpdateObjectCBs(const GameTimer& gt) {
-  auto current_object_cb = current_frame_resource_->ObjectCB.get();
-  
-  for(auto& item : render_items_) {
-    if (item->NumFrameDirty > 0) {
-      XMMATRIX world = XMLoadFloat4x4(&item->World);
-      XMMATRIX texcoord = XMLoadFloat4x4(&item->TexTransform);
-      ObjectConstants object_CB;
-      XMStoreFloat4x4(&object_CB.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
-      XMStoreFloat4x4(&object_CB.TexTransform, XMMatrixTranspose(texcoord));  
-      object_CB.MaterialIndex = item->Mat->MatCBIndex;
+  //auto current_object_cb = current_frame_resource_->ObjectCB.get();
+  //
+  //for(auto& item : render_items_) {
+  //  if (item->NumFrameDirty > 0) {
+  //    XMMATRIX world = XMLoadFloat4x4(&item->World);
+  //    XMMATRIX texcoord = XMLoadFloat4x4(&item->TexTransform);
+  //    ObjectConstants object_CB;
+  //    XMStoreFloat4x4(&object_CB.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
+  //    XMStoreFloat4x4(&object_CB.TexTransform, XMMatrixTranspose(texcoord));  
+  //    object_CB.MaterialIndex = item->Mat->MatCBIndex;
 
-      current_object_cb->CopyData(item->ObjectCBIndex, object_CB);
-      --item->NumFrameDirty;
-    }
-  }
+  //    current_object_cb->CopyData(item->ObjectCBIndex, object_CB);
+  //    --item->NumFrameDirty;
+  //  }
+  //}
 }
 
 void RenderSystem::UpdateShadowTransform(const GameTimer& gt)
@@ -712,12 +716,15 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
   int visible_instance_count = 0;
   int total_visible_count = 0;
   size_t total_instance_count = 0;
+  int layer_visible_index = 0;
  
   for (int i = (int)RenderLayer::kOpaque; i < (int)RenderLayer::kMaxCount; ++i) {
 
     auto layer_render_items = items_layers_[i];
-
+    layer_visible_index = 0;
     for (auto& item : layer_render_items) {
+      bool visible = true;  //  item->Visible
+      item->InstanceOffset = layer_visible_index;
       auto current_instance_buffer = current_frame_resource_->InstanceBufferGroups[i].get();
       visible_instance_count = 0;
 
@@ -734,19 +741,22 @@ void RenderSystem::UpdateInstanceData(const GameTimer& gt) {
 
         camera_frustum_.Transform(local_frustum, local_to_view);
 
-        if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT || (!enable_frustum_culling_) || item->Visible) {
+        if (local_frustum.Contains(item->Bounds) != ContainmentType::DISJOINT || (!enable_frustum_culling_) || visible) {
           InstanceData data;
           XMStoreFloat4x4(&data.World, XMMatrixTranspose(world));  //  why is the transpose matrix of world
           XMStoreFloat4x4(&data.TexTransform, XMMatrixTranspose(tex_transform));  
           //  data.MaterialIndex = item->Mat->MatCBIndex; 
           data.MaterialIndex = instance_data.MaterialIndex;
 
-          current_instance_buffer->CopyData(visible_instance_count, data);
+          //  current_instance_buffer->CopyData(visible_instance_count, data);
+          current_instance_buffer->CopyData(layer_visible_index, data);
           visible_instance_count++;
+          layer_visible_index++;
         }
       }
 
       item->InstanceCount = visible_instance_count;
+      //  layer_visible_index += visible_instance_count;
       total_visible_count += visible_instance_count;
     }
   }
@@ -1494,152 +1504,7 @@ void RenderSystem::BuildRoomGeometry()
 }
 
 void RenderSystem::BuildRenderItems() {
-  //auto box_render_item = std::make_unique<RenderItem>();
-  //box_render_item->Geo = mesh_geos_["ShapeGeo"].get();
-  //box_render_item->Mat = materials_["woodCrate"].get();
-  //box_render_item->ObjectCBIndex = 0;
-  //
-  //XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-  //box_render_item->IndexCount = box_render_item->Geo->DrawArgs["Box"].IndexCount;
-  //box_render_item->StartIndexLocation = box_render_item->Geo->DrawArgs["Box"].StartIndexLocation;
-  //box_render_item->BaseVertexLocation = box_render_item->Geo->DrawArgs["Box"].BaseVertexLocation;
-  //box_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-  ////  
-  //
-
-  //auto grid_render_item = std::make_unique<RenderItem>();
-  //grid_render_item->Geo = mesh_geos_["Land"].get();
-  //grid_render_item->Mat = materials_["woodCrate"].get();
-  //grid_render_item->ObjectCBIndex = 1;
-  //XMStoreFloat4x4(&grid_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-  //grid_render_item->IndexCount = grid_render_item->Geo->DrawArgs["Land"].IndexCount;
-  //grid_render_item->StartIndexLocation = grid_render_item->Geo->DrawArgs["Land"].StartIndexLocation;
-  //grid_render_item->BaseVertexLocation = grid_render_item->Geo->DrawArgs["Land"].BaseVertexLocation;
-  //grid_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-  //
-  //////  
-  //auto wave_render_item = std::make_unique<RenderItem>();
-  //wave_render_item->Geo = mesh_geos_["Waves"].get();
-  //wave_render_item->Mat = materials_["water"].get();
-  //wave_render_item->ObjectCBIndex = 1;
-  //wave_render_item->World = MathHelper::Identity4x4();
-  //XMStoreFloat4x4(&wave_render_item->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
-  ////  XMStoreFloat4x4(&wave_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-  ////  XMStoreFloat4x4(&wave_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-  //wave_render_item->IndexCount = wave_render_item->Geo->DrawArgs["Waves"].IndexCount;
-  //wave_render_item->StartIndexLocation = wave_render_item->Geo->DrawArgs["Waves"].StartIndexLocation;
-  //wave_render_item->BaseVertexLocation = wave_render_item->Geo->DrawArgs["Waves"].BaseVertexLocation;
-  //wave_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-  //waves_render_item_ = wave_render_item.get();
-
-  //auto skull_render_item = std::make_unique<RenderItem>();
-  //skull_render_item->Geo = mesh_geos_["Skull"].get();
-  //skull_render_item->Mat = materials_["woodCrate"].get();
-  //skull_render_item->ObjectCBIndex = 0;
-  //XMStoreFloat4x4(&skull_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-  //skull_render_item->IndexCount = skull_render_item->Geo->DrawArgs["Skull"].IndexCount;
-  //skull_render_item->StartIndexLocation = skull_render_item->Geo->DrawArgs["Skull"].StartIndexLocation;
-  //skull_render_item->BaseVertexLocation = skull_render_item->Geo->DrawArgs["Skull"].BaseVertexLocation;
-  //skull_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-  //items_layers_[(int)RenderLayer::kOpaque].push_back(skull_render_item.get());
-
-
-  //  ------------
-
- // auto floorRitem = std::make_unique<RenderItem>();
-	//floorRitem->World = MathHelper::Identity4x4();
-	//floorRitem->TexTransform = MathHelper::Identity4x4();
-	//floorRitem->ObjectCBIndex = 0;
-	//floorRitem->Mat = materials_["checkertile"].get();
-	//floorRitem->Geo = mesh_geos_["roomGeo"].get();
-	//floorRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	//floorRitem->IndexCount = floorRitem->Geo->DrawArgs["floor"].IndexCount;
-	//floorRitem->StartIndexLocation = floorRitem->Geo->DrawArgs["floor"].StartIndexLocation;
-	//floorRitem->BaseVertexLocation = floorRitem->Geo->DrawArgs["floor"].BaseVertexLocation;
-	//items_layers_[(int)RenderLayer::kOpaque].push_back(floorRitem.get());
-
- // auto wallsRitem = std::make_unique<RenderItem>();
-	//wallsRitem->World = MathHelper::Identity4x4();
-	//wallsRitem->TexTransform = MathHelper::Identity4x4();
-	//wallsRitem->ObjectCBIndex = 1;
-	//wallsRitem->Mat = materials_["bricks"].get();
-	//wallsRitem->Geo = mesh_geos_["roomGeo"].get();
-	//wallsRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	//wallsRitem->IndexCount = wallsRitem->Geo->DrawArgs["wall"].IndexCount;
-	//wallsRitem->StartIndexLocation = wallsRitem->Geo->DrawArgs["wall"].StartIndexLocation;
-	//wallsRitem->BaseVertexLocation = wallsRitem->Geo->DrawArgs["wall"].BaseVertexLocation;
-	//items_layers_[(int)RenderLayer::kOpaque].push_back(wallsRitem.get());
-
-
- // XMMATRIX skullRotate = XMMatrixRotationY(0.5f*MathHelper::Pi);
-	//XMMATRIX skullScale = XMMatrixScaling(0.45f, 0.45f, 0.45f);
-	//XMMATRIX skullOffset = XMMatrixTranslation(-1.0f, 0.0f, -4.0f);
- // XMMATRIX skull_world = skullRotate * skullScale * skullOffset;
-
-	//auto skullRitem = std::make_unique<RenderItem>();
-	////  skullRitem->World = MathHelper::Identity4x4();
-
- // XMStoreFloat4x4(&skullRitem->World, skull_world);
-	//skullRitem->TexTransform = MathHelper::Identity4x4();
-	//skullRitem->ObjectCBIndex = 2;
-	//skullRitem->Mat = materials_["bricks"].get();
-	//skullRitem->Geo = mesh_geos_["skullGeo"].get();
-	//skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	//skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
-	//skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
-	//skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
-	//mSkullRitem = skullRitem.get();
-	//items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
-
-	//// Reflected skull will have different world matrix, so it needs to be its own render item.
- // // Update reflection world matrix.
-	//XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
-	//XMMATRIX R = XMMatrixReflect(mirrorPlane);
-	//
-	//auto reflectedSkullRitem = std::make_unique<RenderItem>();
-	//*reflectedSkullRitem = *skullRitem;
- // XMStoreFloat4x4(&reflectedSkullRitem->World, skull_world * R);
- // //  XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(0.5f,0.5f,0.5f) * XMMatrixRotationAxis({0.0f, 1.0f, 0.0f}, 90.0f) * XMMatrixTranslation(-1.0f, 0.0f, 4.0f));
-	//reflectedSkullRitem->ObjectCBIndex = 3;
-	//mReflectedSkullRitem = reflectedSkullRitem.get();
-	//items_layers_[(int)RenderLayer::kReflected].push_back(reflectedSkullRitem.get());
-
-	//// Shadowed skull will have different world matrix, so it needs to be its own render item.
-	//auto shadowedSkullRitem = std::make_unique<RenderItem>();
-	//*shadowedSkullRitem = *skullRitem;
-	//shadowedSkullRitem->ObjectCBIndex = 4;
-	//shadowedSkullRitem->Mat = materials_["shadowMat"].get();
-	//mShadowedSkullRitem = shadowedSkullRitem.get();
-	//items_layers_[(int)RenderLayer::kOpaque].push_back(shadowedSkullRitem.get());
-
-	//auto mirrorRitem = std::make_unique<RenderItem>();
-	//mirrorRitem->World = MathHelper::Identity4x4();
-	//mirrorRitem->TexTransform = MathHelper::Identity4x4();
-	//mirrorRitem->ObjectCBIndex = 5;
-	//mirrorRitem->Mat = materials_["icemirror"].get();
-	//mirrorRitem->Geo = mesh_geos_["roomGeo"].get();
-	//mirrorRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	//mirrorRitem->IndexCount = mirrorRitem->Geo->DrawArgs["mirror"].IndexCount;
-	//mirrorRitem->StartIndexLocation = mirrorRitem->Geo->DrawArgs["mirror"].StartIndexLocation;
-	//mirrorRitem->BaseVertexLocation = mirrorRitem->Geo->DrawArgs["mirror"].BaseVertexLocation;
-	//items_layers_[(int)RenderLayer::kMirrors].push_back(mirrorRitem.get());
-	//items_layers_[(int)RenderLayer::kTransparent].push_back(mirrorRitem.get());
-
-	//render_items_.push_back(std::move(floorRitem));
-	//render_items_.push_back(std::move(wallsRitem));
-	//render_items_.push_back(std::move(skullRitem));
-	//render_items_.push_back(std::move(reflectedSkullRitem));
-	//render_items_.push_back(std::move(shadowedSkullRitem));
-	//render_items_.push_back(std::move(mirrorRitem));
-
-  
-
   //  --------------
-
-  
-
-  //render_items_.push_back(std::move(skull_render_item));
 
  // XMMATRIX skullRotate = XMMatrixRotationY(0.5f*MathHelper::Pi);
 	//XMMATRIX skullScale = XMMatrixScaling(0.45f, 0.45f, 0.45f);
@@ -1716,6 +1581,23 @@ void RenderSystem::BuildRenderItems() {
   }
 
 	items_layers_[(int)RenderLayer::kOpaque].push_back(skullRitem.get());
+
+  auto ball3_render_item = std::make_unique<RenderItem>();
+  ball3_render_item->Geo = mesh_geos_["ShapeGeo"].get();
+  ball3_render_item->Mat = MaterialManager::GetInstance()->GetMaterial("icemirror"); 
+  ball3_render_item->ObjectCBIndex = 0;
+
+  //  XMStoreFloat4x4(&box_render_item->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-5.0f, 0.0f, 0.0f));
+  ball3_render_item->IndexCount = ball3_render_item->Geo->DrawArgs["Sphere"].IndexCount;
+  ball3_render_item->PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  ball3_render_item->StartIndexLocation = ball3_render_item->Geo->DrawArgs["Sphere"].StartIndexLocation;
+  ball3_render_item->BaseVertexLocation = ball3_render_item->Geo->DrawArgs["Sphere"].BaseVertexLocation;
+  ball3_render_item->Instances.resize(1);
+  XMStoreFloat4x4(&ball3_render_item->Instances[0].World, XMMatrixTranslation(-10.0f, 15.0f, -8.0f));
+
+  ball3_render_item->Instances[0].MaterialIndex = ball3_render_item->Mat->MatCBIndex;
+
+  items_layers_[(int)RenderLayer::kOpaque].push_back(ball3_render_item.get());
 
   auto sky_render_item = std::make_unique<RenderItem>();
   sky_render_item->Geo = mesh_geos_["ShapeGeo"].get();
@@ -1851,7 +1733,7 @@ void RenderSystem::BuildRenderItems() {
   //mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
   render_items_.push_back(std::move(quadRitem));
   render_items_.push_back(std::move(gridRitem));
-
+  render_items_.push_back(std::move(ball3_render_item));
 }
 
 
