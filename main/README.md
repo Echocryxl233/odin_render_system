@@ -1,42 +1,6 @@
-# Odin Render System
+# OdinRenderSystem
 primery code about DX12 with beginning
 just for learning
-
-2019-08-30
-1. Dynamic descriptor heap for command context
-2. Set descriptor table for texture resource
-3. Simple texture structure for grouping resource and handles
-
-2019-08-24
-1. Simple game core 
-2. Upgrade render system(?)
-
-2019-08-22
-1. Simple graphics core
-
-2019-08-18
-1. ResourceBarrier 
-
-2019-08-17
-1. GpuResource  
-2. Pixel Buffer, and Color Buffer/Depth Stencil Buffer for render target  
-3. Gpu Buffer, and Structure Buffer for vertex buffer, and ByteAddress Buffer for index buffer
-
-2019-08-13
-1. Linear Allocator  
-
-2019-08-10
-1. CommandQueue vs Fence
-
-2019-08-07
-1. CommandAllocator 
-2. CommandContext
-3. CommandQueue
-4. DescriptorAllocator
-
-2019-08-03
-1. RootParameter vs RootSignature
-2. Pso and GraphicsPso
 
 2019-08-01
 1. Fixed shadow issue with no scaling

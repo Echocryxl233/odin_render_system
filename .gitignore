@@ -70,3 +70,6 @@ x64/Debug/OdinRenderSystem.vcxproj.FileListAbsolute.txt
 *.tlog
 x64/Debug/CubeRenderTarget.obj
 *.obj
+x64/Debug/odin_render_system_v2.ilk
+x64/Debug/odin_render_system_v2.log
+.vs/odin_render_system_v2/v16/.suo
