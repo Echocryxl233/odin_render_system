@@ -108,13 +108,17 @@ void CommandContext::InitializeResource(GpuBuffer& resource, const void* buffer_
 }
 
 
-uint64_t CommandContext::Flush(CommandQueue* command_queue, bool wait_for_signal) {
-  assert(command_queue != nullptr);
+uint64_t CommandContext::Flush(bool wait_for_signal) {  //  CommandQueue* command_queue, 
+  //assert(command_queue != nullptr);
   FlushResourceBarriers();
-  uint64_t fence_value = command_queue->ExecuteCommandList(command_list_);
+
+  assert(command_allocator_ != nullptr);
+
+  auto& command_queue = CommandListManager::Instance().GetQueue(type_);
+  uint64_t fence_value = command_queue.ExecuteCommandList(command_list_);
   
   if (wait_for_signal) {
-    command_queue->WaitForSignal(fence_value);
+    command_queue.WaitForSignal(fence_value);
   }
   
   command_list_->Reset(command_allocator_, nullptr);

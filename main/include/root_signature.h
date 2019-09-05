@@ -7,6 +7,11 @@ class RootParameter {
   RootParameter() {
     root_parameter_.ParameterType = (D3D12_ROOT_PARAMETER_TYPE)0xFFFFFFFF;
   }
+  void InitAsConstants(UINT num32BitValues, UINT shaderRegister, UINT registerSpace = 0, 
+      D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) {
+    root_parameter_.InitAsConstants(num32BitValues, shaderRegister, registerSpace, visibility);
+  }
+
   void InitAsConstantBufferView( UINT shaderRegister, 
     UINT registerSpace = 0, 
     D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) {

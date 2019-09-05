@@ -90,6 +90,12 @@
     <ClCompile Include="main\src\dynamic_descriptor_heap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="main\src\ssao.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\texture_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main\include\game_core.h">
@@ -183,6 +189,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\light.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\ssao.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

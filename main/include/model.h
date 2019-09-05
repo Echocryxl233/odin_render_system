@@ -42,12 +42,12 @@ struct Material {
   float Roughness;
   XMFLOAT4X4 MatTransform;
 };
-
-struct TempTexture {
-  std::string Name;
-  std::wstring Filename;
-  Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
-  Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
-  D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHandle;
-};
+//
+//struct TempTexture {
+//  std::string Name;
+//  std::wstring Filename;
+//  Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
+//  Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
+//  D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHandle;
+//};
 

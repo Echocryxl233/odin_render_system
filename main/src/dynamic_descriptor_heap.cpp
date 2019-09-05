@@ -60,7 +60,7 @@ void DynamicDescriptorHeap::SetGraphicsDescriptorHandles(UINT root_index, UINT o
 
 void DynamicDescriptorHeap::RetireCurrentHeap() {
   if (current_offset_ == 0) {
-    assert(current_heap_ptr_ != nullptr);
+    assert(current_heap_ptr_ == nullptr);
     return;
   }
   
@@ -71,7 +71,7 @@ void DynamicDescriptorHeap::RetireCurrentHeap() {
 
 void DynamicDescriptorHeap::CopyAndBindStagedTables(DescriptorHandleCache& handle_cache) {
   uint32_t need_size = handle_cache.ComputeStagedSize();
-  if (HasSpace(need_size)) {
+  if (!HasSpace(need_size)) {
     RetireCurrentHeap();
     UnbindAllValid();
     need_size = handle_cache.ComputeStagedSize();

@@ -4,9 +4,11 @@
 #define RENDERSYSTEM_H
 
 #include "gpu_buffer.h"
-#include "pipeline_state.h"
-
 #include "model.h"
+#include "pipeline_state.h"
+#include "ssao.h"
+#include "texture_manager.h"
+
 #include "utility.h"
 
 using namespace DirectX;
@@ -25,10 +27,14 @@ class RenderSystem {
   void Update();
 
  private:
-  void LoadMesh();
+  void RenderObjects();
+
+  void LoadModel();
   void BuildPso(); 
   void UpdateCamera();
-  void CreateTexture();
+
+  void BuildDebugPlane(float x, float y, float w, float h, float depth);
+  void BuildDebugPso();
 
  private:
 
@@ -38,8 +44,6 @@ class RenderSystem {
   RootSignature root_signature_;
   GraphicsPso   graphics_pso_;
   
-  ComPtr<ID3D12DescriptorHeap> mCbvHeap = nullptr;
-
   XMFLOAT4X4 mWorld = MathHelper::Identity4x4();
   XMFLOAT4X4 mView = MathHelper::Identity4x4();
   XMFLOAT4X4 mProj = MathHelper::Identity4x4();
@@ -55,11 +59,24 @@ class RenderSystem {
   PassConstant    pass_constant_;
   Material car_material_;
 
-  unique_ptr<TempTexture> car_texture_;
+  //  unique_ptr<TempTexture> car_texture_;
 
   XMFLOAT3 eye_pos_;
 
   POINT mLastMousePos;
+
+  Ssao ssao_;
+
+//  -------------  for debug plane
+  ByteAddressBuffer debug_index_buffer_;
+  StructuredBuffer debug_vertex_buffer_;
+  RootSignature debug_signature_;
+  GraphicsPso   debug_pso_;
+
+  //  unique_ptr<TempTexture> skull_texture_;
+
+  Texture* car_texture_2_;
+  Texture* skull_texture_2_;
     
 };
 

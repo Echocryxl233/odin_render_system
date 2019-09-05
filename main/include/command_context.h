@@ -68,7 +68,7 @@ friend class ContextManager;
     return cpu_linear_allocator_.Allocate(byte_size);
   }
 
-  uint64_t Flush(CommandQueue* command_queue, bool wait_for_signal = false);
+  uint64_t Flush( bool wait_for_signal = false); // CommandQueue* command_queue,
   uint64_t Finish(bool wait_for_signal = false);
 
   GraphicsContext& GetGraphicsContext() {
@@ -136,7 +136,7 @@ public:
 
   
 
-  void SetDynamicDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
+  //  void SetDynamicDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
 
   void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& IBView);
   void SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& VBView);
@@ -250,9 +250,9 @@ inline void GraphicsContext::SetPipelineState(const GraphicsPso& pso) {
   command_list_->SetPipelineState(graphics_pso_);
 }
 
-inline void GraphicsContext::SetDynamicDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
-  dynamic_view_descriptor_heap_.SetGraphicsDescriptorHandles(root_index, offset, count, handles);
-}
+//inline void GraphicsContext::SetDynamicDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
+//  dynamic_view_descriptor_heap_.SetGraphicsDescriptorHandles(root_index, offset, count, handles);
+//}
 
 inline void GraphicsContext::DrawIndexedInstanced(UINT index_count_per_instance, UINT instance_count, 
     UINT start_index_location, INT base_vertex_location, UINT start_instance_location) {
