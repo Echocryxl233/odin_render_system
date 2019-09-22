@@ -1,5 +1,5 @@
 #include "pixel_buffer.h"
-
+#include "graphics_core.h"
 
 
 PixelBuffer::PixelBuffer()
@@ -46,16 +46,15 @@ D3D12_RESOURCE_DESC PixelBuffer::DescribeTexture2D(uint32_t width, uint32_t heig
   return resource_desc;
 }
 
-void PixelBuffer::CreateTextureResource(ID3D12Device* device, const std::wstring& name, D3D12_RESOURCE_DESC& descriptor, D3D12_CLEAR_VALUE& clear_value) {
+void PixelBuffer::CreateTextureResource(const std::wstring& name, D3D12_RESOURCE_DESC& descriptor, D3D12_CLEAR_VALUE& clear_value) {
   Destroy();
   
   CD3DX12_HEAP_PROPERTIES properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
   current_state_ = D3D12_RESOURCE_STATE_COMMON;
-
-  ThrowIfFailed(device->CreateCommittedResource(&properties, D3D12_HEAP_FLAG_NONE, &descriptor,
+  ID3D12Device* device = Graphics::Core.Device();
+  ASSERT_SUCCESSED(device->CreateCommittedResource(&properties, D3D12_HEAP_FLAG_NONE, &descriptor,
     current_state_, &clear_value, IID_PPV_ARGS(resource_.GetAddressOf())));
-
   resource_->SetName(name.c_str());
 }
 

@@ -10,7 +10,7 @@
 class DepthStencilBuffer : public PixelBuffer {
  public:
   DepthStencilBuffer(float depth = 1.0f, uint8_t stencil = 0);
-  void Create(ID3D12Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format);
+  void Create(uint32_t width, uint32_t height, DXGI_FORMAT format);
   
   D3D12_CPU_DESCRIPTOR_HANDLE DepthSRV() const { return depth_srv_; }
   D3D12_CPU_DESCRIPTOR_HANDLE StencilSRV() const { return stencil_srv_; }

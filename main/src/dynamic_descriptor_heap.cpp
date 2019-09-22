@@ -190,7 +190,7 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(D3D12_
       && "Root entry has marked as stale but has no staled descriptor");
 
     need_space += max_staled_size + 1;
-    root_table_size[root_table_count] += max_staled_size + 1;
+    root_table_size[root_table_count] = max_staled_size + 1;
 
     root_table_count++;
   }   

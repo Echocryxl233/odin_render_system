@@ -34,6 +34,7 @@
     <ClCompile Include="main\src\game_core.cpp" />
     <ClCompile Include="main\src\gpu_buffer.cpp" />
     <ClCompile Include="main\src\gpu_resource.cpp" />
+    <ClCompile Include="main\src\graphics_common.cpp" />
     <ClCompile Include="main\src\graphics_core.cpp" />
     <ClCompile Include="main\src\linear_allocator.cpp" />
     <ClCompile Include="main\src\main.cpp" />
@@ -66,6 +67,7 @@
     <ClInclude Include="main\include\game_core.h" />
     <ClInclude Include="main\include\gpu_buffer.h" />
     <ClInclude Include="main\include\gpu_resource.h" />
+    <ClInclude Include="main\include\graphics_common.h" />
     <ClInclude Include="main\include\graphics_core.h" />
     <ClInclude Include="main\include\light.h" />
     <ClInclude Include="main\include\linear_allocator.h" />

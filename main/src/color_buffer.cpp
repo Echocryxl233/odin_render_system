@@ -25,35 +25,43 @@ void ColorBuffer::CreateFromSwapChain(std::wstring& name, ID3D12Device* device, 
   resource_->SetName(name.c_str());
 }
 
-void ColorBuffer::Create(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags) {
+void ColorBuffer::Create(wstring name, uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags) {
   auto desciptor = DescribeTexture2D(width, height, format, 1, 1, flags);
-  auto* device = Graphics::Core.Device();
     
   D3D12_CLEAR_VALUE clear_value = {};
   clear_value.Format = format;
-  clear_value.DepthStencil.Depth = 0;
-  clear_value.DepthStencil.Stencil = 0;
-  memcpy(clear_value.Color, color_.Ptr(), sizeof(clear_value.Color));
-  CreateTextureResource(device, L"", desciptor, clear_value);
+  //clear_value.DepthStencil.Depth = 0;
+  //clear_value.DepthStencil.Stencil = 0;
+  clear_value.Color[0] = color_.R();
+  clear_value.Color[1] = color_.G();
+  clear_value.Color[2] = color_.B();
+  clear_value.Color[3] = color_.A();
 
-  D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-  rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-  rtvDesc.Format = format;
-  rtvDesc.Texture2D.MipSlice = 0;
-  rtvDesc.Texture2D.PlaneSlice = 0;
+  //  memcpy(clear_value.Color, color_.Ptr(), sizeof(clear_value.Color));
+  CreateTextureResource(name, desciptor, clear_value);
+  CreateDeriveView(format);
+  DebugUtility::Log(L"ColorBuffer::Create");
+}
+
+void ColorBuffer::CreateDeriveView(DXGI_FORMAT format) {
+  auto* device = Graphics::Core.Device();
+
+  D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+  rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+  rtv_desc.Format = format;
+  rtv_desc.Texture2D.MipSlice = 0;
+  rtv_desc.Texture2D.PlaneSlice = 0;
 
   rtv_handle_ = DescriptorAllocatorManager::Instance().Allocate(D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-  device->CreateRenderTargetView(resource_.Get(), &rtvDesc, rtv_handle_);
+  device->CreateRenderTargetView(resource_.Get(), &rtv_desc, rtv_handle_);
 
-  D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-  srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-  srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-  srvDesc.Format = format;
-  srvDesc.Texture2D.MostDetailedMip = 0;
-  srvDesc.Texture2D.MipLevels = 1;
+  D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+  srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+  srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  srv_desc.Format = format;
+  srv_desc.Texture2D.MostDetailedMip = 0;
+  srv_desc.Texture2D.MipLevels = 1;
 
   srv_handle_ = DescriptorAllocatorManager::Instance().Allocate(D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-  device->CreateShaderResourceView(resource_.Get(), &srvDesc, srv_handle_);
-
-  DebugUtility::Log(L"ColorBuffer::Create");
+  device->CreateShaderResourceView(resource_.Get(), &srv_desc, srv_handle_);
 }

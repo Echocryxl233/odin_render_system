@@ -43,44 +43,44 @@ void GpuBuffer::Create(wstring name, uint32_t element_count, uint32_t element_si
   resource_->SetName(name.c_str());
 
   if (init_data) {
-    CommandContext::InitializeResource(*this, init_data, buffer_size_);
+    CommandContext::InitializeBuffer(*this, init_data, buffer_size_);
   }
   
   CreateDerivedViews();
 }
 
-void GpuBuffer::Create(wstring name, ID3D12Device* device, uint32_t element_count, 
-    uint32_t element_size, const void* init_data) {
-
-  Destroy();
-
-  element_count_ = element_count;
-  element_size_ = element_size;
-  buffer_size_ = element_count_ * element_size_;
-
-  D3D12_HEAP_PROPERTIES properties = {};
-  properties.Type = D3D12_HEAP_TYPE_DEFAULT;
-  properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-  properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-  properties.CreationNodeMask = 1;
-  properties.VisibleNodeMask = 1;
-
-  current_state_ = D3D12_RESOURCE_STATE_COMMON;
-
-  auto desc = DescribeBuffer();
-
-  ASSERT_SUCCESSED(device->CreateCommittedResource(&properties, D3D12_HEAP_FLAG_NONE, &desc,
-    current_state_, nullptr, IID_PPV_ARGS(resource_.GetAddressOf())));
-
-  gpu_virtual_address_ = resource_->GetGPUVirtualAddress();
-  resource_->SetName(name.c_str());
-
-  if (init_data) {
-    CommandContext::InitializeResource(*this, init_data, buffer_size_);
-  }
-
-  CreateDerivedViews();
-}
+//void GpuBuffer::Create(wstring name, ID3D12Device* device, uint32_t element_count, 
+//    uint32_t element_size, const void* init_data) {
+//
+//  Destroy();
+//
+//  element_count_ = element_count;
+//  element_size_ = element_size;
+//  buffer_size_ = element_count_ * element_size_;
+//
+//  D3D12_HEAP_PROPERTIES properties = {};
+//  properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+//  properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+//  properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+//  properties.CreationNodeMask = 1;
+//  properties.VisibleNodeMask = 1;
+//
+//  current_state_ = D3D12_RESOURCE_STATE_COMMON;
+//
+//  auto desc = DescribeBuffer();
+//
+//  ASSERT_SUCCESSED(device->CreateCommittedResource(&properties, D3D12_HEAP_FLAG_NONE, &desc,
+//    current_state_, nullptr, IID_PPV_ARGS(resource_.GetAddressOf())));
+//
+//  gpu_virtual_address_ = resource_->GetGPUVirtualAddress();
+//  resource_->SetName(name.c_str());
+//
+//  if (init_data) {
+//    CommandContext::InitializeBuffer(*this, init_data, buffer_size_);
+//  }
+//
+//  CreateDerivedViews();
+//}
 
 D3D12_RESOURCE_DESC GpuBuffer::DescribeBuffer() {
 

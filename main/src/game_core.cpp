@@ -4,8 +4,8 @@ namespace GameCore {
 
 RenderSystem* render_system;
 
-extern long client_width_ = 1080;
-extern long client_height_ = 720;
+long client_width_ = 1080;
+long client_height_ = 720;
 HWND  window;
 
 
@@ -17,8 +17,13 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 {
   switch( message )
   {
-    case WM_SIZE:
-      Graphics::Core.OnResize((UINT)(UINT64)lParam & 0xFFFF, (UINT)(UINT64)lParam >> 16);
+    case WM_SIZE: {
+        UINT width = (UINT)(UINT64)lParam & 0xFFFF;
+        UINT height = (UINT)(UINT64)lParam >> 16;
+        Graphics::Core.OnResize(width, height);
+          render_system->OnResize(width, height);
+      }
+
       break;
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
@@ -57,8 +62,8 @@ void Initialize(RenderSystem& rs) {
 }
 
 void Run(RenderSystem& rs) {
-  Initialize(rs);
   render_system = &rs;
+  Initialize(rs);
   UpdateGame(rs);
 }
 

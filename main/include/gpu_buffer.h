@@ -12,7 +12,7 @@ class GpuBuffer : public GpuResource
   virtual ~GpuBuffer();
 
   void Create(wstring name, uint32_t element_count, uint32_t element_size, const void* init_data = nullptr);
-  void Create(wstring name, ID3D12Device* device, uint32_t element_count, uint32_t element_size, const void* init_data = nullptr);
+  //  void Create(wstring name, ID3D12Device* device, uint32_t element_count, uint32_t element_size, const void* init_data = nullptr);
 
   D3D12_CPU_DESCRIPTOR_HANDLE& Srv() { return srv_; }
   D3D12_CPU_DESCRIPTOR_HANDLE& Uav() { return uav_; }

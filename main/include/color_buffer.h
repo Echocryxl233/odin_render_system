@@ -14,10 +14,11 @@ class ColorBuffer : public PixelBuffer
   ~ColorBuffer();
 
   void CreateFromSwapChain(std::wstring& name, ID3D12Device* device, ID3D12Resource* resouce);
-  void Create(uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags);
+  void Create(wstring name, uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags);
+  //  void CreateButNotRTV(wstring name, uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags);
 
-  const D3D12_CPU_DESCRIPTOR_HANDLE& GetRTV() { return rtv_handle_; } 
-  const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() { return srv_handle_; } 
+  const D3D12_CPU_DESCRIPTOR_HANDLE& Rtv() { return rtv_handle_; } 
+  const D3D12_CPU_DESCRIPTOR_HANDLE& Srv() { return srv_handle_; } 
 
   Color GetColor() const { return color_; }
   void SetColor(const Color& color) { color_ = color; }
@@ -25,6 +26,7 @@ class ColorBuffer : public PixelBuffer
   //  D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHandle() { return descriptor_handle_; }
 
  private:
+  void CreateDeriveView(DXGI_FORMAT format);
   // D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle_;    //  the location of the resource in the descriptor heap
 
   D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle_;

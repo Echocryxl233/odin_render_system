@@ -33,5 +33,4 @@ VertexOut VS(VertexIn vin) {
 float4 PS(VertexOut pin) : SV_TARGET {
     float3 normalV = mul(pin.NormalW, (float3x3)gProj);
     return float4(normalV, 0.0f);
-    // return float4(1.0f, 0.0f, 0.0f, 1.0f);
 };

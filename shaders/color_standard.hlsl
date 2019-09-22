@@ -23,6 +23,8 @@
 #include "lighting_util.hlsl"
 
 Texture2D    gDiffuseMap : register(t0);
+Texture2D    gDiffuseMap2 : register(t1);
+// Texture2D    gSsapMap : register(t0, space2);
 SamplerState gsamLinear  : register(s0);
 
 cbuffer cbPerObject : register(b0) {
@@ -42,6 +44,7 @@ cbuffer cbPassConstant : register(b2) {
   float4x4 Proj;
   float4x4 InvProj;
   float4x4 ViewProj;
+  float4x4 ViewProjTex;
   float3 EyePosition;
   float  Padding1;
   float4 AmbientLight;
@@ -58,7 +61,8 @@ struct VertexOut
  {
   float4 Position : SV_POSITION;
   float3 Normal : NORMAL;
-  float3 PosW : POSITION;
+  float3 PosW : POSITION0;
+  float4 SsaoPosH : POSITION1;
   float2 TexC : TEXCOORD;
 };
 
@@ -73,20 +77,32 @@ VertexOut VS(VertexIn vin) {
   vout.Normal = Normal.xyz;
   float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), MatTransform);
   vout.TexC = texC.xy;
+
+  vout.SsaoPosH = mul(posW, ViewProjTex);
   return vout;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
   float4 diffuseAlbedo = gDiffuseMap.Sample(gsamLinear, pin.TexC) * DiffuseAlbedo;
+  // float4 diffuseAlbedo = gSsapMap.Sample(gsamLinear, pin.TexC) * DiffuseAlbedo;
 
   pin.Normal = normalize(pin.Normal);
 
   // Vector from point being lit to eye. 
   float3 toEyeW = normalize(EyePosition - pin.PosW);
+  
+  float ambient_access = 1.0f;
+  pin.SsaoPosH /= pin.SsaoPosH.w;
+  ambient_access = gDiffuseMap2.SampleLevel(gsamLinear, pin.SsaoPosH.xy, 0.0f).r;
+
+#ifdef SSAO
+  pin.SsaoPosH /= pin.SsaoPosH.w;
+  ambient_access = gSsapMap.SampleLevel(gsamLinear, pin.SsaoPosH.xy, 0.0f).r;
+#endif
 
 // Indirect lighting.
-  float4 ambient = AmbientLight*diffuseAlbedo;
+  float4 ambient = AmbientLight * diffuseAlbedo * ambient_access;
 
   const float shininess = 1.0f - Roughness;
   Material mat = { diffuseAlbedo, FresnelR0, shininess };
@@ -96,13 +112,6 @@ float4 PS(VertexOut pin) : SV_Target
   //  float4 directLight = 
 
   float4 litColor = ambient + float4(direct_light, 1.0f);
-  // float4 litColor = float4(Lights[0].Strength, 1.0f);
-  // float4 litColor = float4(EyePosition, 1.0f);
 
-  // float4 litColor = AmbientLight;
-
-  // // Common convention to take alpha from diffuse material.
-  // litColor.a = diffuseAlbedo.a;
-  // float4 litColor = diffuseAlbedo;
   return litColor;
 }

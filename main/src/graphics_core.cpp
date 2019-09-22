@@ -1,6 +1,7 @@
 #include "graphics_core.h"
 #include "command_list_manager.h"
 
+
 namespace Graphics {
 
 using namespace std;
@@ -29,7 +30,7 @@ void GraphicsCore::Initialize(HWND  h_window_) {
 
   CreateSwapChain(h_window_);
 
-
+  Graphics::InitializeCommonState();
 #ifdef _DEBUG
   LogAdapters();
 #endif
@@ -74,7 +75,7 @@ void GraphicsCore::PreparePresent() {
   graphics_context.ClearColor(display_plane);
   graphics_context.ClearDepthStencil(depth_buffer_);  
   
-  graphics_context.SetRenderTargets(1, &display_plane.GetRTV(), depth_buffer_.DSV());
+  graphics_context.SetRenderTargets(1, &display_plane.Rtv(), depth_buffer_.DSV());
 
   auto fence_value = graphics_context.Finish();
 }
@@ -100,6 +101,7 @@ void GraphicsCore::OnResize(UINT width, UINT height) {
 
   client_width_ = width;
   client_height_ = height;
+  DebugUtility::Log(L"GraphicsCore resize : width %0, height %1", to_wstring(client_width_), to_wstring(client_height_));
   for (int i = 0; i < kSwapBufferCount; ++i) {
     display_planes_[i].Destroy();
   }
@@ -122,7 +124,7 @@ void GraphicsCore::CreateDisplayPlanes() {
     display_planes_[i].SetColor(Colors::LightSteelBlue);
   }
   
-  depth_buffer_.Create(device_.Get(), client_width_, client_height_, DepthStencilFormat);
+  depth_buffer_.Create(client_width_, client_height_, DepthStencilFormat);
   
 }
 

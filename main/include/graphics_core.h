@@ -7,6 +7,7 @@
 #include "color_buffer.h"
 #include "depth_stencil_buffer.h"
 #include "linear_allocator.h"
+#include "graphics_common.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")

@@ -60,7 +60,7 @@ friend class ContextManager;
   ~CommandContext();
 
   static CommandContext& Begin(const std::wstring& name);
-  static void InitializeResource(GpuBuffer& resource, const void* init_data, size_t byte_size, size_t offset = 0);
+  static void InitializeBuffer(GpuResource& resource, const void* init_data, size_t byte_size, size_t offset = 0);
 
   ID3D12GraphicsCommandList* GetCommandList() { return command_list_; }
 
@@ -124,11 +124,14 @@ public:
   void SetDynamicDescriptors(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
 
   void SetDynamicConstantBufferView(UINT root_index, UINT buffer_size, const void* data);
+  void SetGraphicsRoot32BitConstant(UINT root_index, UINT src_data, UINT offset);
 
   void ClearColor(ColorBuffer& target);
   void ClearDepth(DepthStencilBuffer& target);
   void ClearStencil(DepthStencilBuffer& target);
   void ClearDepthStencil(DepthStencilBuffer& target);
+
+  void SetRenderTarget(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]);
   void SetRenderTargets(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv);
   
   void SetRootSignature(const RootSignature& root_signature);
@@ -139,11 +142,14 @@ public:
   //  void SetDynamicDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
 
   void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& IBView);
+  void SetNullIndexBuffer();
   void SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& VBView);
+  void SetVertexBuffers(UINT start_slot, UINT count, const D3D12_VERTEX_BUFFER_VIEW vb_views[]);
+
   void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY primitive_type);
 
   
-
+  void DrawInstanced(UINT vertex_count_per_instance,  UINT instance_count, INT start_vertex_location, UINT start_instance_location);
   void DrawIndexedInstanced(UINT index_count_per_instance, UINT instance_count, UINT start_index_location, 
       INT base_vertex_location, UINT start_instance_location);
   
@@ -210,12 +216,24 @@ inline void GraphicsContext::SetDynamicConstantBufferView(UINT root_index, UINT 
   command_list_->SetGraphicsRootConstantBufferView(root_index, cb.GpuAddress);
 }
 
+inline void GraphicsContext::SetGraphicsRoot32BitConstant(UINT root_index, UINT src_data, UINT offset) {
+  command_list_->SetGraphicsRoot32BitConstant(root_index, src_data, offset);
+}
+
 inline void GraphicsContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& index_buffer_view) {
   command_list_->IASetIndexBuffer(&index_buffer_view);
 }
 
+inline void GraphicsContext::SetNullIndexBuffer() {
+  command_list_->IASetIndexBuffer(nullptr);
+}
+
 inline void GraphicsContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vertex_buffer_view) {
   command_list_->IASetVertexBuffers(0, 1, &vertex_buffer_view);
+}
+
+inline void GraphicsContext::SetVertexBuffers(UINT start_slot, UINT count, const D3D12_VERTEX_BUFFER_VIEW vb_views[]) {
+  command_list_->IASetVertexBuffers(start_slot, count, vb_views);
 }
 
 inline void GraphicsContext::SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY primitive_type) {
@@ -253,6 +271,14 @@ inline void GraphicsContext::SetPipelineState(const GraphicsPso& pso) {
 //inline void GraphicsContext::SetDynamicDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
 //  dynamic_view_descriptor_heap_.SetGraphicsDescriptorHandles(root_index, offset, count, handles);
 //}
+
+inline void GraphicsContext::DrawInstanced(UINT vertex_count_per_instance,  UINT instance_count, 
+    INT start_vertex_location, UINT start_instance_location) {
+  FlushResourceBarriers();
+  dynamic_view_descriptor_heap_.CommitGraphicsRootDescriptorTables();
+  dynamic_sampler_descriptor_heap_.CommitGraphicsRootDescriptorTables();
+  command_list_->DrawInstanced(vertex_count_per_instance, instance_count, start_vertex_location, start_instance_location);
+}
 
 inline void GraphicsContext::DrawIndexedInstanced(UINT index_count_per_instance, UINT instance_count, 
     UINT start_index_location, INT base_vertex_location, UINT start_instance_location) {

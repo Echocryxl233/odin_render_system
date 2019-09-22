@@ -1,4 +1,5 @@
 #include "pipeline_state.h"
+#include "graphics_core.h"
 
 GraphicsPso::GraphicsPso() {
   ZeroMemory(&pso_desc_, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -39,12 +40,12 @@ void GraphicsPso::SetRenderTargetFormats(UINT NumRTVs, const DXGI_FORMAT* RTVFor
   pso_desc_.SampleDesc.Quality = MsaaQuality;
 }
 
-void GraphicsPso::Finalize(ID3D12Device* device) {
+void GraphicsPso::Finalize() {
   //  pso_desc_.pRootSignature = const_cast<ID3D12RootSignature*>(root_signature_);
   assert(root_signature_ != nullptr && "Finalize graphics pso exception : root signature is nullptr");
   pso_desc_.pRootSignature = root_signature_->GetSignature();
   pso_desc_.InputLayout.pInputElementDescs = input_layouts_.get();
-  ThrowIfFailed(device->CreateGraphicsPipelineState(&pso_desc_, IID_PPV_ARGS(&pso_)));
+  ThrowIfFailed(Graphics::Core.Device()->CreateGraphicsPipelineState(&pso_desc_, IID_PPV_ARGS(&pso_)));
 }
 
 

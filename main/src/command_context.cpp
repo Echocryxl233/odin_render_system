@@ -94,7 +94,7 @@ CommandContext& CommandContext::Begin(const std::wstring& name) {
   return *context;
 }
 
-void CommandContext::InitializeResource(GpuBuffer& resource, const void* buffer_data, size_t byte_size, size_t offset) {
+void CommandContext::InitializeBuffer(GpuResource& resource, const void* buffer_data, size_t byte_size, size_t offset) {
   CommandContext& init_context = CommandContext::Begin(L"Init Context");
 
   DynAlloc memory = init_context.ReserveUploadMemory(byte_size);
@@ -198,7 +198,7 @@ GraphicsContext& GraphicsContext::Begin(const std::wstring& name) {
 }
 
 void GraphicsContext::ClearColor(ColorBuffer& target) {
-  command_list_->ClearRenderTargetView(target.GetRTV(), target.GetColor().Ptr(), 0, nullptr);
+  command_list_->ClearRenderTargetView(target.Rtv(), target.GetColor().Ptr(), 0, nullptr);
 }
 
 void GraphicsContext::ClearDepth(DepthStencilBuffer& target) {
@@ -214,6 +214,10 @@ void GraphicsContext::ClearStencil(DepthStencilBuffer& target) {
 void GraphicsContext::ClearDepthStencil(DepthStencilBuffer& target) {
   command_list_->ClearDepthStencilView(target.DSV(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 
       target.ClearDepth(), target.ClearStencil(), 0, nullptr);
+}
+
+void GraphicsContext::SetRenderTarget(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]) {
+  command_list_->OMSetRenderTargets(1, rtvs, true, nullptr);
 }
 
 void GraphicsContext::SetRenderTargets(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv) {

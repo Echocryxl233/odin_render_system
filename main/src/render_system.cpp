@@ -31,7 +31,7 @@ void RenderSystem::Initialize() {
 };
 
 void RenderSystem::LoadModel() {
-  std::ifstream fin("models/car.txt");
+  std::ifstream fin("models/skull.txt");
 
   UINT vertex_count = 0;
   UINT index_count = 0;
@@ -104,9 +104,9 @@ void RenderSystem::LoadModel() {
   }
 
   fin.close();
-  vertex_buffer_.Create(L"Vertex Buffer", Graphics::Core.Device(),
+  vertex_buffer_.Create(L"Vertex Buffer", 
     (uint32_t)vertices.size(), sizeof(Vertex), vertices.data());
-  index_buffer_.Create(L"Index Buffer", Graphics::Core.Device(),
+  index_buffer_.Create(L"Index Buffer", 
     (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
 
   car_texture_2_ = TextureManager::Instance().RequestTexture(L"textures/ice.dds");
@@ -126,16 +126,20 @@ void RenderSystem::BuildPso() {
   };
 
   CD3DX12_DESCRIPTOR_RANGE texTable;
-  texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+  texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
+
+  CD3DX12_DESCRIPTOR_RANGE ssao_tex_table;
+  ssao_tex_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2);
 
   SamplerDesc default_sampler;
 
-  root_signature_.Reset(4, 1);
+  root_signature_.Reset(5, 1);
   root_signature_.InitSampler(0, default_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
   root_signature_[0].InitAsConstantBufferView(0, 0);
   root_signature_[1].InitAsConstantBufferView(1, 0);
   root_signature_[2].InitAsConstantBufferView(2, 0);
   root_signature_[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+  root_signature_[4].InitAsDescriptorTable(1, &ssao_tex_table, D3D12_SHADER_VISIBILITY_PIXEL);
   root_signature_.Finalize();
 
   graphics_pso_.SetInputLayout(input_layout.data(), (UINT)input_layout.size());
@@ -152,7 +156,7 @@ void RenderSystem::BuildPso() {
   graphics_pso_.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
   graphics_pso_.SetRenderTargetFormat(Graphics::Core.BackBufferFormat, Graphics::Core.DepthStencilFormat,
     (Graphics::Core.Msaa4xState() ? 4 : 1), (Graphics::Core.Msaa4xState() ? (Graphics::Core.Msaa4xQuanlity() - 1) : 0));
-  graphics_pso_.Finalize(Graphics::Core.Device());
+  graphics_pso_.Finalize();
 
 }
 
@@ -179,6 +183,7 @@ void RenderSystem::Update() {
   XMMATRIX view = XMLoadFloat4x4(&mView);
   XMMATRIX proj = XMLoadFloat4x4(&mProj);
   XMMATRIX view_proj = XMMatrixMultiply(view, proj);
+  XMMATRIX view_proj_tex = XMMatrixMultiply(view_proj, kTextureTransform);
 
   XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 
@@ -191,6 +196,7 @@ void RenderSystem::Update() {
   XMStoreFloat4x4(&pass_constant_.InvView, XMMatrixTranspose(invView));
   XMStoreFloat4x4(&pass_constant_.InvProj, XMMatrixTranspose(invProj));
   XMStoreFloat4x4(&pass_constant_.ViewProj, XMMatrixTranspose(view_proj));
+  XMStoreFloat4x4(&pass_constant_.ViewProjTex, XMMatrixTranspose(view_proj_tex));
   
   pass_constant_.AmbientLight = { 0.3f, 0.3f, 0.3f, 0.1f };
   pass_constant_.EyePosition = eye_pos_;
@@ -227,50 +233,58 @@ void RenderSystem::RenderScene() {
     draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
     draw_context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
     draw_context.SetIndexBuffer(index_buffer_.IndexBufferView());
-    draw_context.SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     draw_context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
-
   }
   ssao_.EndRender(draw_context);
   draw_context.Flush(true);
+  ssao_.ComputeAo(draw_context, mView, mProj);
+
+  {
+    draw_context.SetViewports(&Graphics::Core.ViewPort());
+    draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
+    draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+    draw_context.ClearColor(display_plane);
+    draw_context.ClearDepthStencil(Graphics::Core.DepthBuffer());
+    draw_context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().Rtv(), Graphics::Core.DepthBuffer().DSV());
+
+    draw_context.SetPipelineState(graphics_pso_);
+    draw_context.SetRootSignature(root_signature_);
+
+    draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
+    draw_context.SetDynamicConstantBufferView(1, sizeof(car_material_), &car_material_);
+    draw_context.SetDynamicConstantBufferView(2, sizeof(pass_constant_), &pass_constant_);
+
+    draw_context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
+    draw_context.SetIndexBuffer(index_buffer_.IndexBufferView());
+
+    //  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { car_texture_->DescriptorHandle }; car_texture_2_
+    D3D12_CPU_DESCRIPTOR_HANDLE handles[] = {  skull_texture_2_->SrvHandle() }; //  ssao_.AmbientMap().Srv()
+    draw_context.SetDynamicDescriptors(3, 0, _countof(handles), handles);
+
+    //  D3D12_CPU_DESCRIPTOR_HANDLE ssao_handle[] = {  ssao_.AmbientMap().Srv()  }; 
+    D3D12_CPU_DESCRIPTOR_HANDLE ssao_handle[] = {  ssao_.AmbientMap().Srv()  }; 
+    draw_context.SetDynamicDescriptors(4, 0, _countof(ssao_handle), ssao_handle);
+
+    draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    draw_context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
+    draw_context.Flush(true);
+   }
 
   draw_context.SetViewports(&Graphics::Core.ViewPort());
   draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-  draw_context.ClearColor(display_plane);
-  draw_context.ClearDepthStencil(Graphics::Core.DepthBuffer());
-  draw_context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().GetRTV(), Graphics::Core.DepthBuffer().DSV());
+  //draw_context.ClearColor(display_plane);
+  //draw_context.ClearDepthStencil(Graphics::Core.DepthBuffer());
 
-  draw_context.SetPipelineState(graphics_pso_);
-  draw_context.SetRootSignature(root_signature_);
-
-  draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
-  draw_context.SetDynamicConstantBufferView(1, sizeof(car_material_), &car_material_);
-  draw_context.SetDynamicConstantBufferView(2, sizeof(pass_constant_), &pass_constant_);
-
-  draw_context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
-  draw_context.SetIndexBuffer(index_buffer_.IndexBufferView());
-
-  //  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { car_texture_->DescriptorHandle }; car_texture_2_
-  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { car_texture_2_->SrvHandle() }; 
-  draw_context.SetDynamicDescriptors(3, 0, _countof(handles), handles);
-
-  draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  draw_context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
-  draw_context.Flush(true);
- 
-
-  draw_context.SetViewports(&Graphics::Core.ViewPort());
-  draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
-  draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-
-  draw_context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().GetRTV(), Graphics::Core.DepthBuffer().DSV());
+  draw_context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().Rtv(), Graphics::Core.DepthBuffer().DSV());
   draw_context.SetRootSignature(debug_signature_);
   draw_context.SetPipelineState(debug_pso_);
 
   
-  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { ssao_.NormalMap().GetSRV() };
+  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { ssao_.AmbientMap().Srv() };
   draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 
   draw_context.SetVertexBuffer(debug_vertex_buffer_.VertexBufferView());
@@ -362,10 +376,8 @@ void RenderSystem::BuildDebugPlane(float x, float y, float w, float h, float dep
   }
 
 
-  debug_vertex_buffer_.Create(L"Debug Vertex Buffer", Graphics::Core.Device(),
-    (uint32_t)vertices.size(), sizeof(Vertex), vertices.data());
-  debug_index_buffer_.Create(L"Debug Index Buffer", Graphics::Core.Device(),
-    (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
+  debug_vertex_buffer_.Create(L"Debug Vertex Buffer", (uint32_t)vertices.size(), sizeof(Vertex), vertices.data());
+  debug_index_buffer_.Create(L"Debug Index Buffer", (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
 }
 
 void RenderSystem::BuildDebugPso() {
@@ -407,7 +419,7 @@ void RenderSystem::BuildDebugPso() {
     (Graphics::Core.Msaa4xState() ? 4 : 1), (Graphics::Core.Msaa4xState() ? (Graphics::Core.Msaa4xQuanlity() - 1) : 0));
   debug_pso_.SetSampleMask(UINT_MAX);
   
-  debug_pso_.Finalize(Graphics::Core.Device());
+  debug_pso_.Finalize();
   
 }
 

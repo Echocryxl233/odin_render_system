@@ -41,7 +41,7 @@ class GraphicsPso : public PSO {
   void SetRenderTargetFormat(DXGI_FORMAT RTVFormat, DXGI_FORMAT DSVFormat, UINT MsaaCount = 1, UINT MsaaQuality = 0);
   void SetRenderTargetFormats(UINT NumRTVs, const DXGI_FORMAT* RTVFormats, DXGI_FORMAT DSVFormat, UINT MsaaCount = 1, UINT MsaaQuality = 0);
 
-  void Finalize(ID3D12Device* device);
+  void Finalize();
 
  private:
    D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc_;

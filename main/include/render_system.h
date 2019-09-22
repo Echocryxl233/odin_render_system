@@ -19,9 +19,15 @@ class RenderSystem {
   void OnMouseDown(WPARAM btnState, int x, int y) ;
   void OnMouseUp(WPARAM btnState, int x, int y) ;
   void OnMouseMove(WPARAM btnState, int x, int y) ;
-
+  int width;
+  int height;
   
   void Initialize();   
+  void OnResize(UINT width, UINT height) {
+    this->width = width;
+    this->height = height;
+    ssao_.Resize(width, height);
+  }
 
   void RenderScene();
   void Update();
@@ -77,7 +83,13 @@ class RenderSystem {
 
   Texture* car_texture_2_;
   Texture* skull_texture_2_;
-    
+
+  const XMMATRIX kTextureTransform = {
+    0.5f, 0.0f, 0.0f, 0.0f,
+    0.0f, -0.5f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.5f, 0.5f, 0.0f, 1.0f,
+  };
 };
 
 #endif // !RENDERSYSTEM_H
