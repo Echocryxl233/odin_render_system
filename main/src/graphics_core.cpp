@@ -1,5 +1,6 @@
 #include "graphics_core.h"
 #include "command_list_manager.h"
+#include "depth_of_field.h"
 
 
 namespace Graphics {

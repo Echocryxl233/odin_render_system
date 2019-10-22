@@ -2,6 +2,11 @@
 
 #include "game_timer.h"
 
+using namespace GameCore;
+
+namespace GameCore {
+  GameTimer MainTimer;
+}
 
 GameTimer::GameTimer() 
   : base_time_(0), curr_time_(0), prev_time_(0), 

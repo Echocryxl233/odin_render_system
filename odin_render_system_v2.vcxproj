@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="main\src\camera.cpp" />
+    <ClCompile Include="main\src\camera_controller.cpp" />
     <ClCompile Include="main\src\color_buffer.cpp" />
     <ClCompile Include="main\src\command_allocator_pool.cpp" />
     <ClCompile Include="main\src\command_context.cpp" />
@@ -29,6 +31,7 @@
     <ClCompile Include="main\src\depth_stencil_buffer.cpp" />
     <ClCompile Include="main\src\descriptor_allocator.cpp" />
     <ClCompile Include="main\src\dynamic_descriptor_heap.cpp" />
+    <ClCompile Include="main\src\depth_of_field.cpp" />
     <ClCompile Include="main\src\file_utility.cpp" />
     <ClCompile Include="main\src\game_timer.cpp" />
     <ClCompile Include="main\src\game_core.cpp" />
@@ -49,6 +52,8 @@
     <ClCompile Include="main\src\utility.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="main\include\camera.h" />
+    <ClInclude Include="main\include\camera_controller.h" />
     <ClInclude Include="main\include\color.h" />
     <ClInclude Include="main\include\color_buffer.h" />
     <ClInclude Include="main\include\command_allocator_pool.h" />
@@ -62,6 +67,7 @@
     <ClInclude Include="main\include\depth_stencil_buffer.h" />
     <ClInclude Include="main\include\descriptor_allocator.h" />
     <ClInclude Include="main\include\dynamic_descriptor_heap.h" />
+    <ClInclude Include="main\include\depth_of_field.h" />
     <ClInclude Include="main\include\file_utility.h" />
     <ClInclude Include="main\include\game_timer.h" />
     <ClInclude Include="main\include\game_core.h" />

@@ -2,6 +2,21 @@
 primery code about DX12 with beginning
 just for learning
 
+2019-10-22
+1. Simple camera and camera controller
+
+2019-10-07
+1. Compute context
+2. Simple blur for 'Depth of View'
+
+2019-09-15
+1. Fixed bug about color buffer with 'uav' flag and transition creation
+
+2019-08-30
+1. Dynamic descriptor heap for command context
+2. Set descriptor table for texture resource
+3. Simple texture structure for grouping resource and handles
+
 2019-08-30
 1. Dynamic descriptor heap for command context
 2. Set descriptor table for texture resource

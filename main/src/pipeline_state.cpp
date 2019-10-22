@@ -45,7 +45,20 @@ void GraphicsPso::Finalize() {
   assert(root_signature_ != nullptr && "Finalize graphics pso exception : root signature is nullptr");
   pso_desc_.pRootSignature = root_signature_->GetSignature();
   pso_desc_.InputLayout.pInputElementDescs = input_layouts_.get();
-  ThrowIfFailed(Graphics::Core.Device()->CreateGraphicsPipelineState(&pso_desc_, IID_PPV_ARGS(&pso_)));
+  ASSERT_SUCCESSED(Graphics::Core.Device()->CreateGraphicsPipelineState(&pso_desc_, IID_PPV_ARGS(&pso_)));
+}
+
+ComputePso::ComputePso() {
+  ZeroMemory(&pso_desc_, sizeof(D3D12_COMPUTE_PIPELINE_STATE_DESC));
+  pso_desc_.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+}
+
+void ComputePso::Finalize() {
+  //  assert(root_signature_ != nullptr && "ComputePso root signature can't be nullptr");
+  
+  pso_desc_.pRootSignature = root_signature_->GetSignature();
+  //  pso_desc_.pRootSignature = root_sig_;
+  ASSERT_SUCCESSED(Graphics::Core.Device()->CreateComputePipelineState(&pso_desc_, IID_PPV_ARGS(&pso_)));
 }
 
 

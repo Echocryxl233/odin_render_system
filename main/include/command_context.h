@@ -22,10 +22,17 @@ using namespace std;
 //  #include "d3dx12.h"
 
 class GraphicsContext;
+class ComputeContext;
 class CommandContext;
 
 const int kTypeCount = 4;
 const int kBarrierBufferCount = 16;
+
+#define VALID_COMPUTE_QUEUE_RESOURCE_STATES \
+    ( D3D12_RESOURCE_STATE_UNORDERED_ACCESS \
+    | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE \
+    | D3D12_RESOURCE_STATE_COPY_DEST \
+    | D3D12_RESOURCE_STATE_COPY_SOURCE )
 
 class ContextManager
 {
@@ -68,6 +75,8 @@ friend class ContextManager;
     return cpu_linear_allocator_.Allocate(byte_size);
   }
 
+  void SetName(const std::wstring& name) { command_list_->SetName(name.c_str()); }
+
   uint64_t Flush( bool wait_for_signal = false); // CommandQueue* command_queue,
   uint64_t Finish(bool wait_for_signal = false);
 
@@ -76,8 +85,14 @@ friend class ContextManager;
     return reinterpret_cast<GraphicsContext&>(*this);
   }
 
+  ComputeContext& GetComputeContext() {
+    return reinterpret_cast<ComputeContext&>(*this);
+  } 
+
+  void CopyBuffer(GpuResource& destination, GpuResource& source);
   //  void TransitionResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES new_state, D3D12_RESOURCE_STATES old_state);
   void TransitionResource(GpuResource& resource, D3D12_RESOURCE_STATES new_state, bool flush_immediate = false);
+  void InsertUavBarrier(GpuResource& resource, bool flush_immediate);
   void FlushResourceBarriers();
 
   void Initialize();
@@ -98,6 +113,10 @@ friend class ContextManager;
   ID3D12GraphicsCommandList* command_list_;
   ID3D12PipelineState* graphics_pso_;
   ID3D12RootSignature* graphics_signature_;
+
+  ID3D12PipelineState* compute_pso_;
+  ID3D12RootSignature* compute_signature_;
+
   ContextManager* manager_;
 
   LinearAllocator cpu_linear_allocator_;
@@ -118,13 +137,13 @@ public:
   static GraphicsContext& Begin(const std::wstring& name);
   void SetViewports(const D3D12_VIEWPORT *viewports, UINT viewport_count = 1);
   void SetScissorRects(const D3D12_RECT *rects, UINT viewport_count = 1);
-  void SetPipelineState(ID3D12PipelineState* pso);
+
   void SetConstantBuffer(UINT root_index, D3D12_GPU_VIRTUAL_ADDRESS cbv);
   void SetDescriptorTable(UINT root_index, D3D12_GPU_DESCRIPTOR_HANDLE handle);
   void SetDynamicDescriptors(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
 
   void SetDynamicConstantBufferView(UINT root_index, UINT buffer_size, const void* data);
-  void SetGraphicsRoot32BitConstant(UINT root_index, UINT src_data, UINT offset);
+  void SetRoot32BitConstant(UINT root_index, UINT src_data, UINT offset);
 
   void ClearColor(ColorBuffer& target);
   void ClearDepth(DepthStencilBuffer& target);
@@ -137,8 +156,6 @@ public:
   void SetRootSignature(const RootSignature& root_signature);
   void SetPipelineState(const GraphicsPso& pso);
 
-  
-
   //  void SetDynamicDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
 
   void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& IBView);
@@ -148,16 +165,33 @@ public:
 
   void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY primitive_type);
 
-  
   void DrawInstanced(UINT vertex_count_per_instance,  UINT instance_count, INT start_vertex_location, UINT start_instance_location);
   void DrawIndexedInstanced(UINT index_count_per_instance, UINT instance_count, UINT start_index_location, 
       INT base_vertex_location, UINT start_instance_location);
   
-
-  
 private:
 
 };
+
+class ComputeContext : public CommandContext {
+ public:
+  static ComputeContext& Begin(const std::wstring& name, bool is_async = false);
+
+  void SetRootSignature(const RootSignature& root_signature);
+  void SetPipelineState(ComputePso& pso);
+
+  void SetDynamicDescriptors(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
+
+  void Dispatch(UINT threadgroup_x_count, UINT threadgroup_y_count, UINT threadgroup_z_count);
+  void SetRoot32BitConstants(UINT root_index, UINT count, const void* data, UINT offset);
+};
+
+inline void CommandContext::CopyBuffer(GpuResource& destination, GpuResource& source) {
+  TransitionResource(destination, D3D12_RESOURCE_STATE_COPY_DEST, true);
+  TransitionResource(source, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+  FlushResourceBarriers();
+  command_list_->CopyResource(destination.GetResource(), source.GetResource());
+}
 
 inline void CommandContext::FlushResourceBarriers() {
   if (barrier_to_flush > 0) {
@@ -191,10 +225,6 @@ inline void CommandContext::SetDescriptorHeaps(UINT heap_count,
   }
 }
 
-inline void GraphicsContext::SetPipelineState(ID3D12PipelineState* pso) {
-  command_list_->SetPipelineState(pso);
-}
-
 inline void GraphicsContext::SetConstantBuffer(UINT root_index, D3D12_GPU_VIRTUAL_ADDRESS cbv) {
   command_list_->SetGraphicsRootConstantBufferView(root_index, cbv);
 }
@@ -216,7 +246,7 @@ inline void GraphicsContext::SetDynamicConstantBufferView(UINT root_index, UINT 
   command_list_->SetGraphicsRootConstantBufferView(root_index, cb.GpuAddress);
 }
 
-inline void GraphicsContext::SetGraphicsRoot32BitConstant(UINT root_index, UINT src_data, UINT offset) {
+inline void GraphicsContext::SetRoot32BitConstant(UINT root_index, UINT src_data, UINT offset) {
   command_list_->SetGraphicsRoot32BitConstant(root_index, src_data, offset);
 }
 
@@ -256,8 +286,8 @@ inline void GraphicsContext::SetRootSignature(const RootSignature& root_signatur
   command_list_->SetGraphicsRootSignature(graphics_signature_);
   
   //  dynamic linear parse??
-  dynamic_view_descriptor_heap_.ParseRootSignature(root_signature);
-  dynamic_sampler_descriptor_heap_.ParseRootSignature(root_signature);
+  dynamic_view_descriptor_heap_.ParseGraphicsRootSignature(root_signature);
+  dynamic_sampler_descriptor_heap_.ParseGraphicsRootSignature(root_signature);
 }
 
 inline void GraphicsContext::SetPipelineState(const GraphicsPso& pso) {
@@ -275,8 +305,8 @@ inline void GraphicsContext::SetPipelineState(const GraphicsPso& pso) {
 inline void GraphicsContext::DrawInstanced(UINT vertex_count_per_instance,  UINT instance_count, 
     INT start_vertex_location, UINT start_instance_location) {
   FlushResourceBarriers();
-  dynamic_view_descriptor_heap_.CommitGraphicsRootDescriptorTables();
-  dynamic_sampler_descriptor_heap_.CommitGraphicsRootDescriptorTables();
+  dynamic_view_descriptor_heap_.CommitGraphicsRootDescriptorTables(command_list_);
+  dynamic_sampler_descriptor_heap_.CommitGraphicsRootDescriptorTables(command_list_);
   command_list_->DrawInstanced(vertex_count_per_instance, instance_count, start_vertex_location, start_instance_location);
 }
 
@@ -284,15 +314,51 @@ inline void GraphicsContext::DrawIndexedInstanced(UINT index_count_per_instance,
     UINT start_index_location, INT base_vertex_location, UINT start_instance_location) {
 
   FlushResourceBarriers();
-  dynamic_view_descriptor_heap_.CommitGraphicsRootDescriptorTables();
+  dynamic_view_descriptor_heap_.CommitGraphicsRootDescriptorTables(command_list_);
   //  dynamic view descriptor heap  
-  dynamic_sampler_descriptor_heap_.CommitGraphicsRootDescriptorTables();
+  dynamic_sampler_descriptor_heap_.CommitGraphicsRootDescriptorTables(command_list_);
   //  dynamic sampler descriptor heap
    
   command_list_->DrawIndexedInstanced(index_count_per_instance, instance_count, 
       start_index_location, base_vertex_location, start_instance_location);
 }
 
+inline void ComputeContext::SetRootSignature(const RootSignature& root_signature) {
+  if (root_signature.GetSignature() == compute_signature_)
+    return;
+
+  compute_signature_ = root_signature.GetSignature();
+  command_list_->SetComputeRootSignature(compute_signature_);
+
+  dynamic_view_descriptor_heap_.ParseComputeRootSignature(root_signature);
+  dynamic_sampler_descriptor_heap_.ParseComputeRootSignature(root_signature);  
+}
+
+inline void ComputeContext::SetPipelineState(ComputePso& pso) {
+  if (compute_pso_ == pso.GetPipelineStateObject())
+    return;
+
+  compute_pso_ = pso.GetPipelineStateObject();
+  command_list_->SetPipelineState(pso.GetPipelineStateObject());
+}
+
+inline void ComputeContext::SetDynamicDescriptors(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
+  dynamic_view_descriptor_heap_.SetComputeDescriptorHandles(root_index, offset, count, handles);
+}
+
+
+inline void ComputeContext::Dispatch(UINT threadgroup_x_count, UINT threadgroup_y_count, UINT threadgroup_z_count) {
+  FlushResourceBarriers();
+  dynamic_view_descriptor_heap_.CommitComputeRootDescriptorTables(command_list_);
+  //  dynamic view descriptor heap  
+  dynamic_sampler_descriptor_heap_.CommitComputeRootDescriptorTables(command_list_);
+  //  dynamic sampler descriptor heap
+  command_list_->Dispatch(threadgroup_x_count, threadgroup_y_count, threadgroup_z_count);
+}
+
+inline void ComputeContext::SetRoot32BitConstants(UINT root_index, UINT count, const void* data, UINT offset) {
+  command_list_->SetComputeRoot32BitConstants(root_index, count, data, offset);
+}
 
 
 #endif

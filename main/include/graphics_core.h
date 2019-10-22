@@ -69,6 +69,7 @@ class GraphicsCore {
 
   bool msaa_4x_state_ = false;
   UINT msaa_4x_quanlity_ = 0;
+
 };
 
 extern GraphicsCore Core;

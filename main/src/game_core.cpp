@@ -1,12 +1,21 @@
 #include "game_core.h"
+#include "camera.h"
+#include "camera_controller.h"
+#include "depth_of_field.h"
+#include "game_timer.h"
+
 
 namespace GameCore {
 
 RenderSystem* render_system;
 
-long client_width_ = 1080;
-long client_height_ = 720;
+long client_width_ = 800;
+long client_height_ = 600;
 HWND  window;
+
+POINT mLastMousePos;
+std::auto_ptr<CameraController> main_camera_controller_;
+
 
 
 int UpdateGame(RenderSystem& rs);
@@ -21,6 +30,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         UINT width = (UINT)(UINT64)lParam & 0xFFFF;
         UINT height = (UINT)(UINT64)lParam >> 16;
         Graphics::Core.OnResize(width, height);
+        PostProcess::DoF.OnResize(width, height);
           render_system->OnResize(width, height);
       }
 
@@ -28,16 +38,35 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
-      render_system->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+      //  render_system->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+  
+
       return 0;
     case WM_LBUTTONUP:
     case WM_MBUTTONUP:
     case WM_RBUTTONUP:
-      render_system->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+      //  render_system->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
       return 0;
     case WM_MOUSEMOVE:
-      render_system->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+      //  render_system->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+    {
+      WPARAM btnState = wParam;
+      int x = GET_X_LPARAM(lParam);
+      int y = GET_Y_LPARAM(lParam);
+
+      float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+      float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
+
+      if ((btnState & MK_LBUTTON) != 0) {
+        main_camera_controller_->Pitch(dy);
+        main_camera_controller_->RotateY(dx);
+      }
+
+      mLastMousePos.x = x;
+      mLastMousePos.y = y;
+    
       return 0;
+    }
     
 
     case WM_DESTROY:
@@ -52,9 +81,12 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 }
 
 void Initialize(RenderSystem& rs) {
-
   CreateMainWindow();
   Graphics::Core.Initialize(window);
+  InitMainCamera();
+  main_camera_controller_.reset(new CameraController(MainCamera, 
+      XMFLOAT3(0.0f, 1.0f, 0.0f)));
+  PostProcess::DoF.Initialize();  
 
   rs.Initialize();
 
@@ -78,16 +110,10 @@ int UpdateGame(RenderSystem& rs) {
 
     }
     else {
-      //timer_.Tick();
+      MainTimer.Tick();
 
-      //if (!pause_) {
-      //  //Update(timer_);
-      //  //Draw(timer_);
-      //}
-      //else {
-      //  Sleep(100);
-      //}
-      //  Graphics::Core.PreparePresent();
+      main_camera_controller_->Update(MainTimer);
+
       rs.Update();
       rs.RenderScene();
       Graphics::Core.Present();

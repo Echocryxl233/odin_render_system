@@ -13,60 +13,12 @@ using namespace DirectX::PackedVector;
 
 
 void Ssao::Initialize(UINT width, UINT height) {
-  //width_ = width;
-  //height_ = height;
-
-  //viewport_.TopLeftX = 0.0f;
-  //viewport_.TopLeftY = 0.0f;
-  //viewport_.Width = width / 2.0f;
-  //viewport_.Height = height / 2.0f;
-  //viewport_.MinDepth = 0.0f;
-  //viewport_.MaxDepth = 1.0f;
-
-  //scissor_rect_ = { 0, 0, (int)width / 2, (int)height / 2 };
-
-  //CD3DX12_DESCRIPTOR_RANGE descriptor_range1;
-  //descriptor_range1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
-
-
-  //CD3DX12_DESCRIPTOR_RANGE descriptor_range2;
-  //descriptor_range2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
-
-  //SamplerDesc default_sampler;
-
-
-  //root_signature_[1].InitAsConstants(1, 1);
-  //root_signature_[2].InitAsDescriptorTable(1, &descriptor_range1, D3D12_SHADER_VISIBILITY_PIXEL);
-  //root_signature_[3].InitAsDescriptorTable(1, &descriptor_range2, D3D12_SHADER_VISIBILITY_PIXEL);
-  //root_signature_.InitSampler(0, default_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
-
-
-
-  //normal_map_.SetColor(Color(0.0f, 1.0f, 1.0f, 0.0f));
-
   BuildOffsetVectors();
 
   BuildDrawNormalComponents();
   BuildAmbientComponents();
 
-  DebugUtility::Log(L"Ssao size : width %0, height %1", to_wstring(width_), to_wstring(height_));
-  //  depth_buffer_.Create(width_, height_, Graphics::Core.DepthStencilFormat);
-  DebugUtility::Log(L"Graphics::Core size : width %0, height %1", to_wstring(Graphics::Core.Width()), to_wstring(Graphics::Core.Width()));
-  //const uint32_t random_width = 64;
-  //const uint32_t random_height = 64;
-  //const uint32_t map_size = random_width * random_height;
-  //XMCOLOR random_buffer[map_size];
 
-  //for (int i=0;i<random_height; ++i) {
-  //  for (int j=0; j<random_width; ++j) {
-  //    //XMFLOAT3 v(MathHelper::RandF(), MathHelper::RandF(), MathHelper::RandF());
-  //    XMFLOAT3 v(1.0f, 1.0f, 1.0f);
-  //    random_buffer[i * random_height + j] = XMCOLOR(v.x, v.y, v.z, 1.0f);
-  //  }
-  //}
-
-  //random_map_.Create(L"Ssao_Random_Map", random_width, random_height, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_NONE);
-  //CommandContext::InitializeBuffer(random_map_, random_buffer, sizeof(XMCOLOR) * map_size);
   Resize(width, height);
 }
 
@@ -90,18 +42,15 @@ void Ssao::Resize(UINT width, UINT height) {
     ambient_map_0_.Destroy();
     ambient_map_1_.Destroy();
 
-    normal_map_.Create(L"Ssao_Normal", width_, height_, Ssao::kNormalMapFormat,
-      D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+    normal_map_.Create(L"Ssao_Normal", width_, height_, 1, Ssao::kNormalMapFormat);
     depth_buffer_.Create(width_, height_, Graphics::Core.DepthStencilFormat);
 
-    ambient_map_0_.Create(L"Ssao_Ambient_Map_0", width_/2, height_/2, Ssao::kNormalMapFormat,
-      D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+    ambient_map_0_.Create(L"Ssao_Ambient_Map_0", width_/2, height_/2, 1, Ssao::kNormalMapFormat);
 
-    ambient_map_1_.Create(L"Ssao_Ambient_Map_1", width_/2, height_/2, Ssao::kNormalMapFormat,
-      D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+    ambient_map_1_.Create(L"Ssao_Ambient_Map_1", width_/2, height_/2, 1, Ssao::kNormalMapFormat);
 
-    //const uint32_t random_width = 64;
-    //const uint32_t random_height = 64;
+    const uint32_t random_width = 64;
+    const uint32_t random_height = 64;
     //const uint32_t map_size = random_width * random_height;
     //XMCOLOR random_buffer[map_size];
 
@@ -113,8 +62,7 @@ void Ssao::Resize(UINT width, UINT height) {
     //  }
     //}
 
-    //random_map_.Create(L"Ssao_Random_Map", random_width, random_height, DXGI_FORMAT_R8G8B8A8_UNORM, 
-    //  D3D12_RESOURCE_FLAG_NONE | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET );
+    random_map_.Create(L"Ssao_Random_Map", random_width, random_height, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
     //CommandContext::InitializeBuffer(random_map_, random_buffer, sizeof(XMCOLOR) * map_size);
   }
 }
@@ -149,17 +97,9 @@ void Ssao::BuildDrawNormalComponents() {
   draw_normal_pso_.SetSampleMask(UINT_MAX);
   draw_normal_pso_.SetRenderTargetFormat(Ssao::kNormalMapFormat, Graphics::Core.DepthStencilFormat);
   draw_normal_pso_.Finalize();
-
-  //normal_map_.Create(L"Ssao_Normal", width_, height_, Ssao::kNormalMapFormat,
-  //  D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-  //normal_map_1.Create(L"Ssao_Normal", width_/2, height_/2, Ssao::kNormalMapFormat,
-  //  D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-
 }
 
 void Ssao::BuildAmbientComponents() {
-  CD3DX12_DESCRIPTOR_RANGE descriptor_range2;
-  descriptor_range2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0);
 
   SamplerDesc point_sampler;
   point_sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -190,11 +130,11 @@ void Ssao::BuildAmbientComponents() {
   ssao_root_signature_.Reset(3, 4);
   ssao_root_signature_[0].InitAsConstantBufferView(0);
   ssao_root_signature_[1].InitAsConstants(1, 1);
-  ssao_root_signature_[2].InitAsDescriptorTable(1, &descriptor_range2, D3D12_SHADER_VISIBILITY_PIXEL);
-  ssao_root_signature_.InitSampler(0, point_sampler,D3D12_SHADER_VISIBILITY_PIXEL);
-  ssao_root_signature_.InitSampler(1, linear_sampler,D3D12_SHADER_VISIBILITY_PIXEL);
-  ssao_root_signature_.InitSampler(2, depth_sampler,D3D12_SHADER_VISIBILITY_PIXEL);
-  ssao_root_signature_.InitSampler(3, linear_wrap_sampler,D3D12_SHADER_VISIBILITY_PIXEL);
+  ssao_root_signature_[2].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+  ssao_root_signature_.InitSampler(0, point_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
+  ssao_root_signature_.InitSampler(1, linear_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
+  ssao_root_signature_.InitSampler(2, depth_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
+  ssao_root_signature_.InitSampler(3, linear_wrap_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
   ssao_root_signature_.Finalize();
 
   auto ssao_standard_vs = d3dUtil::CompileShader(L"shaders/ssao_standard.hlsl", nullptr, "VS", "vs_5_1");
@@ -213,10 +153,6 @@ void Ssao::BuildAmbientComponents() {
   ssao_pso_.SetPixelShader(reinterpret_cast<BYTE*>(ssao_standard_ps->GetBufferPointer()),
     (UINT)ssao_standard_ps->GetBufferSize());
 
-  //  ssao_root_signature_1.Reset(0, 0);
-  //  ssao_root_signature_1[0].InitAsConstantBufferView(0);
-  //  ssao_root_signature_1.Finalize();
-
   ssao_pso_.SetRootSignature(ssao_root_signature_);
   ssao_pso_.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
   ssao_pso_.SetRasterizeState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
@@ -225,8 +161,6 @@ void Ssao::BuildAmbientComponents() {
   ssao_pso_.SetSampleMask(UINT_MAX);
   ssao_pso_.SetRenderTargetFormat(Ssao::kNormalMapFormat, DXGI_FORMAT_UNKNOWN);
   ssao_pso_.Finalize();
-
-
 
   auto ssao_blur_vs = d3dUtil::CompileShader(L"shaders/ssao_blur.hlsl", nullptr, "VS", "vs_5_1");
   auto ssao_blur_ps = d3dUtil::CompileShader(L"shaders/ssao_blur.hlsl", nullptr, "PS", "ps_5_1");
@@ -323,7 +257,7 @@ void Ssao::ComputeAo(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& pro
 
   context.SetDynamicConstantBufferView(0, sizeof(SsaoConstants), &ssao_constants_);
 
-  context.SetGraphicsRoot32BitConstant(1, 1, 0);
+  context.SetRoot32BitConstant(1, 1, 0);
 
   D3D12_CPU_DESCRIPTOR_HANDLE handles[] = {  normal_map_.Srv(), depth_buffer_.DepthSRV() }; 
   context.SetDynamicDescriptors(2, 0, _countof(handles), handles);
@@ -358,7 +292,7 @@ void Ssao::BlurAmbientMap(GraphicsContext& context, bool is_horizontal) {
   context.SetRenderTarget(1, &output_color->Rtv());
 
   context.SetDynamicConstantBufferView(0, sizeof(SsaoConstants), &ssao_constants_);
-  context.SetGraphicsRoot32BitConstant(1, root_32bit, 0);
+  context.SetRoot32BitConstant(1, root_32bit, 0);
 
 
   D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { normal_map_.Srv(), depth_buffer_.DepthSRV(), input_color->Srv() }; 

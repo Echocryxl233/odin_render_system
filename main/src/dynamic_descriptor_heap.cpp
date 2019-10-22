@@ -58,6 +58,10 @@ void DynamicDescriptorHeap::SetGraphicsDescriptorHandles(UINT root_index, UINT o
   graphics_handle_cache_.StageTableHandles(root_index, offset, count, handles);
 }
 
+void DynamicDescriptorHeap::SetComputeDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
+  compute_handle_cache_.StageTableHandles(root_index, offset, count, handles);
+}
+
 void DynamicDescriptorHeap::RetireCurrentHeap() {
   if (current_offset_ == 0) {
     assert(current_heap_ptr_ == nullptr);
@@ -69,7 +73,9 @@ void DynamicDescriptorHeap::RetireCurrentHeap() {
   current_offset_ = 0;
 }
 
-void DynamicDescriptorHeap::CopyAndBindStagedTables(DescriptorHandleCache& handle_cache) {
+void DynamicDescriptorHeap::CopyAndBindStagedTables(DescriptorHandleCache& handle_cache,
+    ID3D12GraphicsCommandList* command_list,
+    void (STDMETHODCALLTYPE ID3D12GraphicsCommandList::* set_function)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE)) {
   uint32_t need_size = handle_cache.ComputeStagedSize();
   if (!HasSpace(need_size)) {
     RetireCurrentHeap();
@@ -79,7 +85,7 @@ void DynamicDescriptorHeap::CopyAndBindStagedTables(DescriptorHandleCache& handl
 
   owning_context_.SetDescriptorHeap(heap_type_, GetHeapPoint());
   handle_cache.CopyAndBindStaleTables(heap_type_, first_handle_, descriptor_size_, 
-    owning_context_.GetCommandList());
+    command_list, set_function);
 };
 
 void DynamicDescriptorHeap::UnbindAllValid() {
@@ -171,7 +177,8 @@ void DynamicDescriptorHeap::DescriptorHandleCache::UnbindValidTable() {
 }
 
 void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(D3D12_DESCRIPTOR_HEAP_TYPE type,
-    DescriptorHandle start_handle, uint32_t descriptor_size, ID3D12GraphicsCommandList* command_list) {
+    DescriptorHandle start_handle, uint32_t descriptor_size, ID3D12GraphicsCommandList* command_list,
+    void (STDMETHODCALLTYPE ID3D12GraphicsCommandList::* set_function)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE)) {
 
   UINT root_table_indice[DynamicDescriptorHeap::DescriptorHandleCache::kMaxDescriptorCount];
   uint32_t root_table_size[DynamicDescriptorHeap::DescriptorHandleCache::kMaxDescriptorCount];
@@ -209,7 +216,8 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(D3D12_
 
   for (uint32_t i=0; i< root_table_count; ++i) {
     root_index = root_table_indice[i];
-    command_list->SetGraphicsRootDescriptorTable(root_index, start_handle.GpuHandle());
+    //  command_list->SetGraphicsRootDescriptorTable(root_index, start_handle.GpuHandle());
+    (command_list->*set_function)(root_index, start_handle.GpuHandle());
 
     DescriptorTableCache& root_table = root_descriptor_tables[root_index];
     D3D12_CPU_DESCRIPTOR_HANDLE* src_handle = root_table.Start;

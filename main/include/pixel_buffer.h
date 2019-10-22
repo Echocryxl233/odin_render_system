@@ -21,9 +21,10 @@ protected:
 
   void CreateTextureResource(const std::wstring& name, D3D12_RESOURCE_DESC& descriptor, D3D12_CLEAR_VALUE& clear_value);
 
-  DXGI_FORMAT GetBaseFormat(DXGI_FORMAT default_format);
-  DXGI_FORMAT GetDepthFormat(DXGI_FORMAT default_format);
-  DXGI_FORMAT GetStencilFormat(DXGI_FORMAT default_format);
+  static DXGI_FORMAT GetBaseFormat(DXGI_FORMAT default_format);
+  static DXGI_FORMAT GetDepthFormat(DXGI_FORMAT default_format);
+  static DXGI_FORMAT GetStencilFormat(DXGI_FORMAT default_format);
+  static DXGI_FORMAT GetUAVFormat( DXGI_FORMAT default_format );
 
   uint32_t width_;
   uint32_t height_;

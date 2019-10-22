@@ -51,6 +51,7 @@ CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE type)
     cpu_linear_allocator_(kCpuWritable),
     gpu_linear_allocator_(kGpuExclusive),
     graphics_signature_(nullptr),
+    compute_signature_(nullptr),
     graphics_pso_(nullptr) ,
     dynamic_view_descriptor_heap_(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV),
     dynamic_sampler_descriptor_heap_(*this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
@@ -83,6 +84,9 @@ void CommandContext::Reset() {
 
   graphics_pso_ = nullptr;
   graphics_signature_ = nullptr;
+
+  compute_pso_ = nullptr;
+  compute_signature_ = nullptr;
 
   barrier_to_flush = 0;
   BindDescriptorHeaps();
@@ -127,6 +131,10 @@ uint64_t CommandContext::Flush(bool wait_for_signal) {  //  CommandQueue* comman
     command_list_->SetGraphicsRootSignature(graphics_signature_);
     command_list_->SetPipelineState(graphics_pso_);
   }
+  if (compute_signature_ != nullptr) {
+    command_list_->SetComputeRootSignature(compute_signature_);
+    command_list_->SetPipelineState(compute_pso_);
+  }
 
   BindDescriptorHeaps();
   
@@ -153,10 +161,26 @@ uint64_t CommandContext::Finish(bool wait_for_signal) {
   return fence_value;
 }
 
+void CommandContext::InsertUavBarrier(GpuResource& resource, bool flush_immediate) {
+  D3D12_RESOURCE_BARRIER &barrier = barrier_buffer[barrier_to_flush++];
+  barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+  barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+  barrier.UAV.pResource = resource.GetResource();
 
+  if (flush_immediate) {
+    FlushResourceBarriers();
+  }
+}
 
 void CommandContext::TransitionResource(GpuResource& resource, D3D12_RESOURCE_STATES state_new, bool flush_immediate) {
   D3D12_RESOURCE_STATES state_before = resource.current_state_;
+
+  if (type_ == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+  {
+    assert((state_before & VALID_COMPUTE_QUEUE_RESOURCE_STATES) == state_before);
+    assert((state_new & VALID_COMPUTE_QUEUE_RESOURCE_STATES) == state_new);
+  }
+
 
   if (state_before != state_new) {
     D3D12_RESOURCE_BARRIER &barrier = barrier_buffer[barrier_to_flush++];
@@ -170,6 +194,10 @@ void CommandContext::TransitionResource(GpuResource& resource, D3D12_RESOURCE_ST
     barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
     resource.current_state_ = state_new;
   }
+  else if (state_new == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+    InsertUavBarrier(resource, flush_immediate);
+  }
+
 
   if (flush_immediate || barrier_to_flush >= kBarrierBufferCount) {
     FlushResourceBarriers();
@@ -222,6 +250,13 @@ void GraphicsContext::SetRenderTarget(UINT rtv_count, const D3D12_CPU_DESCRIPTOR
 
 void GraphicsContext::SetRenderTargets(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv) {
   command_list_->OMSetRenderTargets(1, rtvs, true, &dsv);
+}
+
+ComputeContext& ComputeContext::Begin(const std::wstring& name, bool is_async) {
+  ComputeContext& context = ContextManager::Instance().Allocate(
+      is_async ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT)->GetComputeContext();
+  context.SetName(name);
+  return context;
 }
 
 

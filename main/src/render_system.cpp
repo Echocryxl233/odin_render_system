@@ -1,10 +1,14 @@
 #include "render_system.h"
+#include "camera.h"
+#include "depth_of_field.h"
 #include "model.h"
 #include "math_helper.h"
 #include "graphics_core.h"
 #include "command_context.h"
 #include "defines_common.h"
 #include "sampler_manager.h"
+
+using namespace GameCore;
 
 void RenderSystem::Initialize() {
   DebugUtility::Log(L"RenderSystem::Initialize()");
@@ -25,9 +29,9 @@ void RenderSystem::Initialize() {
   XMMATRIX matTransform = XMLoadFloat4x4(&car_material_.MatTransform);
   XMStoreFloat4x4(&car_material_.MatTransform, XMMatrixTranspose(matTransform));
 
-  float aspect_ratio = static_cast<float>(Graphics::Core.Width()) / Graphics::Core.Height();
-  XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, aspect_ratio, 1.0f, 1000.0f);
-  XMStoreFloat4x4(&mProj, P);
+  //float aspect_ratio = static_cast<float>(Graphics::Core.Width()) / Graphics::Core.Height();
+  //XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, aspect_ratio, 1.0f, 1000.0f);
+  //XMStoreFloat4x4(&mProj, P);
 };
 
 void RenderSystem::LoadModel() {
@@ -125,12 +129,6 @@ void RenderSystem::BuildPso() {
       { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
   };
 
-  CD3DX12_DESCRIPTOR_RANGE texTable;
-  texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
-
-  CD3DX12_DESCRIPTOR_RANGE ssao_tex_table;
-  ssao_tex_table.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2);
-
   SamplerDesc default_sampler;
 
   root_signature_.Reset(5, 1);
@@ -138,8 +136,8 @@ void RenderSystem::BuildPso() {
   root_signature_[0].InitAsConstantBufferView(0, 0);
   root_signature_[1].InitAsConstantBufferView(1, 0);
   root_signature_[2].InitAsConstantBufferView(2, 0);
-  root_signature_[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
-  root_signature_[4].InitAsDescriptorTable(1, &ssao_tex_table, D3D12_SHADER_VISIBILITY_PIXEL);
+  root_signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+  root_signature_[4].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
   root_signature_.Finalize();
 
   graphics_pso_.SetInputLayout(input_layout.data(), (UINT)input_layout.size());
@@ -177,11 +175,14 @@ void RenderSystem::UpdateCamera() {
 };
 
 void RenderSystem::Update() {
-  UpdateCamera();
+  //  UpdateCamera();
+
+  auto camera_view = GameCore::MainCamera.View4x4f();
+  auto camera_proj = GameCore::MainCamera.Proj4x4f();
 
   XMMATRIX world = XMLoadFloat4x4(&mWorld);
-  XMMATRIX view = XMLoadFloat4x4(&mView);
-  XMMATRIX proj = XMLoadFloat4x4(&mProj);
+  XMMATRIX view = XMLoadFloat4x4(&GameCore::MainCamera.View4x4f());  //  GameCore::MainCamera.View4x4f()
+  XMMATRIX proj = XMLoadFloat4x4(&GameCore::MainCamera.Proj4x4f());    //  GameCore::MainCamera.Proj4x4f()
   XMMATRIX view_proj = XMMatrixMultiply(view, proj);
   XMMATRIX view_proj_tex = XMMatrixMultiply(view_proj, kTextureTransform);
 
@@ -228,7 +229,7 @@ void RenderSystem::RenderScene() {
 
   GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
 
-  ssao_.BeginRender(draw_context, mView, mProj);
+  ssao_.BeginRender(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
   {
     draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
     draw_context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
@@ -238,7 +239,7 @@ void RenderSystem::RenderScene() {
   }
   ssao_.EndRender(draw_context);
   draw_context.Flush(true);
-  ssao_.ComputeAo(draw_context, mView, mProj);
+  ssao_.ComputeAo(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
 
   {
     draw_context.SetViewports(&Graphics::Core.ViewPort());
@@ -291,7 +292,11 @@ void RenderSystem::RenderScene() {
   draw_context.SetIndexBuffer(debug_index_buffer_.IndexBufferView());
   draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   draw_context.DrawIndexedInstanced(debug_index_buffer_.ElementCount(), 1, 0, 0, 0);
-  
+
+  draw_context.Flush(true);
+
+  //  PostProcess::DoF.Render(display_plane, 5);
+  //  draw_context.CopyBuffer(display_plane, PostProcess::DoF.BlurBuffer());
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_PRESENT, true);
 
   draw_context.Finish(true);
@@ -381,16 +386,9 @@ void RenderSystem::BuildDebugPlane(float x, float y, float w, float h, float dep
 }
 
 void RenderSystem::BuildDebugPso() {
-  CD3DX12_DESCRIPTOR_RANGE descriptor_range2;
-  descriptor_range2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1);
-
   SamplerDesc debug_sampler;
   debug_signature_.Reset(1, 1);
-  debug_signature_[0].InitAsDescriptorTable(1, &descriptor_range2, D3D12_SHADER_VISIBILITY_PIXEL);
-  //  debug_signature_[1].InitAsConstantBufferView(1);
-  //debug_signature_[1].InitAsConstants(1, 1);
-  //debug_signature_[2].InitAsDescriptorTable(1, &descriptor_range1, D3D12_SHADER_VISIBILITY_PIXEL);
-  //debug_signature_[3].InitAsDescriptorTable(1, &descriptor_range2, D3D12_SHADER_VISIBILITY_PIXEL);
+  debug_signature_[0].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
   debug_signature_.InitSampler(0, debug_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
 
   debug_signature_.Finalize();

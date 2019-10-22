@@ -12,7 +12,7 @@ class PSO
     root_signature_ = &signature;
   }
 
-  const RootSignature& GetRootSignature2() const {
+  const RootSignature& GetRootSignature() const {
     return *root_signature_;
   }
 
@@ -48,6 +48,21 @@ class GraphicsPso : public PSO {
    std::shared_ptr<const D3D12_INPUT_ELEMENT_DESC> input_layouts_;
 };
 
+class ComputePso : public PSO {
+ public:
+  ComputePso();
+  void Finalize();
+
+  void SetComputeShader(const BYTE* code_buffer, UINT size);
+  void SetRootSig(ID3D12RootSignature* rootSig) {
+    root_sig_ = rootSig;
+  }
+ 
+ private:
+  D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc_;
+  ID3D12RootSignature* root_sig_;
+};
+
 inline void GraphicsPso::SetVertexShader(const BYTE* code_buffer, UINT size) {
   pso_desc_.VS = {const_cast<BYTE*>(code_buffer), size};
 }
@@ -79,4 +94,10 @@ inline void GraphicsPso::SetRenderTargetFormat(DXGI_FORMAT RTVFormat, DXGI_FORMA
 {
   SetRenderTargetFormats(1, &RTVFormat, DSVFormat, MsaaCount, MsaaQuality);
 }
+
+inline void ComputePso::SetComputeShader(const BYTE* code_buffer, UINT size) {
+  pso_desc_.CS = {const_cast<BYTE*>(code_buffer), size};
+}
+
+
 

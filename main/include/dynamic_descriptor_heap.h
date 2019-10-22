@@ -15,16 +15,29 @@ class DynamicDescriptorHeap {
   DynamicDescriptorHeap(CommandContext& owning_context, D3D12_DESCRIPTOR_HEAP_TYPE type);
 
   void SetGraphicsDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
+  void SetComputeDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]);
 
-  void CommitGraphicsRootDescriptorTables() {
+  void CommitGraphicsRootDescriptorTables(ID3D12GraphicsCommandList* command_list) {
     if (graphics_handle_cache_.stale_root_descriptor_table_bitmap != 0) {
-      CopyAndBindStagedTables(graphics_handle_cache_);
+      CopyAndBindStagedTables(graphics_handle_cache_, command_list,
+          &ID3D12GraphicsCommandList::SetGraphicsRootDescriptorTable);
     }
   }
 
-  void ParseRootSignature(const RootSignature& root_signature) {
+  void CommitComputeRootDescriptorTables(ID3D12GraphicsCommandList* command_list) {
+    if (compute_handle_cache_.stale_root_descriptor_table_bitmap != 0) {
+      CopyAndBindStagedTables(compute_handle_cache_, command_list,
+          &ID3D12GraphicsCommandList::SetComputeRootDescriptorTable);
+    }
+  }
+
+  void ParseGraphicsRootSignature(const RootSignature& root_signature) {
     graphics_handle_cache_.ParseRootSignature(heap_type_, root_signature);
   } 
+
+  void ParseComputeRootSignature(const RootSignature& root_signature) {
+    compute_handle_cache_.ParseRootSignature(heap_type_, root_signature);
+  }
 
  private:
   static const uint32_t kNumDescriptorsPerHeap = 1024;
@@ -36,7 +49,6 @@ class DynamicDescriptorHeap {
 
  private:
 
-  
   struct DescriptorTableCache {
     DescriptorTableCache() 
       : assigned_handles_bitmap(0)
@@ -65,14 +77,19 @@ class DynamicDescriptorHeap {
     void ParseRootSignature(D3D12_DESCRIPTOR_HEAP_TYPE type, const RootSignature& root_signature);
 
     void CopyAndBindStaleTables(D3D12_DESCRIPTOR_HEAP_TYPE type, DescriptorHandle start_handle,
-        uint32_t descriptor_size, ID3D12GraphicsCommandList* command_list);
+        uint32_t descriptor_size, ID3D12GraphicsCommandList* command_list,
+        void (STDMETHODCALLTYPE ID3D12GraphicsCommandList::*set_function)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE));
 
     uint32_t ComputeStagedSize();
     void UnbindValidTable();
   };
 
  private:
-  void CopyAndBindStagedTables(DescriptorHandleCache& handle_cache);
+  void CopyAndBindStagedTables(DescriptorHandleCache& handle_cache, 
+    ID3D12GraphicsCommandList* command_list,
+    void (STDMETHODCALLTYPE ID3D12GraphicsCommandList::* set_function)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE));
+
+
   void RetireCurrentHeap();
   void UnbindAllValid();
   ID3D12DescriptorHeap* GetHeapPoint();
@@ -80,6 +97,8 @@ class DynamicDescriptorHeap {
   vector<ID3D12DescriptorHeap*> used_descriptor_heaps;
 
   DescriptorHandleCache graphics_handle_cache_;
+  DescriptorHandleCache compute_handle_cache_;
+
   CommandContext& owning_context_;
   const D3D12_DESCRIPTOR_HEAP_TYPE heap_type_;
   ID3D12DescriptorHeap* current_heap_ptr_;
