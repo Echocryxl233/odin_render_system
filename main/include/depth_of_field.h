@@ -18,20 +18,30 @@ class DepthOfField {
 
   void Render(ColorBuffer& input, int blur_count);
   ColorBuffer& BlurBuffer() { return blur_buffer_0_; }
+  ColorBuffer& DoFBuffer() { return dof_buffer_; }
 
  private:
   vector<float> CalculateGaussWeights(float sigma);
 
  private:
   void Blur(ColorBuffer& input, int blur_count);
+  void RenderInternal(ColorBuffer& input);
+
+
  private:
   ColorBuffer blur_buffer_0_;
-  ColorBuffer blur_buffer_1_;
+  ColorBuffer unknown_buffer_;
+  
+  ColorBuffer dof_buffer_;
+
   DepthStencilBuffer depth_buffer_;
 
-  RootSignature root_signature_;
+  RootSignature blur_root_signature_;
   ComputePso horizontal_pso_;
   ComputePso vertical_pso_;
+
+  RootSignature dof_root_signature_;
+  ComputePso dof_pso_;
 
   UINT width_;
   UINT height_;

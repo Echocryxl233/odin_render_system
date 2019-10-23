@@ -16,6 +16,7 @@ friend class CameraController;
  public:
   float ZNear() const;
   float ZFar() const;
+  float Aspect() const;
 
   XMFLOAT4X4 View4x4f() const;
   XMFLOAT4X4 Proj4x4f() const;
@@ -53,6 +54,10 @@ inline float Camera::ZNear() const {
 
 inline float Camera::ZFar() const {
   return z_far_;
+}
+
+inline float Camera::Aspect() const {
+  return aspect_;
 }
 
 inline XMFLOAT4X4 Camera::View4x4f() const {

@@ -295,8 +295,9 @@ void RenderSystem::RenderScene() {
 
   draw_context.Flush(true);
 
-  //  PostProcess::DoF.Render(display_plane, 5);
+  PostProcess::DoF.Render(display_plane, 5);
   //  draw_context.CopyBuffer(display_plane, PostProcess::DoF.BlurBuffer());
+  draw_context.CopyBuffer(display_plane, PostProcess::DoF.DoFBuffer());
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_PRESENT, true);
 
   draw_context.Finish(true);

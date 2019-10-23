@@ -1,67 +1,32 @@
-cbuffer cbSetting : register(b0) {
-    float PlaneInFocus;
-    //  float ProjTex;
-    float Znear;
-    float Zfar;
-    float CoC;
-    float Ratio;
-    float padding1;
-    float padding2;
-    float padding3;
-}
-
-cbuffer cbObject : register(b1) {
-    float4x4 World;
-}
-
-cbuffer cbPass : register(b2) {
-    float4x4 View;
-    float4x4 Proj;
-    float4x4 ViewProj;
-}
-
-Texture2D depthMap : register(t0);
-Texture2D blurMap : register(t1);
-Texture2D colorMap : register(t2);
-
-SamplerState gsamPointClamp : register(s0);
-SamplerState gsamLinearClamp : register(s1);
-SamplerState gsamDepthMap : register(s2);
-
-struct VertexIn {
-    float3 Position : POSITION;
-    float2 TexC : TEXCOORD;
+static const int gMaxBlurRadius = 5;
+cbuffer cbSettings : register(b0) {
+    float FocalLength;
+    float ZNear;
+    float ZFar;
+    float Aparture;
 };
 
-struct VertexOut {
-    float4 PosH : SV_POSITION;
-    float3 PosW : POSITION;
-    float2 TexC : TEXCOORD;
-};
 
-VertexOut VS(VertexIn vin) {
-    VertexOut vout = (VertexOut)0.0f;
-    float4 posW = mul(float4(vin.Position, 1.0f), World);
+Texture2D BlurMap : register(t0);
+Texture2D<float> DepthMap : register(t1);
+Texture2D ColorMap : register(t2);
 
-    vout.PosW = posW.xyz;
-    vout.PosH = mul(posW, ViewProj);
-    vout.TexC = vin.TexC;
+RWTexture2D<float4> gOutput : register(u0);
 
-    return vout;
-}
+#define N 256
+#define CacheSize (N + 2*gMaxBlurRadius)
+groupshared float4 gCache[CacheSize];
 
-float4 PS(VertexOut pin) : SV_TARGET
+[numthreads(1, N, 1)]
+void DofCS(int3 groupThreadID : SV_GroupThreadID,
+				int3 dispatchThreadID : SV_DispatchThreadID)
 {
-    float4 blur_color = blurMap.Sample(gsamPointClamp, pin.TexC.xy);
-    float4 origin_color = colorMap.Sample(gsamPointClamp, pin.TexC.xy);\
-    
-    float z = depthMap.SamplerLevel(gsamPointClamp, pin.TextC.xy, 0.0f).r;
-
-    float distance = Zfar * Znear / (z * (Zfar - Znear) - Zfar)
-
-    if (PlaneInFocus*(1+Ratio) > distance && PlaneInFocus*(1-Ratio) < distance) {
-        return blue_color;
+    float depth = DepthMap[dispatchThreadID.xy];
+    float objectDistance = -ZFar * ZNear / (depth * (ZFar - ZNear) - ZFar);
+    if (objectDistance > FocalLength) {
+        gOutput[dispatchThreadID.xy] = BlurMap[dispatchThreadID.xy]; 
     }
-
-    return origin_color;
+    else {
+        gOutput[dispatchThreadID.xy] = ColorMap[dispatchThreadID.xy];
+    }
 }
