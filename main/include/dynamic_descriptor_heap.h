@@ -39,6 +39,8 @@ class DynamicDescriptorHeap {
     compute_handle_cache_.ParseRootSignature(heap_type_, root_signature);
   }
 
+  void ClearupUsedHeaps(uint64_t fence_value);
+
  private:
   static const uint32_t kNumDescriptorsPerHeap = 1024;
   static vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> descriptor_heap_pool_[2];
@@ -46,7 +48,8 @@ class DynamicDescriptorHeap {
   static queue<ID3D12DescriptorHeap*> avalible_descriptor_heaps_[2];
   
   static ID3D12DescriptorHeap* RequestDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type);
-
+  static void DiscardDescriptorHeaps(D3D12_DESCRIPTOR_HEAP_TYPE type, uint64_t fence_value,  
+      const vector<ID3D12DescriptorHeap*>& used_descriptor_heaps);
  private:
 
   struct DescriptorTableCache {
@@ -68,6 +71,7 @@ class DynamicDescriptorHeap {
 
     uint32_t root_descriptor_tables_bitmap;
     uint32_t stale_root_descriptor_table_bitmap;  //  bit mask of using root index
+    uint32_t max_cache_descriptors;
     
 
     DescriptorTableCache root_descriptor_tables[kMaxDescriptorCount];
@@ -82,6 +86,10 @@ class DynamicDescriptorHeap {
 
     uint32_t ComputeStagedSize();
     void UnbindValidTable();
+    void ClearCache() {
+      root_descriptor_tables_bitmap = 0;
+      max_cache_descriptors = 0;
+    } 
   };
 
  private:
@@ -90,11 +98,20 @@ class DynamicDescriptorHeap {
     void (STDMETHODCALLTYPE ID3D12GraphicsCommandList::* set_function)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE));
 
 
-  void RetireCurrentHeap();
+  void RetireCurrentHeaps();
   void UnbindAllValid();
-  ID3D12DescriptorHeap* GetHeapPoint();
+  DescriptorHandle Allocate(int count) {
+    DescriptorHandle ret = first_handle_ + descriptor_size_* current_offset_;
+    current_offset_ += count;
+    return ret;
+  }
 
-  vector<ID3D12DescriptorHeap*> used_descriptor_heaps;
+  ID3D12DescriptorHeap* GetHeapPoint();
+  void RetireUsedHeap(uint64_t fence_value );
+
+ private:
+
+  vector<ID3D12DescriptorHeap*> retired_heaps_;
 
   DescriptorHandleCache graphics_handle_cache_;
   DescriptorHandleCache compute_handle_cache_;

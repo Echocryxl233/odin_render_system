@@ -150,8 +150,12 @@ uint64_t CommandContext::Finish(bool wait_for_signal) {
   queue.DiscardAllocator(fence_value, command_allocator_);
   command_allocator_ = nullptr;
 
+  dynamic_view_descriptor_heap_.ClearupUsedHeaps(fence_value);
+  dynamic_sampler_descriptor_heap_.ClearupUsedHeaps(fence_value);
+
   cpu_linear_allocator_.CleanupUsedPages(fence_value);
   gpu_linear_allocator_.CleanupUsedPages(fence_value);
+
 
   if (wait_for_signal) {
     queue.WaitForSignal(fence_value);
@@ -244,12 +248,12 @@ void GraphicsContext::ClearDepthStencil(DepthStencilBuffer& target) {
       target.ClearDepth(), target.ClearStencil(), 0, nullptr);
 }
 
-void GraphicsContext::SetRenderTarget(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]) {
+void GraphicsContext::SetRenderTarget(const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]) {
   command_list_->OMSetRenderTargets(1, rtvs, true, nullptr);
 }
 
 void GraphicsContext::SetRenderTargets(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv) {
-  command_list_->OMSetRenderTargets(1, rtvs, true, &dsv);
+  command_list_->OMSetRenderTargets(rtv_count, rtvs, true, &dsv);
 }
 
 ComputeContext& ComputeContext::Begin(const std::wstring& name, bool is_async) {

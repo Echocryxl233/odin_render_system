@@ -41,7 +41,9 @@ class CommandQueue {
 
   uint64_t GetNextFenceValue() { return next_fence_value_; }
   
-  ID3D12Fence* Fence() { return fence_; }
+  //  ID3D12Fence* Fence() { return fence_; }
+
+  void FlushGpu();
 
  private:
   

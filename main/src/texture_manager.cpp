@@ -31,7 +31,7 @@ void Texture::CreateDeriveView() {
   Graphics::Core.Device()->CreateShaderResourceView(resource_.Get(), &srv_desc, srv_handle_);
 }
 
-Texture* TextureManager::RequestTexture(wstring filename) {
+Texture* TextureManager::RequestTexture(const wstring& filename) {
   auto iter = texture_pool_.find(filename);
 
   if (iter != texture_pool_.end()) {

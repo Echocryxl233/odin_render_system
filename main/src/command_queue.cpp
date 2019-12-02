@@ -98,3 +98,7 @@ void CommandQueue::WaitForSignal(uint64_t fence_value) {
   WaitForSingleObject(fence_event_handle_, INFINITE);
   last_complete_fence_value_ = fence_value;
 }
+
+void CommandQueue::FlushGpu() {
+  WaitForSignal(next_fence_value_);
+}

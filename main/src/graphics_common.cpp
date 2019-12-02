@@ -1,4 +1,5 @@
 #include "graphics_common.h"
+
 namespace Graphics {
   CD3DX12_DEPTH_STENCIL_DESC DepthStateDisabled;
 };

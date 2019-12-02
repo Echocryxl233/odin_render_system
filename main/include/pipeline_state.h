@@ -3,6 +3,8 @@
 #include "root_signature.h"
 #include "utility.h"
 
+using namespace Microsoft::WRL;
+
 class PSO
 {
  public:
@@ -32,7 +34,10 @@ class GraphicsPso : public PSO {
 
   void SetInputLayout(const D3D12_INPUT_ELEMENT_DESC* descs, UINT element_count);
   void SetVertexShader(const BYTE* code_buffer, UINT size);
+  void SetVertexShader(ComPtr<ID3DBlob>& vertex_shader);
+
   void SetPixelShader(const BYTE* code_buffer, UINT size);
+  void SetPixelShader(ComPtr<ID3DBlob>& pixel_shader);
   void SetRasterizeState(const D3D12_RASTERIZER_DESC& rasterizer);
   void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& dss);
   void SetBlendState(const D3D12_BLEND_DESC& blend);
@@ -67,8 +72,18 @@ inline void GraphicsPso::SetVertexShader(const BYTE* code_buffer, UINT size) {
   pso_desc_.VS = {const_cast<BYTE*>(code_buffer), size};
 }
 
+inline void GraphicsPso::SetVertexShader(ComPtr<ID3DBlob>& vertex_shader) {
+  pso_desc_.VS ={   reinterpret_cast<BYTE*>(vertex_shader->GetBufferPointer()),
+      (UINT)vertex_shader->GetBufferSize() };
+}
+
 inline void GraphicsPso::SetPixelShader(const BYTE* code_buffer, UINT size) {
   pso_desc_.PS = {const_cast<BYTE*>(code_buffer), size};
+}
+
+inline void GraphicsPso::SetPixelShader(ComPtr<ID3DBlob>& pixel_shader) {
+  pso_desc_.PS = { reinterpret_cast<BYTE*>(pixel_shader->GetBufferPointer()),
+      (UINT)pixel_shader->GetBufferSize() };
 }
 
 inline void GraphicsPso::SetRasterizeState(const D3D12_RASTERIZER_DESC& rasterizer) {
@@ -90,8 +105,9 @@ inline void GraphicsPso::SetSampleMask(UINT mask) {
   pso_desc_.SampleMask = mask;
 }
 
-inline void GraphicsPso::SetRenderTargetFormat(DXGI_FORMAT RTVFormat, DXGI_FORMAT DSVFormat, UINT MsaaCount, UINT MsaaQuality)
-{
+inline void GraphicsPso::SetRenderTargetFormat(DXGI_FORMAT RTVFormat, 
+    DXGI_FORMAT DSVFormat, UINT MsaaCount, UINT MsaaQuality) {
+
   SetRenderTargetFormats(1, &RTVFormat, DSVFormat, MsaaCount, MsaaQuality);
 }
 

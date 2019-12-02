@@ -2,9 +2,11 @@
 
 #include "light.h"
 #include "utility.h"
+#include "gpu_buffer.h"
 
 using namespace Lighting;
 using namespace DirectX;
+using namespace std;
 
 struct Vertex
 {
@@ -31,8 +33,7 @@ struct PassConstant {
   float padding;
   XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-
-  Light Lights[1];
+  Light Lights[kPointLightCount];
 };
 
 __declspec(align(16))
@@ -42,12 +43,59 @@ struct Material {
   float Roughness;
   XMFLOAT4X4 MatTransform;
 };
-//
-//struct TempTexture {
-//  std::string Name;
-//  std::wstring Filename;
-//  Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
-//  Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
-//  D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHandle;
-//};
+
+class MeshManager;
+class Model;
+
+class Mesh {
+friend class MeshManager;
+friend class Model;
+ public:
+  StructuredBuffer& VertexBuffer() { return vertex_buffer_; }
+  ByteAddressBuffer& IndexBuffer() { return index_buffer_; }
+
+  void LoadFromObj(const string& filename);
+
+ private:
+  void LoadMesh(const string& filename);
+
+  StructuredBuffer vertex_buffer_;
+  ByteAddressBuffer index_buffer_;
+};
+
+class MeshManager {
+ public:
+  static MeshManager& Instance() {
+    static MeshManager instance;
+    return instance;
+  }
+
+  Mesh* LoadFromFile(const string& filename);
+
+private:
+  map<string, Mesh*> mesh_pool_;
+};
+
+class Model {
+ public:
+  void LoadFromFile(const string& filename);
+
+  Mesh* GetMesh() const { return mesh_; }
+  Material& GetMaterial() { return material_; }
+  /*vector<D3D12_CPU_DESCRIPTOR_HANDLE>& TextureSrvs { return SRVs; }*/
+
+  D3D12_CPU_DESCRIPTOR_HANDLE* TextureData() { return SRVs.data(); }
+  int32_t TextureCount() { return (int32_t)SRVs.size(); }
+
+ private:
+  string name;
+  Mesh* mesh_;
+
+  XMFLOAT4X4 world_ = MathHelper::Identity4x4();
+  XMFLOAT3 position_;
+
+  Material material_;
+  //  Texture* textures[];
+  vector<D3D12_CPU_DESCRIPTOR_HANDLE> SRVs;  
+};
 

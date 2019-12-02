@@ -9,6 +9,14 @@ using namespace std;
 
 GraphicsCore Core;
 
+GraphicsCore::~GraphicsCore() {
+  //  CommandListManager::Instance().GetQueue(D3D12_COMMAND_LIST_TYPE_DIRECT).FlushGpu();
+
+  for (UINT i = 0; i < kSwapBufferCount; i++) {
+    display_planes_[i].Destroy();
+  }
+}
+
 void GraphicsCore::Initialize(HWND  h_window_) {
 #if defined(DEBUG) || defined(_DEBUG)
   // Enable the D3D12 debug layer.
@@ -30,6 +38,7 @@ void GraphicsCore::Initialize(HWND  h_window_) {
   CommandListManager::Instance().Initialize(device_.Get());
 
   CreateSwapChain(h_window_);
+  CreateMRTBuffers();
 
   Graphics::InitializeCommonState();
 #ifdef _DEBUG
@@ -112,6 +121,7 @@ void GraphicsCore::OnResize(UINT width, UINT height) {
 
   CreateDisplayPlanes();
   CreateViewportAndRect();
+  CreateMRTBuffers();
 }
 
 void GraphicsCore::CreateDisplayPlanes() {
@@ -125,8 +135,10 @@ void GraphicsCore::CreateDisplayPlanes() {
     display_planes_[i].SetColor(Colors::LightSteelBlue);
   }
   
-  depth_buffer_.Create(client_width_, client_height_, DepthStencilFormat);
-  
+  depth_buffer_.Create(L"Depth Stencil", client_width_, client_height_, DepthStencilFormat);
+  for (int i = 0; i < kMRTBufferCount; ++i) {
+    mrt_buffers_[i].Destroy();
+  }
 }
 
 void GraphicsCore::CreateViewportAndRect() {
@@ -138,6 +150,24 @@ void GraphicsCore::CreateViewportAndRect() {
   screen_viewport_.MaxDepth = 1.0f;
 
   scissor_rect_ = { 0, 0, client_width_, client_height_ };
+}
+
+void GraphicsCore::CreateMRTBuffers() {
+
+
+  for (int i=0; i<kMRTBufferCount; ++i) {
+    auto& buffer = mrt_buffers_[i];
+
+    buffer.SetColor(Colors::Black);
+    buffer.Create(L"MRT Buffer " + to_wstring(i), 
+      client_width_, client_height_, 1, BackBufferFormat);
+
+    mrt_rtvs_[i] = buffer.Rtv();
+    mrt_formats_[i] = BackBufferFormat;
+  }
+
+  deferred_depth_buffer_.Destroy();
+  deferred_depth_buffer_.Create(L"Deferred Depth Stencil", client_width_, client_height_, DepthStencilFormat);
 }
 
 void GraphicsCore::LogAdapters()

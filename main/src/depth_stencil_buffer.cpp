@@ -14,7 +14,7 @@ DepthStencilBuffer::DepthStencilBuffer(float depth, uint8_t stencil)
   stencil_srv_.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 }
 
-void DepthStencilBuffer::Create(uint32_t width, uint32_t height, DXGI_FORMAT format) {
+void DepthStencilBuffer::Create(const wstring& name, uint32_t width, uint32_t height, DXGI_FORMAT format) {
   ID3D12Device* device = Graphics::Core.Device();
 
   auto resource_desc = DescribeTexture2D(width, height, format, 1, 1, 
@@ -25,7 +25,7 @@ void DepthStencilBuffer::Create(uint32_t width, uint32_t height, DXGI_FORMAT for
   clear_value.DepthStencil.Depth = depth_;
   clear_value.DepthStencil.Stencil = stencil_;
 
-  CreateTextureResource(L"Depth Stencil", resource_desc, clear_value);
+  CreateTextureResource(name, resource_desc, clear_value);
   CreateDeriveView(device, format);
 
   GraphicsContext& context = GraphicsContext::Begin(L"Depth Command");

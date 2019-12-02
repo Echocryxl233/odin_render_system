@@ -45,6 +45,9 @@ const int kNumFrameResources = 3;
 
 const int kCubeMapSize = 512;
 
+const int kPointLightCount = 1300;
+
+
 class DxException
 {
 public:
@@ -64,6 +67,20 @@ inline std::wstring AnsiToWString(const std::string& str)
     WCHAR buffer[512];
     MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
     return std::wstring(buffer);
+}
+
+
+
+inline std::vector<std::string> split(const std::string& s, char delimiter)
+{
+  std::vector<std::string> tokens;
+  std::string token;
+  std::istringstream tokenStream(s);
+  while (std::getline(tokenStream, token, delimiter))
+  {
+    tokens.push_back(token);
+  }
+  return tokens;
 }
 
 #ifndef ThrowIfFailed

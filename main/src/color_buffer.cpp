@@ -81,7 +81,7 @@ void ColorBuffer::CreateDeriveView(DXGI_FORMAT format, uint32_t mips_count) {
   if (fragment_count_ > 1)
     return ;
 
-  for (int i=0; i<mips_count; ++i) {
+  for (int i=0; i<(int)mips_count; ++i) {
     uav_handle_[i] = DescriptorAllocatorManager::Instance().Allocate(D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     device->CreateUnorderedAccessView(resource_.Get(), nullptr, &uav_desc, uav_handle_[i]);
   }

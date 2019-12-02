@@ -150,7 +150,7 @@ public:
   void ClearStencil(DepthStencilBuffer& target);
   void ClearDepthStencil(DepthStencilBuffer& target);
 
-  void SetRenderTarget(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]);
+  void SetRenderTarget(const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]);
   void SetRenderTargets(UINT rtv_count, const D3D12_CPU_DESCRIPTOR_HANDLE rtvs[], D3D12_CPU_DESCRIPTOR_HANDLE dsv);
   
   void SetRootSignature(const RootSignature& root_signature);

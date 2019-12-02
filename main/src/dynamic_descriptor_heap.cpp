@@ -54,6 +54,17 @@ ID3D12DescriptorHeap* DynamicDescriptorHeap::RequestDescriptorHeap(D3D12_DESCRIP
   }
 }
 
+void DynamicDescriptorHeap::DiscardDescriptorHeaps(D3D12_DESCRIPTOR_HEAP_TYPE type, uint64_t fence_value, 
+    const vector<ID3D12DescriptorHeap*>& used_descriptor_heaps) {
+  int type_index = type == D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER ? 1 : 0;
+
+  auto& retired_heaps = retired_descriptor_heaps_[type_index];
+  for (auto it : used_descriptor_heaps) {
+    auto pair = make_pair(fence_value, it);
+    retired_heaps.push(pair);
+  }
+}
+
 void DynamicDescriptorHeap::SetGraphicsDescriptorHandles(UINT root_index, UINT offset, UINT count, D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
   graphics_handle_cache_.StageTableHandles(root_index, offset, count, handles);
 }
@@ -62,34 +73,32 @@ void DynamicDescriptorHeap::SetComputeDescriptorHandles(UINT root_index, UINT of
   compute_handle_cache_.StageTableHandles(root_index, offset, count, handles);
 }
 
-void DynamicDescriptorHeap::RetireCurrentHeap() {
-  if (current_offset_ == 0) {
-    assert(current_heap_ptr_ == nullptr);
-    return;
-  }
-  
-  used_descriptor_heaps.push_back(current_heap_ptr_);
-  current_heap_ptr_ = nullptr;
-  current_offset_ = 0;
+void DynamicDescriptorHeap::ClearupUsedHeaps(uint64_t fence_value) {
+  RetireCurrentHeaps();
+  RetireUsedHeap(fence_value);
+  graphics_handle_cache_.ClearCache();
+  compute_handle_cache_.ClearCache();
 }
+
 
 void DynamicDescriptorHeap::CopyAndBindStagedTables(DescriptorHandleCache& handle_cache,
     ID3D12GraphicsCommandList* command_list,
     void (STDMETHODCALLTYPE ID3D12GraphicsCommandList::* set_function)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE)) {
   uint32_t need_size = handle_cache.ComputeStagedSize();
   if (!HasSpace(need_size)) {
-    RetireCurrentHeap();
+    RetireCurrentHeaps();
     UnbindAllValid();
     need_size = handle_cache.ComputeStagedSize();
   }
 
   owning_context_.SetDescriptorHeap(heap_type_, GetHeapPoint());
-  handle_cache.CopyAndBindStaleTables(heap_type_, first_handle_, descriptor_size_, 
+  handle_cache.CopyAndBindStaleTables(heap_type_, Allocate(need_size), descriptor_size_, 
     command_list, set_function);
 };
 
 void DynamicDescriptorHeap::UnbindAllValid() {
   graphics_handle_cache_.UnbindValidTable();
+  compute_handle_cache_.UnbindValidTable();
 }
 
 ID3D12DescriptorHeap* DynamicDescriptorHeap::GetHeapPoint() {
@@ -123,8 +132,8 @@ uint32_t DynamicDescriptorHeap::DescriptorHandleCache::ComputeStagedSize() {
 }
 
 void DynamicDescriptorHeap::DescriptorHandleCache::StageTableHandles(
-    UINT root_index, UINT offset, UINT descriptor_count, 
-    D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
+      UINT root_index, UINT offset, UINT descriptor_count, 
+      D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
   assert((stale_root_descriptor_table_bitmap | (1 << root_index)) != 0 && "Root table has been staled"); 
   assert(offset + descriptor_count <= root_descriptor_tables[root_index].table_size && "DescriptorTableCache Overflow");
   
@@ -160,6 +169,8 @@ void DynamicDescriptorHeap::DescriptorHandleCache::ParseRootSignature(
 
     current_offset += table_size;
   }
+  max_cache_descriptors = current_offset;
+  assert((max_cache_descriptors <= kMaxDescriptorCount) && "Exceeded user-supplied maximum cache size");
 }
 
 void DynamicDescriptorHeap::DescriptorHandleCache::UnbindValidTable() {
@@ -214,6 +225,9 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(D3D12_
   D3D12_CPU_DESCRIPTOR_HANDLE src_descriptor_range_starts[kMaxCount];
   UINT src_descriptor_range_sizes[kMaxCount];
 
+  unsigned long descriptor_count_check;
+  int over_max_count = 0;
+
   for (uint32_t i=0; i< root_table_count; ++i) {
     root_index = root_table_indice[i];
     //  command_list->SetGraphicsRootDescriptorTable(root_index, start_handle.GpuHandle());
@@ -236,6 +250,7 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(D3D12_
 
       unsigned long descriptor_count;
       _BitScanForward64(&descriptor_count, ~mask_bit_map);
+      descriptor_count_check = descriptor_count;
       mask_bit_map >>= descriptor_count;
 
       if (descriptor_count + src_descriptor_range > kMaxCount) {
@@ -244,6 +259,7 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(D3D12_
 
         src_descriptor_range = 0;
         dest_descriptor_range = 0;
+        ++over_max_count;
       }
 
       dest_descriptor_range_starts[dest_descriptor_range] = current_dest;
@@ -264,3 +280,21 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(D3D12_
   Graphics::Core.Device()->CopyDescriptors(dest_descriptor_range, dest_descriptor_range_starts, dest_descriptor_range_sizes,
     src_descriptor_range, src_descriptor_range_starts, src_descriptor_range_sizes, type);
 }
+
+void DynamicDescriptorHeap::RetireUsedHeap(uint64_t fence_value) {
+  DiscardDescriptorHeaps(heap_type_, fence_value, retired_heaps_);
+  retired_heaps_.clear();
+}
+
+void DynamicDescriptorHeap::RetireCurrentHeaps() {
+  if (current_offset_ == 0) {
+    assert(current_heap_ptr_ == nullptr);
+    return;
+  }
+
+  retired_heaps_.push_back(current_heap_ptr_);
+  current_heap_ptr_ = nullptr;
+  current_offset_ = 0;
+}
+
+

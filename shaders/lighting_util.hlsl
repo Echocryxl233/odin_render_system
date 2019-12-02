@@ -1,5 +1,5 @@
 
-#define MaxLights 16
+#define MaxLights 1316
 
 struct Light
 {
@@ -46,6 +46,30 @@ float3 ComputeDirectLight(Light light, float3 to_eye, float3 normal, Material ma
     float3 light_strength = light.Strength * nDotl;
 
     return BlinnPhong(light_strength, light_direct, to_eye, normal, mat);
+}
+
+float CalculateAttenuation(float d, float falloffStart, float falloffEnd) {
+
+    return saturate((falloffEnd - d )/(falloffEnd - falloffStart));
+}
+
+float3 ComputePointLight(Light light, float3 pos, float3 to_eye, float3 normal, Material mat) {
+    float d = distance(light.Position, pos);
+    if (d > light.FalloffEnd)
+        return float3(0.0f, 0.0f, 0.0f);
+
+    float3 light_direction = light.Position - pos;
+    light_direction /= d;
+
+    float nDotl = max(0.0f, dot(light_direction, normal));
+    float3 light_strength = light.Strength ;    //   * nDotl;
+
+    float attenuation = CalculateAttenuation(d, light.FalloffStart, light.FalloffEnd);
+    light_strength *= attenuation;
+
+    // return BlinnPhong(light_strength, light_direction, to_eye, normal, mat);
+    return light_strength * mat.DiffuseAlbedo;
+    // return light_strength;
 }
 
 

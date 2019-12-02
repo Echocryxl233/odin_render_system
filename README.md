@@ -2,6 +2,13 @@
 primery code about DX12 with beginning
 just for learning
 
+2019-12-2
+1. Fixed bug for lack of memory in every render frame
+2. Simple render object data strcut
+3. Simple config for game settings
+4. Point light shading
+5. Unperfect solution of deferred shading
+
 2019-10-22
 1. Simple camera and camera controller
 

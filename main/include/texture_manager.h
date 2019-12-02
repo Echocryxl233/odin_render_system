@@ -37,7 +37,7 @@ class TextureManager {
     return instance;
   }
 
- Texture* RequestTexture(wstring filename);
+ Texture* RequestTexture(const wstring& filename);
 
  private:
   map<wstring, Texture*> texture_pool_;

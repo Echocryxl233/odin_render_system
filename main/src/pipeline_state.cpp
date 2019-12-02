@@ -28,7 +28,7 @@ void GraphicsPso::SetInputLayout(const D3D12_INPUT_ELEMENT_DESC* descs, UINT ele
 
 void GraphicsPso::SetRenderTargetFormats(UINT NumRTVs, const DXGI_FORMAT* RTVFormats, DXGI_FORMAT DSVFormat, UINT MsaaCount, UINT MsaaQuality)
 {
-  assert(NumRTVs == 0 || RTVFormats != nullptr && "Null format array conflicts with non-zero length");
+  assert((NumRTVs == 0 || RTVFormats != nullptr) && "Null format array conflicts with non-zero length");
   for (UINT i = 0; i < NumRTVs; ++i)
     pso_desc_.RTVFormats[i] = RTVFormats[i];
   for (UINT i = NumRTVs; i < pso_desc_.NumRenderTargets; ++i)

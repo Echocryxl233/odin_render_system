@@ -1,0 +1,11 @@
+mesh:  meshes/car.txt
+material:
+{
+    DiffuseAlbedo: 1.0 1.0 1.0 1.0
+    FresnelR0: 0.05 0.05 0.05
+    Roughness: 0.3
+}
+texture 1
+{
+    Albedo: textures/grass.dds
+}

@@ -23,6 +23,26 @@ std::wstring Location();
 //}
 
 template<typename ... TArgs>
+string Format(string format, TArgs... args) {
+  string arr[] = { (string(args))... };
+
+  int index = 0;
+
+  for (auto s : arr) {
+    string rep("%");
+    rep += std::to_string(index);
+
+    size_t pos = format.find(rep);
+    if (string::npos == pos)
+      break;
+
+    format = format.replace(pos, rep.length(), s);
+    ++index;
+  }
+  return format;
+}
+
+template<typename ... TArgs>
 void Log(wstring format, TArgs... args) {
 
   wstring arr[] = { (wstring(args))... };

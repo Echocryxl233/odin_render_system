@@ -1,122 +1,126 @@
+#include <iostream>
+#include <random>
+
 #include "render_system.h"
+
 #include "camera.h"
-#include "depth_of_field.h"
-#include "model.h"
-#include "math_helper.h"
-#include "graphics_core.h"
 #include "command_context.h"
 #include "defines_common.h"
+#include "depth_of_field.h"
+#include "graphics_core.h"
+#include "game_setting.h"
+#include "game_timer.h"
+#include "model.h"
+#include "math_helper.h"
 #include "sampler_manager.h"
 
+
 using namespace GameCore;
+
 
 void RenderSystem::Initialize() {
   DebugUtility::Log(L"RenderSystem::Initialize()");
   
-  LoadModel();
+  car_.LoadFromFile("models/car_full.txt");
+  skull_.LoadFromFile("models/skull_full.txt");
+
+  render_object_.LoadFromFile("models/skull_full.txt");
+  
+  //  mesh_.LoadFromObj("meshes/puit_water_well.obj");
+
   BuildPso();
+  BuildDeferredShadingPso();
   //  CreateTexture();
 
-  BuildDebugPlane(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+  BuildDebugPlane(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f);
   BuildDebugPso();
 
   ssao_.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
 
-  car_material_.DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-  car_material_.FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-  car_material_.Roughness = 0.3f;
-  car_material_.MatTransform = MathHelper::Identity4x4();
-  XMMATRIX matTransform = XMLoadFloat4x4(&car_material_.MatTransform);
-  XMStoreFloat4x4(&car_material_.MatTransform, XMMatrixTranspose(matTransform));
+  //car_material_.DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+  //car_material_.FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+  //car_material_.Roughness = 0.3f;
+  //car_material_.MatTransform = MathHelper::Identity4x4();
+  //XMMATRIX matTransform = XMLoadFloat4x4(&car_material_.MatTransform);
+  //XMStoreFloat4x4(&car_material_.MatTransform, XMMatrixTranspose(matTransform));
 
+  ice_texture_2_ = TextureManager::Instance().RequestTexture(L"textures/ice.dds");
+  grass_texture_2_ = TextureManager::Instance().RequestTexture(L"textures/grass.dds");
+  InitializeLights();
   //float aspect_ratio = static_cast<float>(Graphics::Core.Width()) / Graphics::Core.Height();
   //XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, aspect_ratio, 1.0f, 1000.0f);
   //XMStoreFloat4x4(&mProj, P);
+  //for (int i=0; i<5; ++i) {
+  //  RenderObject ro;
+  //  ro.LoadFromFile("models/skull_full.txt");
+  //  ro.Position().x = (float)(-9 + i*6);
+  //  render_queue_.push_back(ro);
+  //}
+  InitializeRenderQueue();
+
+  use_deferred = GameSetting::UseDeferred == 1;
+  cout << "begin use_deferred : " << use_deferred << endl;
 };
 
-void RenderSystem::LoadModel() {
-  std::ifstream fin("models/skull.txt");
+void RenderSystem::InitializeRenderQueue() {
+  std::mt19937 random_engine(std::random_device{}());
+  float object_area = GameSetting::ObjectArea;
+  uniform_real_distribution<float> uniform_position(-object_area, object_area);
+  uniform_real_distribution<float> uniform_height(0.0f, 1.0f);
 
-  UINT vertex_count = 0;
-  UINT index_count = 0;
-  std::string ignore;
+  int object_count = GameSetting::ObjectCount;
+  for (int i = 0; i < object_count; ++i) {
+    RenderObject ro;
+    ro.LoadFromFile("models/skull_full.txt");
 
-  if (!fin)
-  {
-    MessageBox(0, L"models/skull.txt not found.", 0, 0);
-    return;
+    ro.Position().x = (float)uniform_position(random_engine);
+    ro.Position().y = (float)uniform_height(random_engine);
+    ro.Position().z = (float)uniform_position(random_engine);
+    //auto format = DebugUtility::Format("render object index = %0, position = (%1, %2, %3)",
+    //    to_string(i), to_string(ro.Position().x),
+    //    to_string(ro.Position().y), to_string(ro.Position().z));
+    //cout << format << endl;
+    render_queue_.push_back(ro);
   }
-
-  fin >> ignore >> vertex_count;
-  fin >> ignore >> index_count;
-  fin >> ignore >> ignore >> ignore >> ignore;
-
-  vector<Vertex> vertices(vertex_count);
-  vector<uint16_t> indices(index_count * 3);
-
-  XMFLOAT3 v_min_f3 = XMFLOAT3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
-  XMFLOAT3 v_max_f3 = XMFLOAT3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
-
-  XMVECTOR v_min = XMLoadFloat3(&v_min_f3);
-  XMVECTOR v_max = XMLoadFloat3(&v_max_f3);
-
-  //  DirectX::XMFLOAT3 ignore_normal;
-
-  for (UINT i = 0; i < vertex_count; ++i) {
-    fin >> vertices[i].Pos.x >> vertices[i].Pos.y >> vertices[i].Pos.z;
-    fin >> vertices[i].Normal.x >> vertices[i].Normal.y >> vertices[i].Normal.z;
-    vertices[i].TexCoord = {0.0f, 0.0f};
-    XMVECTOR pos = XMLoadFloat3(&vertices[i].Pos);
-
-    XMFLOAT3 spherePos;
-    XMStoreFloat3(&spherePos, XMVector3Normalize(pos));
-
-    float theta = atan2f(spherePos.z, spherePos.x);
-
-    // Put in [0, 2pi].
-    if (theta < 0.0f)
-      theta += XM_2PI;
-
-    float phi = acosf(spherePos.y);
-
-    float u = theta / (2.0f * XM_PI);
-    float v = phi / XM_PI;
-
-    //  vertices_geo[i].TexCoord = { 0.0f, 0.0f };
-    vertices[i].TexCoord = { u, v };
-
-    v_min = XMVectorMin(v_min, pos);  //  find the min point
-    v_max = XMVectorMax(v_max, pos);  //  find the max point
-  }
-
-  //BoundingBox bounds;
-  //XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
-  //XMStoreFloat3(&bounds.Extents, 0.5f * (v_max - v_min));
-
-  //BoundingSphere bounds;
-
-  //XMStoreFloat3(&bounds.Center, 0.5f * (v_min + v_max));
-  //XMFLOAT3 d;
-  //XMStoreFloat3(&d, 0.5f * (v_max - v_min ));
-  //float ratio = 0.5f;
-  //bounds.Radius = ratio * sqrtf(d.x * d.x + d.y * d.y + d.z * d.z);
-
-
-  fin >> ignore >> ignore >> ignore;
-  for (UINT i = 0; i < index_count; ++i) {
-    fin >> indices[i * 3 + 0] >> indices[i * 3 + 1] >> indices[i * 3 + 2];
-  }
-
-  fin.close();
-  vertex_buffer_.Create(L"Vertex Buffer", 
-    (uint32_t)vertices.size(), sizeof(Vertex), vertices.data());
-  index_buffer_.Create(L"Index Buffer", 
-    (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
-
-  car_texture_2_ = TextureManager::Instance().RequestTexture(L"textures/ice.dds");
-  skull_texture_2_ = TextureManager::Instance().RequestTexture(L"textures/grass.dds");
+  cout << endl;
 }
 
+void RenderSystem::InitializeLights() {
+  //  XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
+
+  //  XMStoreFloat3(&pass_constant_.Lights[0].Direction, lightDir);
+
+  std::mt19937 random_engine(std::random_device{}());
+  default_random_engine e;
+
+  float light_area = GameSetting::LightArea;
+  float light_height = GameSetting::LightHeight;
+
+  uniform_real_distribution<float> uniform_color(0.0f, 1.0f);
+  uniform_real_distribution<float> uniform_position(-light_area, light_area);
+  uniform_real_distribution<float> falloffs(0.5f, 8.0f);
+  normal_distribution<float> uniform_height(light_height, 1.0f);
+
+  for (int i = 0; i < kPointLightCount; ++i) {
+    //  std::cout << u(e) << endl;
+    auto& light = pass_constant_.Lights[i];
+    light.Position = { uniform_position(random_engine), uniform_height(random_engine), uniform_position(random_engine) };
+    light.Strength = { uniform_color(random_engine), uniform_color(random_engine), uniform_color(random_engine) };
+    light.FalloffStart = 0.001f;
+    light.FalloffEnd =  3.0f;  // falloffs(random_engine);
+    //auto format = DebugUtility::Format("light index = %0, position = (%1, %2, %3)",
+    //    to_string(i), to_string(light.Position.x), 
+    //    to_string(light.Position.y), to_string(light.Position.z));
+    //cout << format << endl;
+
+    //format = DebugUtility::Format("light index = %0, strength = (%1, %2, %3)",
+    //  to_string(i), to_string(light.Strength.x),
+    //  to_string(light.Strength.y), to_string(light.Strength.z));
+    //cout << format << endl;
+
+  }
+  cout << endl;
+}
 
 void RenderSystem::BuildPso() {
   auto color_vs = d3dUtil::CompileShader(L"shaders/color_standard.hlsl", nullptr, "VS", "vs_5_1");
@@ -158,35 +162,98 @@ void RenderSystem::BuildPso() {
 
 }
 
-void RenderSystem::UpdateCamera() {
-  eye_pos_.x = mRadius * sinf(mPhi) * cosf(mTheta);
-  eye_pos_.z = mRadius * sinf(mPhi) * sinf(mTheta);
-  eye_pos_.y = mRadius * cosf(mPhi);
+void RenderSystem::BuildDeferredShadingPso() {
+  auto deferred_pass1_vs = d3dUtil::CompileShader(L"shaders/deferred_pass1.hlsl", nullptr, "VS", "vs_5_1");
+  auto deferred_pass1_ps = d3dUtil::CompileShader(L"shaders/deferred_pass1.hlsl", nullptr, "PS", "ps_5_1");
 
-  //DebugUtility::Log(L"eye pos = (%0, %1, %2)", to_wstring(eye_pos_.x), to_wstring(eye_pos_.y), to_wstring(eye_pos_.z));
+  std::vector<D3D12_INPUT_ELEMENT_DESC> input_layout =
+  {
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+  };
 
-  // Build the view matrix.
-  XMVECTOR pos = XMVectorSet(eye_pos_.x, eye_pos_.y, eye_pos_.z, 1.0f);
-  XMVECTOR target = XMVectorZero();
-  XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+  SamplerDesc default_sampler;
+  deferred_pass1_signature_.Reset(4, 1);
+  deferred_pass1_signature_.InitSampler(0, default_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
+  deferred_pass1_signature_[0].InitAsConstantBufferView(0, 0);
+  deferred_pass1_signature_[1].InitAsConstantBufferView(1, 0);
+  deferred_pass1_signature_[2].InitAsConstantBufferView(2, 0);
+  deferred_pass1_signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+  deferred_pass1_signature_.Finalize();
 
-  XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-  XMStoreFloat4x4(&mView, view);
-};
+  deferred_pass1_pso_.SetInputLayout(input_layout.data(), (UINT)input_layout.size());
+  //deferred_pass1_pso_.SetVertexShader(reinterpret_cast<BYTE*>(deferred_pass1_vs->GetBufferPointer()),
+  //  (UINT)deferred_pass1_vs->GetBufferSize());
+  //deferred_pass1_pso_.SetPixelShader(reinterpret_cast<BYTE*>(deferred_pass1_ps->GetBufferPointer()),
+  //  (UINT)deferred_pass1_ps->GetBufferSize());
+  deferred_pass1_pso_.SetVertexShader(deferred_pass1_vs);
+  deferred_pass1_pso_.SetPixelShader(deferred_pass1_ps);
+  
+
+  deferred_pass1_pso_.SetRootSignature(deferred_pass1_signature_);
+  deferred_pass1_pso_.SetRasterizeState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
+  deferred_pass1_pso_.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
+  deferred_pass1_pso_.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+  deferred_pass1_pso_.SetSampleMask(UINT_MAX);
+  deferred_pass1_pso_.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+  deferred_pass1_pso_.SetRenderTargetFormats(Graphics::Core.kMRTBufferCount, Graphics::Core.MrtFormats(), 
+    Graphics::Core.DepthStencilFormat, (Graphics::Core.Msaa4xState() ? 4 : 1), 
+    (Graphics::Core.Msaa4xState() ? (Graphics::Core.Msaa4xQuanlity() - 1) : 0));
+  deferred_pass1_pso_.Finalize();
+
+  //  -----------------
+  SamplerDesc depth_sampler;
+  depth_sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+  depth_sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+  depth_sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+  depth_sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+  depth_sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+  deferred_pass2_signature_.Reset(4, 2);
+  deferred_pass2_signature_.InitSampler(0, default_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
+  deferred_pass2_signature_.InitSampler(1, depth_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
+  deferred_pass2_signature_[0].InitAsConstantBufferView(0, 0);
+  deferred_pass2_signature_[1].InitAsConstantBufferView(1, 0);
+  deferred_pass2_signature_[2].InitAsConstantBufferView(2, 0);
+  deferred_pass2_signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+  deferred_pass2_signature_.Finalize();
+
+  auto deferred_pass2_vs = d3dUtil::CompileShader(L"shaders/deferred_pass2.hlsl", nullptr, "VS", "vs_5_1");
+  auto deferred_pass2_ps = d3dUtil::CompileShader(L"shaders/deferred_pass2.hlsl", nullptr, "PS", "ps_5_1");
+  
+  deferred_pass2_pso_.SetInputLayout(input_layout.data(), (UINT)input_layout.size());
+
+  deferred_pass2_pso_.SetVertexShader(deferred_pass2_vs);
+  deferred_pass2_pso_.SetPixelShader(deferred_pass2_ps);
+
+  deferred_pass2_pso_.SetRootSignature(deferred_pass2_signature_);
+  deferred_pass2_pso_.SetRasterizeState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
+  deferred_pass2_pso_.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
+  deferred_pass2_pso_.SetDepthStencilState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+  deferred_pass2_pso_.SetSampleMask(UINT_MAX);
+  deferred_pass2_pso_.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+  deferred_pass2_pso_.SetRenderTargetFormats(Graphics::Core.kMRTBufferCount, Graphics::Core.MrtFormats(),
+    Graphics::Core.DepthStencilFormat, (Graphics::Core.Msaa4xState() ? 4 : 1),
+    //  DXGI_FORMAT::DXGI_FORMAT_UNKNOWN, (Graphics::Core.Msaa4xState() ? 4 : 1),
+    (Graphics::Core.Msaa4xState() ? (Graphics::Core.Msaa4xQuanlity() - 1) : 0));
+  deferred_pass2_pso_.Finalize();
+  
+}
 
 void RenderSystem::Update() {
-  //  UpdateCamera();
-
   auto camera_view = GameCore::MainCamera.View4x4f();
   auto camera_proj = GameCore::MainCamera.Proj4x4f();
 
-  XMMATRIX world = XMLoadFloat4x4(&mWorld);
   XMMATRIX view = XMLoadFloat4x4(&GameCore::MainCamera.View4x4f());  //  GameCore::MainCamera.View4x4f()
   XMMATRIX proj = XMLoadFloat4x4(&GameCore::MainCamera.Proj4x4f());    //  GameCore::MainCamera.Proj4x4f()
   XMMATRIX view_proj = XMMatrixMultiply(view, proj);
   XMMATRIX view_proj_tex = XMMatrixMultiply(view_proj, kTextureTransform);
 
-  XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
+  //  XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
+
+  for(auto& ro : render_queue_) {
+    ro.Update(GameCore::MainTimer);
+  }
 
   XMStoreFloat4x4(&pass_constant_.View, XMMatrixTranspose(view));
   XMStoreFloat4x4(&pass_constant_.Proj, XMMatrixTranspose(proj));
@@ -199,29 +266,45 @@ void RenderSystem::Update() {
   XMStoreFloat4x4(&pass_constant_.ViewProj, XMMatrixTranspose(view_proj));
   XMStoreFloat4x4(&pass_constant_.ViewProjTex, XMMatrixTranspose(view_proj_tex));
   
-  pass_constant_.AmbientLight = { 0.3f, 0.3f, 0.3f, 0.1f };
+  pass_constant_.AmbientLight = { 0.5f, 0.0f, 0.5f, 0.1f };
   pass_constant_.EyePosition = eye_pos_;
-  XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
+  //XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
 
-  XMStoreFloat3(&pass_constant_.Lights[0].Direction, lightDir);
-  pass_constant_.Lights[0].Strength = { 1.0f, 1.0f, 1.0f };
+  //XMStoreFloat3(&pass_constant_.Lights[0].Direction, lightDir);
+  //pass_constant_.Lights[0].Strength = { 1.0f, 1.0f, 1.0f };
+
+  timer += GameCore::MainTimer.DeltaTime();
+  if (GetAsyncKeyState('1') & 0x8000) {
+    if (timer>0.2f) {
+      use_deferred = !use_deferred;
+      timer = 0.0f;
+      cout << "current render mode : " << 
+          (use_deferred ? "deferred" : "forward") << endl;
+    }
+  }
+    
 }
 
-void RenderSystem::RenderObjects() {
-  //draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
-  //draw_context.SetDynamicConstantBufferView(1, sizeof(car_material_), &car_material_);
-  //draw_context.SetDynamicConstantBufferView(2, sizeof(pass_constant_), &pass_constant_);
-  //
-  //draw_context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
-  //draw_context.SetIndexBuffer(index_buffer_.IndexBufferView());
+void RenderSystem::RenderSingleObject(GraphicsContext& context, RenderObject& object) {
+  context.SetDynamicConstantBufferView(0, sizeof(object.GetObjConst()), &object.GetObjConst());
+  context.SetDynamicConstantBufferView(1, sizeof(object.GetModel().GetMaterial()), &object.GetModel().GetMaterial());
+  context.SetDynamicConstantBufferView(2, sizeof(pass_constant_), &pass_constant_);
 
-  ////  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { car_texture_->DescriptorHandle }; car_texture_2_
-  //D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { car_texture_2_->SrvHandle() }; 
-  //draw_context.SetDynamicDescriptors(3, 0, _countof(handles), handles);
-  //
-  //draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  //draw_context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
-  //draw_context.Flush(true);
+  context.SetVertexBuffer(object.GetModel().GetMesh()->VertexBuffer().VertexBufferView());
+  context.SetIndexBuffer(object.GetModel().GetMesh()->IndexBuffer().IndexBufferView());
+
+ 
+  context.SetDynamicDescriptors(3, 0, object.GetModel().TextureCount(), object.GetModel().TextureData()); 
+
+  context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+  context.DrawIndexedInstanced(object.GetModel().GetMesh()->IndexBuffer().ElementCount(), 1, 0, 0, 0);
+}
+
+void RenderSystem::RenderObjects(GraphicsContext& context) {
+  for (auto& ro : render_queue_) {
+    RenderSingleObject(context, ro);
+  }
 }
 
 void RenderSystem::RenderScene() {
@@ -229,78 +312,126 @@ void RenderSystem::RenderScene() {
 
   GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
 
-  ssao_.BeginRender(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
-  {
-    draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
-    draw_context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
-    draw_context.SetIndexBuffer(index_buffer_.IndexBufferView());
-    draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    draw_context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
+  if (false) {
+    //ssao_.BeginRender(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
+    //{
+    //  draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
+    //  draw_context.SetVertexBuffer(car_.GetMesh()->VertexBuffer().VertexBufferView());
+    //  draw_context.SetIndexBuffer(car_.GetMesh()->IndexBuffer().IndexBufferView());
+    //  draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    //  draw_context.DrawIndexedInstanced(car_.GetMesh()->IndexBuffer().ElementCount(), 1, 0, 0, 0);
+    //}
+    //ssao_.EndRender(draw_context);
+    //draw_context.Flush(true);
+    //ssao_.ComputeAo(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
   }
-  ssao_.EndRender(draw_context);
-  draw_context.Flush(true);
-  ssao_.ComputeAo(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
+
+  if (!use_deferred) {
+    ForwardRender(draw_context);
+  }
+  else {
+    DeferredRender(draw_context);
+  }
+
+    //  draw_context.Flush(true);
 
   {
-    draw_context.SetViewports(&Graphics::Core.ViewPort());
-    draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
-    draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+    //draw_context.SetViewports(&Graphics::Core.ViewPort());
+    //draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
+    //draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-    draw_context.ClearColor(display_plane);
-    draw_context.ClearDepthStencil(Graphics::Core.DepthBuffer());
-    draw_context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().Rtv(), Graphics::Core.DepthBuffer().DSV());
+    //draw_context.ClearColor(display_plane);
+    //draw_context.ClearDepthStencil(Graphics::Core.DepthBuffer());
 
-    draw_context.SetPipelineState(graphics_pso_);
-    draw_context.SetRootSignature(root_signature_);
+  //  draw_context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().Rtv(), Graphics::Core.DepthBuffer().DSV());
+  //  draw_context.SetRootSignature(debug_signature_);
+  //  draw_context.SetPipelineState(debug_pso_);
 
-    draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
-    draw_context.SetDynamicConstantBufferView(1, sizeof(car_material_), &car_material_);
-    draw_context.SetDynamicConstantBufferView(2, sizeof(pass_constant_), &pass_constant_);
+  ////
+  ////  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { ssao_.AmbientMap().Srv() };
+  ////  draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 
-    draw_context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
-    draw_context.SetIndexBuffer(index_buffer_.IndexBufferView());
+  //  draw_context.SetVertexBuffer(debug_vertex_buffer_.VertexBufferView());
+  //  draw_context.SetIndexBuffer(debug_index_buffer_.IndexBufferView());
+  //  draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  //  draw_context.DrawIndexedInstanced(debug_index_buffer_.ElementCount(), 1, 0, 0, 0);
 
-    //  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { car_texture_->DescriptorHandle }; car_texture_2_
-    D3D12_CPU_DESCRIPTOR_HANDLE handles[] = {  skull_texture_2_->SrvHandle() }; //  ssao_.AmbientMap().Srv()
-    draw_context.SetDynamicDescriptors(3, 0, _countof(handles), handles);
+  //  draw_context.Flush(true);
+  }
 
-    //  D3D12_CPU_DESCRIPTOR_HANDLE ssao_handle[] = {  ssao_.AmbientMap().Srv()  }; 
-    D3D12_CPU_DESCRIPTOR_HANDLE ssao_handle[] = {  ssao_.AmbientMap().Srv()  }; 
-    draw_context.SetDynamicDescriptors(4, 0, _countof(ssao_handle), ssao_handle);
-
-    draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    draw_context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
-    draw_context.Flush(true);
-   }
-
-  draw_context.SetViewports(&Graphics::Core.ViewPort());
-  draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
-  draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-
-  //draw_context.ClearColor(display_plane);
-  //draw_context.ClearDepthStencil(Graphics::Core.DepthBuffer());
-
-  draw_context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().Rtv(), Graphics::Core.DepthBuffer().DSV());
-  draw_context.SetRootSignature(debug_signature_);
-  draw_context.SetPipelineState(debug_pso_);
-
-  
-  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { ssao_.AmbientMap().Srv() };
-  draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
-
-  draw_context.SetVertexBuffer(debug_vertex_buffer_.VertexBufferView());
-  draw_context.SetIndexBuffer(debug_index_buffer_.IndexBufferView());
-  draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  draw_context.DrawIndexedInstanced(debug_index_buffer_.ElementCount(), 1, 0, 0, 0);
-
-  draw_context.Flush(true);
-
-  PostProcess::DoF.Render(display_plane, 5);
-  //  draw_context.CopyBuffer(display_plane, PostProcess::DoF.BlurBuffer());
-  draw_context.CopyBuffer(display_plane, PostProcess::DoF.DoFBuffer());
+  //PostProcess::DoF.Render(display_plane, 5);
+  ////  draw_context.CopyBuffer(display_plane, PostProcess::DoF.BlurBuffer());
+  //draw_context.CopyBuffer(display_plane, PostProcess::DoF.DoFBuffer());
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_PRESENT, true);
 
   draw_context.Finish(true);
+}
+
+void RenderSystem::ForwardRender(GraphicsContext& context) {
+  auto& display_plane = Graphics::Core.DisplayPlane();
+
+  context.SetViewports(&Graphics::Core.ViewPort());
+  context.SetScissorRects(&Graphics::Core.ScissorRect());
+  context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+  context.ClearColor(display_plane);
+  context.ClearDepthStencil(Graphics::Core.DepthBuffer());
+  context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().Rtv(), Graphics::Core.DepthBuffer().DSV());
+
+  context.SetPipelineState(graphics_pso_);
+  context.SetRootSignature(root_signature_);
+
+  RenderObjects(context);
+}
+
+void RenderSystem::DeferredRender(GraphicsContext& context) {
+  auto& display_plane = Graphics::Core.DisplayPlane();
+
+  context.SetViewports(&Graphics::Core.ViewPort());
+  context.SetScissorRects(&Graphics::Core.ScissorRect());
+
+  for (int i=0; i< Graphics::Core.kMRTBufferCount; ++i) {
+    context.TransitionResource(Graphics::Core.GetMrtBuffer(i), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+    context.ClearColor(Graphics::Core.GetMrtBuffer(i));
+  }
+
+  context.ClearDepthStencil(Graphics::Core.DepthBuffer());
+  context.SetRenderTargets(Graphics::Core.kMRTBufferCount, 
+      Graphics::Core.MrtRtvs(), Graphics::Core.DepthBuffer().DSV());
+
+  context.SetPipelineState(deferred_pass1_pso_);
+  context.SetRootSignature(deferred_pass1_signature_);
+
+  RenderObjects(context);
+
+  context.CopyBuffer(Graphics::Core.DeferredDepthBuffer(), Graphics::Core.DepthBuffer());
+  context.TransitionResource(Graphics::Core.DepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+  context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+  context.ClearColor(display_plane);
+
+  context.SetRenderTargets(1, &display_plane.Rtv(),
+       Graphics::Core.DepthBuffer().DSV());
+
+  context.SetPipelineState(deferred_pass2_pso_);
+  context.SetRootSignature(deferred_pass2_signature_);
+
+  context.SetDynamicConstantBufferView(2, sizeof(pass_constant_), &pass_constant_);
+  
+  D3D12_CPU_DESCRIPTOR_HANDLE handles2[Graphics::Core.kMRTBufferCount];
+
+  for (int i = 0; i < Graphics::Core.kMRTBufferCount-1; ++i) {
+    handles2[i] = Graphics::Core.GetMrtBuffer(i).Srv();
+  }
+  context.TransitionResource(Graphics::Core.DeferredDepthBuffer(), D3D12_RESOURCE_STATE_GENERIC_READ);
+  handles2[Graphics::Core.kMRTBufferCount-1] = Graphics::Core.DeferredDepthBuffer().DepthSRV();
+
+  context.SetDynamicDescriptors(3, 0, _countof(handles2), handles2);
+
+  context.SetVertexBuffer(debug_vertex_buffer_.VertexBufferView());
+  context.SetIndexBuffer(debug_index_buffer_.IndexBufferView());
+  context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  context.DrawIndexedInstanced(debug_index_buffer_.ElementCount(), 1, 0, 0, 0);
 }
 
 void RenderSystem::BuildDebugPlane(float x, float y, float w, float h, float depth) {
@@ -381,7 +512,6 @@ void RenderSystem::BuildDebugPlane(float x, float y, float w, float h, float dep
     indices[i] = indices32[i];
   }
 
-
   debug_vertex_buffer_.Create(L"Debug Vertex Buffer", (uint32_t)vertices.size(), sizeof(Vertex), vertices.data());
   debug_index_buffer_.Create(L"Debug Index Buffer", (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
 }
@@ -420,43 +550,4 @@ void RenderSystem::BuildDebugPso() {
   
   debug_pso_.Finalize();
   
-}
-
-void RenderSystem::OnMouseDown(WPARAM btnState, int x, int y) {
-  //  DebugUtility::Log(L"OnMouseDown");  
-}
-void RenderSystem::OnMouseUp(WPARAM btnState, int x, int y) {
-  //  DebugUtility::Log(L"OnMouseUp");
-  ReleaseCapture();
-}
-void RenderSystem::OnMouseMove(WPARAM btnState, int x, int y) {
-  
-  if ((btnState & MK_LBUTTON) != 0)
-  {
-    // Make each pixel correspond to a quarter of a degree.
-    float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
-    float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
-
-    // Update angles based on input to orbit camera around box.
-    mTheta += dx;
-    mPhi += dy;
-
-    // Restrict the angle mPhi.
-    mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
-  }
-  else if ((btnState & MK_RBUTTON) != 0)
-  {
-    // Make each pixel correspond to 0.005 unit in the scene.
-    float dx = 0.005f * static_cast<float>(x - mLastMousePos.x);
-    float dy = 0.005f * static_cast<float>(y - mLastMousePos.y);
-
-    // Update the camera radius based on input.
-    mRadius += dx - dy;
-
-    // Restrict the radius.
-    mRadius = MathHelper::Clamp(mRadius, 3.0f, 15.0f);
-  }
-
-  mLastMousePos.x = x;
-  mLastMousePos.y = y;
 }

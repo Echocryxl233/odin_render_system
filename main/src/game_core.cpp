@@ -1,8 +1,12 @@
 #include "game_core.h"
+
 #include "camera.h"
 #include "camera_controller.h"
 #include "depth_of_field.h"
 #include "game_timer.h"
+#include "game_setting.h"
+
+#include <iostream>
 
 
 namespace GameCore {
@@ -20,7 +24,7 @@ std::auto_ptr<CameraController> main_camera_controller_;
 
 int UpdateGame(RenderSystem& rs);
 bool CreateMainWindow();
-
+void CalculateFrameStats();
 
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 {
@@ -29,6 +33,10 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
     case WM_SIZE: {
         UINT width = (UINT)(UINT64)lParam & 0xFFFF;
         UINT height = (UINT)(UINT64)lParam >> 16;
+
+        if (width == 0 || height == 0)
+          break;
+
         Graphics::Core.OnResize(width, height);
         PostProcess::DoF.OnResize(width, height);
           render_system->OnResize(width, height);
@@ -81,6 +89,8 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 }
 
 void Initialize(RenderSystem& rs) {
+//  cout << "sizeof(PassConstant) = " << sizeof(PassConstant) << endl;
+  GameSetting::LoadConfig("config.txt");
   CreateMainWindow();
   Graphics::Core.Initialize(window);
   InitMainCamera();
@@ -94,6 +104,7 @@ void Initialize(RenderSystem& rs) {
 }
 
 void Run(RenderSystem& rs) {
+  MainTimer.Reset();
   render_system = &rs;
   Initialize(rs);
   UpdateGame(rs);
@@ -117,10 +128,45 @@ int UpdateGame(RenderSystem& rs) {
       rs.Update();
       rs.RenderScene();
       Graphics::Core.Present();
+      CalculateFrameStats();
+      //  std::cout << "total time: " << MainTimer.TotalTime() << endl;
     }
   }
 
   return (int)msg.wParam;
+}
+
+
+void CalculateFrameStats()
+{
+  // Code computes the average frames per second, and also the 
+  // average time it takes to render one frame.  These stats 
+  // are appended to the window caption bar.
+
+  static int frame_cnt = 0;
+  static float time_elapsed = 0.0f;
+
+  frame_cnt++;
+
+  // Compute averages over one second period.
+  if ((GameCore::MainTimer.TotalTime() - time_elapsed) >= 1.0f)
+  {
+    float fps = (float)frame_cnt; // fps = frameCnt / 1
+    float mspf = 1000.0f / fps;
+
+    wstring fpsStr = to_wstring(fps);
+    wstring mspfStr = to_wstring(mspf);
+
+    wstring windowText = // mMainWndCaption +
+      L"    fps: " + fpsStr +
+      L"   mspf: " + mspfStr;
+
+    SetWindowText(window, windowText.c_str());
+
+    // Reset for next average.
+    frame_cnt = 0;
+    time_elapsed += 1.0f;
+  }
 }
 
 

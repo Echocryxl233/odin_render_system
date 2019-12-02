@@ -20,6 +20,8 @@ using namespace Microsoft::WRL;
 
 class GraphicsCore {
  public:
+  ~GraphicsCore();
+
   void Initialize(HWND h_window_);
   void OnResize(UINT width, UINT height);
   void PreparePresent();
@@ -32,13 +34,21 @@ class GraphicsCore {
   D3D12_VIEWPORT& ViewPort() { return screen_viewport_; }
   D3D12_RECT& ScissorRect() { return scissor_rect_; }
 
+  D3D12_CPU_DESCRIPTOR_HANDLE* MrtRtvs() { return mrt_rtvs_; }
+  ColorBuffer& GetMrtBuffer(int i) { return mrt_buffers_[i]; }
+  DXGI_FORMAT* MrtFormats() { return mrt_formats_; }
+  DepthStencilBuffer& DeferredDepthBuffer() { return deferred_depth_buffer_; }
+
   long Width() const { return client_width_; }
   long Height() const { return client_height_; }
   
   const static int kSwapBufferCount = 2;
+  const static int kMRTBufferCount = 4;
 
   DXGI_FORMAT BackBufferFormat = DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM;
   DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT;
+
+  DXGI_FORMAT MrtBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
   bool Msaa4xState() const { return msaa_4x_state_; }
   UINT Msaa4xQuanlity() const { return msaa_4x_quanlity_; }
@@ -50,6 +60,8 @@ class GraphicsCore {
   void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
   void CreateDisplayPlanes();
   void CreateViewportAndRect();
+  
+  void CreateMRTBuffers();
 
  private:
 
@@ -70,6 +82,10 @@ class GraphicsCore {
   bool msaa_4x_state_ = false;
   UINT msaa_4x_quanlity_ = 0;
 
+  ColorBuffer mrt_buffers_[kMRTBufferCount];
+  D3D12_CPU_DESCRIPTOR_HANDLE mrt_rtvs_[kMRTBufferCount];
+  DXGI_FORMAT mrt_formats_[kMRTBufferCount];
+  DepthStencilBuffer deferred_depth_buffer_;
 };
 
 extern GraphicsCore Core;

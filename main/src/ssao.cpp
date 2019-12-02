@@ -43,7 +43,7 @@ void Ssao::Resize(UINT width, UINT height) {
     ambient_map_1_.Destroy();
 
     normal_map_.Create(L"Ssao_Normal", width_, height_, 1, Ssao::kNormalMapFormat);
-    depth_buffer_.Create(width_, height_, Graphics::Core.DepthStencilFormat);
+    depth_buffer_.Create(L"Ssao DepthBuffer", width_, height_, Graphics::Core.DepthStencilFormat);
 
     ambient_map_0_.Create(L"Ssao_Ambient_Map_0", width_/2, height_/2, 1, Ssao::kNormalMapFormat);
 
@@ -250,7 +250,7 @@ void Ssao::ComputeAo(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& pro
 
   context.TransitionResource(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   context.ClearColor(*buffer);
-  context.SetRenderTarget(1, &buffer->Rtv());
+  context.SetRenderTarget(&buffer->Rtv());
 
   context.SetRootSignature(ssao_root_signature_);
   context.SetPipelineState(ssao_pso_);
@@ -289,7 +289,7 @@ void Ssao::BlurAmbientMap(GraphicsContext& context, bool is_horizontal) {
 
   context.TransitionResource(*output_color, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   context.ClearColor(*output_color);
-  context.SetRenderTarget(1, &output_color->Rtv());
+  context.SetRenderTarget(&output_color->Rtv());
 
   context.SetDynamicConstantBufferView(0, sizeof(SsaoConstants), &ssao_constants_);
   context.SetRoot32BitConstant(1, root_32bit, 0);

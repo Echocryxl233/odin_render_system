@@ -18,7 +18,7 @@ void DepthOfField::Initialize() {
   
   blur_buffer_0_.Create(L"DoF Blur Map 00", width_, height_, 1, format);
   unknown_buffer_.Create(L"DoF Blur Map 01", width_, height_, 1, format);
-  depth_buffer_.Create(width_, height_, Graphics::Core.DepthStencilFormat);
+  depth_buffer_.Create(L"DoF DepthBuffer", width_, height_, Graphics::Core.DepthStencilFormat);
 
   blur_root_signature_.Reset(3, 0);
   blur_root_signature_[0].InitAsConstants(12, 0);
@@ -65,7 +65,7 @@ void DepthOfField::OnResize(UINT width, UINT height) {
 
     blur_buffer_0_.Create(L"FoV Blur Map 00", width_, height_, 1, format);
     unknown_buffer_.Create(L"FoV Blur Map 01", width_, height_, 1, format);
-    depth_buffer_.Create(width_, height_, Graphics::Core.DepthStencilFormat);
+    depth_buffer_.Create(L"DoF DepthBuffer", width_, height_, Graphics::Core.DepthStencilFormat);
     dof_buffer_.Create(L"DoF Standard Map 00", width_, height_, 1, format);
   }
 
