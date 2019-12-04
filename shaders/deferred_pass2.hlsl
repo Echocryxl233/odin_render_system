@@ -45,7 +45,7 @@ float4 PS(VertexOut pin) : SV_Target
   float4 albedo = gColorMap.Sample(gsamLinear, pin.TexC);
   float depth = gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r;
 
-  float4 ndc = float4(pin.TexC.x*2.0f -1.0f, 1.0f - pin.TexC.y*2.0f , depth, 1.0f);
+  float4 ndc = float4(pin.TexC.x*2.0f -1.0f, 1.0f - pin.TexC.y*2.0f , depth, 1.0f);   //  directX y 0 is at bottom and 1 is the top
   float4 worldPos = mul(ndc, InvViewProj);
   worldPos/= worldPos.w;
 
