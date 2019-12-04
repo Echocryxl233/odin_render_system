@@ -28,6 +28,7 @@ struct PassConstant {
   XMFLOAT4X4 Proj;
   XMFLOAT4X4 InvProj;
   XMFLOAT4X4 ViewProj;
+  XMFLOAT4X4 InvViewProj;
   XMFLOAT4X4 ViewProjTex;
   XMFLOAT3 EyePosition;
   float padding;

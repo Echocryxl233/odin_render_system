@@ -67,8 +67,8 @@ float3 ComputePointLight(Light light, float3 pos, float3 to_eye, float3 normal, 
     float attenuation = CalculateAttenuation(d, light.FalloffStart, light.FalloffEnd);
     light_strength *= attenuation;
 
-    // return BlinnPhong(light_strength, light_direction, to_eye, normal, mat);
-    return light_strength * mat.DiffuseAlbedo;
+    return BlinnPhong(light_strength, light_direction, to_eye, normal, mat);
+    // return light_strength * mat.DiffuseAlbedo;
     // return light_strength;
 }
 

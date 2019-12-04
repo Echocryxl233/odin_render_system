@@ -107,7 +107,7 @@ void RenderSystem::InitializeLights() {
     light.Position = { uniform_position(random_engine), uniform_height(random_engine), uniform_position(random_engine) };
     light.Strength = { uniform_color(random_engine), uniform_color(random_engine), uniform_color(random_engine) };
     light.FalloffStart = 0.001f;
-    light.FalloffEnd =  3.0f;  // falloffs(random_engine);
+    light.FalloffEnd = falloffs(random_engine); //3.0f;  // 
     //auto format = DebugUtility::Format("light index = %0, position = (%1, %2, %3)",
     //    to_string(i), to_string(light.Position.x), 
     //    to_string(light.Position.y), to_string(light.Position.z));
@@ -248,6 +248,7 @@ void RenderSystem::Update() {
   XMMATRIX proj = XMLoadFloat4x4(&GameCore::MainCamera.Proj4x4f());    //  GameCore::MainCamera.Proj4x4f()
   XMMATRIX view_proj = XMMatrixMultiply(view, proj);
   XMMATRIX view_proj_tex = XMMatrixMultiply(view_proj, kTextureTransform);
+  //  XMMATRIX proj_view = XMMatrixMultiply(view, proj);
 
   //  XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 
@@ -260,10 +261,12 @@ void RenderSystem::Update() {
 
   XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
   XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+  XMMATRIX inv_view_proj = XMMatrixInverse(&XMMatrixDeterminant(view_proj), view_proj);
 
   XMStoreFloat4x4(&pass_constant_.InvView, XMMatrixTranspose(invView));
   XMStoreFloat4x4(&pass_constant_.InvProj, XMMatrixTranspose(invProj));
   XMStoreFloat4x4(&pass_constant_.ViewProj, XMMatrixTranspose(view_proj));
+  XMStoreFloat4x4(&pass_constant_.InvViewProj, XMMatrixTranspose(inv_view_proj));
   XMStoreFloat4x4(&pass_constant_.ViewProjTex, XMMatrixTranspose(view_proj_tex));
   
   pass_constant_.AmbientLight = { 0.5f, 0.0f, 0.5f, 0.1f };

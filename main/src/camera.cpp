@@ -5,7 +5,8 @@ namespace GameCore {
 
 Camera MainCamera;
 void InitMainCamera() {
-  MainCamera.SetLens(0.25f*MathHelper::Pi, static_cast<float>(Graphics::Core.Width())/Graphics::Core.Height(), 1.0f, 1000.0f);
+  MainCamera.SetLens(0.25f*MathHelper::Pi, 
+    static_cast<float>(Graphics::Core.Width())/Graphics::Core.Height(), 1.0f, 1000.0f);
 
   XMFLOAT3 center(15.0f, 80.0f, -20.0f);
   XMFLOAT3 worldUp(0.0f, 1.0f, 0.0f);

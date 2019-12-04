@@ -2,7 +2,10 @@
 primery code about DX12 with beginning
 just for learning
 
-2019-12-2
+2019-12-04
+1. Reconstruct world position with depth map and matrix[view*projection]^-1, instead of sampleing frag world position
+
+2019-12-02
 1. Fixed bug for lack of memory in every render frame
 2. Simple render object data strcut
 3. Simple config for game settings

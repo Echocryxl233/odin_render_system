@@ -103,7 +103,7 @@ float4 PS(VertexOut pin) : SV_Target
 
   float4 litColor =  float4(point_light, 1.0f); //  ambient +
 
-  litColor.w = 0.0f;
+  litColor.a = 0.0f;
 
   return litColor;
   // float d = distance(Lights[0].Position, pin.PosW);

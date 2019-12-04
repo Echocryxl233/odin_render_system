@@ -29,6 +29,7 @@ cbuffer cbPassConstant : register(b2) {
   float4x4 Proj;
   float4x4 InvProj;
   float4x4 ViewProj;
+  float4x4 InvViewProj;
   float4x4 ViewProjTex;
   float3 EyePosition;
   float  Padding1;
