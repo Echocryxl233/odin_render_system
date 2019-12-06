@@ -23,6 +23,8 @@ friend class CameraController;
 
   XMMATRIX View() const;
   XMMATRIX Proj() const;
+
+  XMFLOAT3 Position() const ;
   
   void LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp);
   void LookAt(const XMFLOAT3& pos, const XMFLOAT3& target, const XMFLOAT3& up);
@@ -74,6 +76,10 @@ inline XMMATRIX Camera::View() const {
 
 inline XMMATRIX Camera::Proj() const {
   return XMLoadFloat4x4(&proj_);
+}
+
+inline XMFLOAT3 Camera::Position() const {
+  return position_;
 }
 
 extern Camera MainCamera;

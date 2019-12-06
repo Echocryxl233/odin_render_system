@@ -33,6 +33,10 @@ cbuffer cbPassConstant : register(b2) {
   float4x4 ViewProjTex;
   float3 EyePosition;
   float  Padding1;
+  float ZNear;
+  float ZFar;
+  float Padding2;
+  float padding3;
   float4 AmbientLight;
   Light Lights[MaxLights];
 };

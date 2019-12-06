@@ -270,7 +270,10 @@ void RenderSystem::Update() {
   XMStoreFloat4x4(&pass_constant_.ViewProjTex, XMMatrixTranspose(view_proj_tex));
   
   pass_constant_.AmbientLight = { 0.5f, 0.0f, 0.5f, 0.1f };
-  pass_constant_.EyePosition = eye_pos_;
+  pass_constant_.EyePosition = MainCamera.Position();
+  pass_constant_.ZNear = MainCamera.ZNear();
+  pass_constant_.ZFar = MainCamera.ZFar();
+
   //XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
 
   //XMStoreFloat3(&pass_constant_.Lights[0].Direction, lightDir);

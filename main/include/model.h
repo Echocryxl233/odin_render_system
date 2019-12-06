@@ -32,6 +32,10 @@ struct PassConstant {
   XMFLOAT4X4 ViewProjTex;
   XMFLOAT3 EyePosition;
   float padding;
+  float ZNear;
+  float ZFar;
+  float padding1;
+  float padding2;
   XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 
   Light Lights[kPointLightCount];
