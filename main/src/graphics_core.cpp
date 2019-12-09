@@ -91,6 +91,7 @@ void GraphicsCore::PreparePresent() {
 }
 
 void GraphicsCore::Present() {
+  
   auto present_hr = swap_chain_->Present(0, 0);
   if (FAILED(present_hr)) {
     auto device_hr = device_->GetDeviceRemovedReason();

@@ -5,10 +5,12 @@
 
 
 #include "model.h"
+#include "optional_system.h"
 #include "pipeline_state.h"
 #include "render_object.h"
 #include "ssao.h"
 #include "texture_manager.h"
+
 
 #include "utility.h"
 
@@ -27,43 +29,18 @@ class RenderSystem {
     ssao_.Resize(width, height);
   }
 
-  void RenderObjects(GraphicsContext& context);
   void RenderScene();
   void Update();
 
  private:
-
-  void RenderSingleObject(GraphicsContext& context, RenderObject& object);
-
-  void InitializeLights();
-  void InitializeRenderQueue();
-
-  void ForwardRender(GraphicsContext& context);
-  void DeferredRender(GraphicsContext& context);
-  
-
-  //  void LoadModel();
-  void BuildPso(); 
-  void BuildDeferredShadingPso();
-
-  void BuildDebugPlane(float x, float y, float w, float h, float depth);
+ 
   void BuildDebugPso();
+  void DrawDebug(GraphicsContext& context);
 
  private:
 
   RootSignature root_signature_;
   GraphicsPso   graphics_pso_;
-
-// -------------------- for deferred shading
-  RootSignature deferred_pass1_signature_;
-  GraphicsPso   deferred_pass1_pso_;
-
-  RootSignature deferred_pass2_signature_;
-  GraphicsPso   deferred_pass2_pso_;
-//  -------------------- end
-  
-
-  XMFLOAT4X4 mView = MathHelper::Identity4x4();
 
   float mTheta = 1.5f*XM_PI;
   float mPhi = XM_PIDIV4;
@@ -78,7 +55,7 @@ class RenderSystem {
 
   //  unique_ptr<TempTexture> car_texture_;
 
-  XMFLOAT3 eye_pos_;
+  //  XMFLOAT3 eye_pos_;
 
   POINT mLastMousePos;
 
@@ -91,19 +68,10 @@ class RenderSystem {
   GraphicsPso   debug_pso_;
 //  ----------------  end debug plane
 
-//  
+  Graphics::OptionalSystem* optional_system_;
 
-  //  unique_ptr<TempTexture> skull_texture_;
-
-  Texture* ice_texture_2_;
-  Texture* grass_texture_2_;
-
-  Model car_;
-  Model skull_;
-
-  Mesh mesh_;
-
-  RenderObject render_object_;
+  Graphics::OptionalSystem* forward_shading_;
+  Graphics::OptionalSystem* deferred_shading_;
 
   vector<RenderObject> render_queue_;
 

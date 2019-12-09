@@ -1,4 +1,5 @@
 #include "render_object.h"
+#include "graphics_common.h"
 
 void RenderObject::LoadFromFile(const string& filename) {
   model_.LoadFromFile(filename);
@@ -14,4 +15,17 @@ void RenderObject::Update(const GameTimer& gt) {
   //  XMStoreFloat4x4(&constants_.World , );
   //  XMMATRIX world = XMLoadFloat4x4(&constants_.World);
   XMStoreFloat4x4(&constants_.World, XMMatrixTranspose(transform)); 
+}
+
+void RenderObject::Render(GraphicsContext& context) {
+  context.SetDynamicConstantBufferView(0, sizeof(constants_), &constants_);
+  context.SetDynamicConstantBufferView(1, sizeof(model_.GetMaterial()), &model_.GetMaterial());
+  context.SetDynamicConstantBufferView(2, sizeof(Graphics::MainConstants), &Graphics::MainConstants);
+
+  context.SetVertexBuffer(model_.GetMesh()->VertexBuffer().VertexBufferView());
+  context.SetIndexBuffer(model_.GetMesh()->IndexBuffer().IndexBufferView());
+
+  context.SetDynamicDescriptors(3, 0, model_.TextureCount(), model_.TextureData());
+  context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  context.DrawIndexedInstanced(model_.GetMesh()->IndexBuffer().ElementCount(), 1, 0, 0, 0);
 }

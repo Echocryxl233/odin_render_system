@@ -1,3 +1,4 @@
+#include <iostream>
 #include "game_core.h"
 
 #include "camera.h"
@@ -5,8 +6,10 @@
 #include "depth_of_field.h"
 #include "game_timer.h"
 #include "game_setting.h"
+#include "graphics_common.h"
+#include "render_queue.h"
 
-#include <iostream>
+
 
 
 namespace GameCore {
@@ -25,6 +28,7 @@ std::auto_ptr<CameraController> main_camera_controller_;
 int UpdateGame(RenderSystem& rs);
 bool CreateMainWindow();
 void CalculateFrameStats();
+
 
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 {
@@ -88,6 +92,8 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
   return 0;
 }
 
+
+
 void Initialize(RenderSystem& rs) {
 //  cout << "sizeof(PassConstant) = " << sizeof(PassConstant) << endl;
   GameSetting::LoadConfig("config.txt");
@@ -97,6 +103,8 @@ void Initialize(RenderSystem& rs) {
   main_camera_controller_.reset(new CameraController(MainCamera, 
       XMFLOAT3(0.0f, 1.0f, 0.0f)));
   PostProcess::DoF.Initialize();  
+  Graphics::InitRenderQueue();
+  Graphics::InitializeLights();
 
   rs.Initialize();
 
@@ -108,6 +116,12 @@ void Run(RenderSystem& rs) {
   render_system = &rs;
   Initialize(rs);
   UpdateGame(rs);
+}
+
+void Update() {
+  main_camera_controller_->Update(MainTimer);
+  Graphics::UpdateConstants();
+  Graphics::MainRenderQueue.Update(MainTimer);
 }
 
 
@@ -123,9 +137,9 @@ int UpdateGame(RenderSystem& rs) {
     else {
       MainTimer.Tick();
 
-      main_camera_controller_->Update(MainTimer);
 
-      rs.Update();
+      Update();
+      //  rs.Update();
       rs.RenderScene();
       Graphics::Core.Present();
       CalculateFrameStats();

@@ -72,8 +72,9 @@ void DepthOfField::OnResize(UINT width, UINT height) {
 }
 
 void DepthOfField::Render(ColorBuffer& input, int blur_count) {
+
   Blur(input, blur_count);
-  auto& context = GraphicsContext::Begin(L"Blur Compute Context");
+  auto& context = GraphicsContext::Begin(L"Blur Compute Context 1");
   context.CopyBuffer(depth_buffer_, Graphics::Core.DepthBuffer());
   context.TransitionResource(Graphics::Core.DepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
   context.Finish(true);
@@ -84,16 +85,15 @@ void DepthOfField::Blur(ColorBuffer& input, int blur_count) {
   auto weights = CalculateGaussWeights(2.5f);
   UINT radius = (UINT)weights.size()/2;
 
-  auto& context = ComputeContext::Begin(L"Blur Compute Context");
-  
+  auto& context = ComputeContext::Begin(L"Blur Compute Context 0");
 
   context.SetRootSignature(blur_root_signature_);
 
   context.SetRoot32BitConstants(0, 1, &radius, 0);
   context.SetRoot32BitConstants(0, (int)weights.size(), weights.data(), 1);
-
+  
   context.CopyBuffer(blur_buffer_0_, input);
-  //  context.CopyBuffer(blur_buffer_1_, input);
+  ////  context.CopyBuffer(blur_buffer_1_, input);
 
   context.TransitionResource(blur_buffer_0_, D3D12_RESOURCE_STATE_GENERIC_READ);
   context.TransitionResource(unknown_buffer_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
@@ -137,7 +137,7 @@ void DepthOfField::Blur(ColorBuffer& input, int blur_count) {
 }
 
 void DepthOfField::RenderInternal(ColorBuffer& input) {
-  auto& context = ComputeContext::Begin(L"DoF Compute Context");
+  auto& context = ComputeContext::Begin(L"DoF Compute Context 2");
   context.SetRootSignature(dof_root_signature_);
 
   context.CopyBuffer(unknown_buffer_, input);
@@ -149,7 +149,7 @@ void DepthOfField::RenderInternal(ColorBuffer& input) {
   D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { blur_buffer_0_.Srv(), depth_buffer_.DepthSRV(), unknown_buffer_.Srv() };
   D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { dof_buffer_.Uav() };
 
-  float focus = 5.0f;
+  float focus = 10.0f;
   float znear = MainCamera.ZNear();
   float zfar = MainCamera.ZFar();
   float aspect = MainCamera.Aspect();

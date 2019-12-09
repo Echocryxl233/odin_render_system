@@ -25,6 +25,7 @@ friend class CommandContext;
   //  D3D12_RESOURCE_STATES usage_usage_;
   D3D12_RESOURCE_STATES current_state_;
   D3D12_GPU_VIRTUAL_ADDRESS gpu_virtual_address_;
+  wstring name_;
 };
 
 inline void GpuResource::Destroy() {

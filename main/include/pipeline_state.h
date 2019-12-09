@@ -38,6 +38,7 @@ class GraphicsPso : public PSO {
 
   void SetPixelShader(const BYTE* code_buffer, UINT size);
   void SetPixelShader(ComPtr<ID3DBlob>& pixel_shader);
+
   void SetRasterizeState(const D3D12_RASTERIZER_DESC& rasterizer);
   void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& dss);
   void SetBlendState(const D3D12_BLEND_DESC& blend);

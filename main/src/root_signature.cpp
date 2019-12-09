@@ -65,6 +65,9 @@ void RootSignature::Finalize() {
   root_signature_desc.pStaticSamplers = (const D3D12_STATIC_SAMPLER_DESC*)samplers_.get();
   root_signature_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
+  sampler_table_bit_map_ = 0;
+  descriptor_table_bit_map_ = 0;
+
   for (UINT param_index = 0; param_index < parameter_count_; ++param_index) {
     const D3D12_ROOT_PARAMETER& root_parameter = root_signature_desc.pParameters[param_index];
     descriptor_sizes[param_index] = 0;

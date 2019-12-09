@@ -86,10 +86,10 @@ void Mesh::LoadMesh(const string& filename) {
   //  DirectX::XMFLOAT3 ignore_normal;
 
   for (UINT i = 0; i < vertex_count; ++i) {
-    fin >> vertices[i].Pos.x >> vertices[i].Pos.y >> vertices[i].Pos.z;
+    fin >> vertices[i].Position.x >> vertices[i].Position.y >> vertices[i].Position.z;
     fin >> vertices[i].Normal.x >> vertices[i].Normal.y >> vertices[i].Normal.z;
     vertices[i].TexCoord = { 0.0f, 0.0f };
-    XMVECTOR pos = XMLoadFloat3(&vertices[i].Pos);
+    XMVECTOR pos = XMLoadFloat3(&vertices[i].Position);
 
     XMFLOAT3 spherePos;
     XMStoreFloat3(&spherePos, XMVector3Normalize(pos));
@@ -186,7 +186,7 @@ void Mesh::LoadFromObj(const string& filename) {
 
     if (header == "v") {
       Vertex vertex;
-      iss_line >> vertex.Pos.x >> vertex.Pos.y >> vertex.Pos.z;
+      iss_line >> vertex.Position.x >> vertex.Position.y >> vertex.Position.z;
       vertices.push_back(vertex);
     }
     else if (header == "vt") {

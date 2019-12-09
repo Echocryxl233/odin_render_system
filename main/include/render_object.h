@@ -3,9 +3,10 @@
 #ifndef RENDEROBJECT_H
 #define RENDEROBJECT_H
 
-#include "utility.h"
-#include "model.h"
+#include "command_context.h"
 #include "game_timer.h"
+#include "model.h"
+#include "utility.h"
 
 using namespace GameCore;
 
@@ -21,6 +22,8 @@ class RenderObject {
   //  void Position(float x, float y, float z) ;
 
   void Update(const GameTimer& gt);
+
+  void Render(GraphicsContext& context);
 
  private:
   Model model_;
