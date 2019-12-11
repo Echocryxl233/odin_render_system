@@ -8,27 +8,52 @@
 
 namespace Graphics {
 
-//class OptionalSystem;
-//class ForwardShaing;
+namespace RenderGroupType {
+  enum RenderGroupType {
+    kOpaque,
+    kOpaque2,
+    kTransparent
+  };
+}
 
-class RenderQueue {
-//friend class OptionalSystem;
-//friend class ForwardShading;
+using GroupType = RenderGroupType::RenderGroupType;
 
- public:
+class RenderGroup {
+public:
+  RenderGroup(GroupType type);
   void AddObject(RenderObject* object);
   void Clear();
   void Update(GameTimer& gt);
+  GroupType GetType() const { return group_type_; }
 
-  vector<RenderObject*>::const_iterator Begin() { return queue_.begin(); }
-  vector<RenderObject*>::const_iterator End() { return queue_.end(); }
-  
-
+  vector<RenderObject*>::const_iterator Begin() { return group_.begin(); }
+  vector<RenderObject*>::const_iterator End() { return group_.end(); }
  private:
-  vector<RenderObject*> queue_;
+  GroupType group_type_;
+  vector<RenderObject*> group_;
 };
 
-extern RenderQueue MainRenderQueue;
+class RenderQueue {
+
+
+ public:
+  void AddGroup(GroupType, RenderGroup* group);
+  RenderGroup* GetGroup(GroupType);
+
+  void Clear();
+  void Update(GameTimer& gt);
+
+  map<GroupType, RenderGroup*>::const_iterator Begin() { return group_map_.begin(); }
+  map<GroupType, RenderGroup*>::const_iterator End() { return group_map_.end(); }
+
+
+
+ private:
+  map<GroupType, RenderGroup*> group_map_;
+};
+
+//  extern RenderQueue MainRenderQueue;
+//  extern RenderQueue TransparentQueue;
 
 };
 

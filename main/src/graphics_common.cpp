@@ -9,6 +9,11 @@
 namespace Graphics {
   CD3DX12_DEPTH_STENCIL_DESC DepthStateDisabled;
   PassConstant MainConstants;
+
+  D3D12_BLEND_DESC BlendDisable;
+  D3D12_BLEND_DESC BlendAdditional;
+
+  RenderQueue MainQueue;
 };
 
 namespace Graphics {
@@ -27,6 +32,20 @@ void InitializeCommonState() {
   DepthStateDisabled = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
   DepthStateDisabled.DepthEnable = false;
   DepthStateDisabled.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+  D3D12_BLEND_DESC alpha_blend = {};
+  alpha_blend.IndependentBlendEnable = false;
+  alpha_blend.RenderTarget[0].BlendEnable = true;
+  alpha_blend.RenderTarget[0].LogicOpEnable = false;
+  alpha_blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+  alpha_blend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+  alpha_blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+  alpha_blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+  alpha_blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+  alpha_blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+  alpha_blend.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
+  alpha_blend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+  BlendAdditional = alpha_blend;
 }
 
 void InitializeLights() {
@@ -71,7 +90,8 @@ void InitRenderQueue() {
   uniform_real_distribution<float> uniform_position(-object_area, object_area);
   uniform_real_distribution<float> uniform_height(0.0f, 1.0f);
 
-  int object_count = GameSetting::ObjectCount;
+  int object_count = GameSetting::ObjectCount / 2;
+  RenderGroup* group1 = new RenderGroup(RenderGroupType::RenderGroupType::kOpaque);
   for (int i = 0; i < object_count; ++i) {
     RenderObject* ro = new RenderObject();
     ro->LoadFromFile("models/skull_full.txt");
@@ -83,8 +103,46 @@ void InitRenderQueue() {
     //    to_string(i), to_string(ro.Position().x),
     //    to_string(ro.Position().y), to_string(ro.Position().z));
     //cout << format << endl;
-    Graphics::MainRenderQueue.AddObject(ro);
+    //Graphics::MainRenderQueue.AddObject(ro);
+    group1->AddObject(ro);
   }
+  MainQueue.AddGroup(group1->GetType(), group1);
+
+  //  object_count = GameSetting::ObjectCount / 2;
+  RenderGroup* group2 = new RenderGroup(RenderGroupType::RenderGroupType::kOpaque2);
+  for (int i = 0; i < object_count; ++i) {
+    RenderObject* ro = new RenderObject();
+    ro->LoadFromFile("models/skull_full_1.txt");
+
+    ro->Position().x = (float)uniform_position(random_engine);
+    ro->Position().y = (float)uniform_height(random_engine);
+    ro->Position().z = (float)uniform_position(random_engine);
+    //auto format = DebugUtility::Format("render object index = %0, position = (%1, %2, %3)",
+    //    to_string(i), to_string(ro.Position().x),
+    //    to_string(ro.Position().y), to_string(ro.Position().z));
+    //cout << format << endl;
+    //Graphics::MainRenderQueue.AddObject(ro);
+    group2->AddObject(ro);
+  }
+  MainQueue.AddGroup(group2->GetType(), group2);
+
+  RenderGroup* group3 = new RenderGroup(RenderGroupType::RenderGroupType::kTransparent);
+  for (int i=0; i<10; ++i)
+  {
+    RenderObject* transparent = new RenderObject();
+    transparent->LoadFromFile("models/car_full.txt");
+
+    transparent->Position().x = -15.0f + (float)i * 4.5f;
+    transparent->Position().y = 7.0f;
+    transparent->Position().z = 0.0f;
+    //auto format = DebugUtility::Format("render object index = %0, position = (%1, %2, %3)",
+    //    to_string(i), to_string(ro.Position().x),
+    //    to_string(ro.Position().y), to_string(ro.Position().z));
+    //cout << format << endl;
+    //  Graphics::TransparentQueue.AddObject(transparent);
+    group3->AddObject(transparent);
+  }
+  MainQueue.AddGroup(group3->GetType(), group3);
 }
 
 void UpdateConstants() {

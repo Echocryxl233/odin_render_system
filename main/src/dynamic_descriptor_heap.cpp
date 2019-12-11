@@ -135,7 +135,8 @@ void DynamicDescriptorHeap::DescriptorHandleCache::StageTableHandles(
       UINT root_index, UINT offset, UINT descriptor_count, 
       D3D12_CPU_DESCRIPTOR_HANDLE handles[]) {
   assert((stale_root_descriptor_table_bitmap | (1 << root_index)) != 0 && "Root table has been staled"); 
-  assert(offset + descriptor_count <= root_descriptor_tables[root_index].table_size && "DescriptorTableCache Overflow");
+  assert(offset + descriptor_count <= root_descriptor_tables[root_index].table_size && 
+      "DescriptorTableCache Overflow, check the 'handle count' and 'table size' ");
   
   DescriptorTableCache& table = root_descriptor_tables[root_index];
   D3D12_CPU_DESCRIPTOR_HANDLE* dest_handle = table.Start + offset;

@@ -2,6 +2,11 @@
 primery code about DX12 with beginning
 just for learning
 
+2019-12-11
+1. Deferred lighting for 4 passes
+2. Simple render group, render queue
+3. Singleton base template class
+
 2019-12-04
 1. Deferred shading optimize, reconstruct world position with depth map and matrix[view*projection]^-1, instead of sampleing frag world position
 

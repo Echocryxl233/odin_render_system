@@ -27,6 +27,9 @@ class RenderSystem {
     this->width = width;
     this->height = height;
     ssao_.Resize(width, height);
+    if (optional_system_ != nullptr) {
+      optional_system_->OnResize(width, height);
+    }
   }
 
   void RenderScene();
@@ -72,6 +75,7 @@ class RenderSystem {
 
   Graphics::OptionalSystem* forward_shading_;
   Graphics::OptionalSystem* deferred_shading_;
+  Graphics::OptionalSystem* deferred_lighting_;
 
   vector<RenderObject> render_queue_;
 

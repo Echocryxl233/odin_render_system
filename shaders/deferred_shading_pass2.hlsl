@@ -34,10 +34,6 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-  float4 sample_position = gPositionMap.Sample(gsamLinear, pin.TexC);
-  float3 position = sample_position.xyz;
-  position = (position - 0.5f) * 2.0f * sample_position.w * 100.0f ;
-
   float4 sample_normal = gNormalMap.Sample(gsamLinear, pin.TexC);
   float3 normal = sample_normal.xyz;
   normal = (normal - 0.5f) * 2.0f ;

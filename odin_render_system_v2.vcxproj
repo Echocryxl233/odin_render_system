@@ -96,6 +96,7 @@
     <ClInclude Include="main\include\render_system.h" />
     <ClInclude Include="main\include\root_signature.h" />
     <ClInclude Include="main\include\sampler_manager.h" />
+    <ClInclude Include="main\include\singleton.h" />
     <ClInclude Include="main\include\ssao.h" />
     <ClInclude Include="main\include\texture_manager.h" />
     <ClInclude Include="main\include\utility.h" />

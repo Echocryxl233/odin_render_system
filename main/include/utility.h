@@ -29,6 +29,7 @@
 #include "DDSTextureLoader.h" 
 #include "d3dx12.h"
 #include "math_helper.h"
+#include "singleton.h"
 
 #include "debug_log.h"
 
@@ -46,7 +47,7 @@ const int kNumFrameResources = 3;
 
 const int kCubeMapSize = 512;
 
-const int kPointLightCount = 1300;
+const int kPointLightCount = 50;
 
 
 class DxException

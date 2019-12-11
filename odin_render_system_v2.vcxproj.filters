@@ -251,5 +251,8 @@
     <ClInclude Include="main\include\mesh_geometry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="main\include\singleton.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

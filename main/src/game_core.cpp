@@ -121,7 +121,7 @@ void Run(RenderSystem& rs) {
 void Update() {
   main_camera_controller_->Update(MainTimer);
   Graphics::UpdateConstants();
-  Graphics::MainRenderQueue.Update(MainTimer);
+  Graphics::MainQueue.Update(MainTimer);
 }
 
 

@@ -1,9 +1,14 @@
 #include "common.hlsl"
 
+// cbuffer cbPerObject : register(b0) {
+//   float4x4 gWorld;
+// };
+
 Texture2D    gDiffuseMap : register(t0);
 Texture2D    gDiffuseMap2 : register(t1);
 // Texture2D    gSsapMap : register(t0, space2);
 SamplerState gsamLinear  : register(s0);
+
 
 struct VertexIn {
   float3 PosL : POSITION;
@@ -26,7 +31,6 @@ VertexOut VS(VertexIn vin) {
   vout.PosW = posW.xyz;
 
   vout.Position = mul(posW, ViewProj);
-  //  vout.Color = vin.Color;
   float4 Normal = mul(float4(vin.Normal, 1.0f), gWorld);
   vout.Normal = Normal.xyz;
   float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), MatTransform);

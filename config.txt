@@ -1,6 +1,6 @@
-LightArea 70.0
-LightHeight 5.0
-ObjectArea 65.0
-ObjectCount 3000
+LightArea 20.0
+LightHeight 8.0
+ObjectArea 15.0
+ObjectCount 80
 
 UseDeferred 1

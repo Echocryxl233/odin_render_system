@@ -1,5 +1,5 @@
 
-#define MaxLights 1316
+#define MaxLights 56
 
 struct Light
 {
