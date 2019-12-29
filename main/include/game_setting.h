@@ -15,12 +15,10 @@ namespace GameSetting {
 
 using namespace std;
 
-extern float LightArea;
-extern float ObjectArea;
-extern float LightHeight;
-extern int UseDeferred;
-extern int ObjectCount;
-
+bool GetBoolValue(const string& name);
+float GetFloatValue(const string& name);
+int GetIntValue(const string& name);
+string GetStringValue(const string& name);
 
 void LoadConfig(const string& filename); 
 

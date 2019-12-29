@@ -1,6 +1,8 @@
-LightArea 20.0
-LightHeight 8.0
-ObjectArea 15.0
-ObjectCount 80
+Float LightArea 20.0
+Float LightHeight 8.0
+Float ObjectArea 15.0
+Int ObjectCount 80
 
-UseDeferred 1
+Bool UseDeferred 1
+
+String SkyTexture snowcube1024.dds

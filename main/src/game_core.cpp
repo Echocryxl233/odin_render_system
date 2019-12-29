@@ -106,6 +106,8 @@ void Initialize(RenderSystem& rs) {
   Graphics::InitRenderQueue();
   Graphics::InitializeLights();
 
+  cout << GameSetting::GetStringValue("SkyTexture") << endl;
+
   rs.Initialize();
 
   ShowWindow(window, SW_SHOWDEFAULT);

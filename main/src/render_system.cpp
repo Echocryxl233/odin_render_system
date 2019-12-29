@@ -40,7 +40,7 @@ void RenderSystem::Initialize() {
       debug_vertex_buffer_, debug_index_buffer_);
   ssao_.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
 
-  use_deferred = GameSetting::UseDeferred == 1;
+  use_deferred = GameSetting::GetBoolValue("UseDeferred"); //  GameSetting::UseDeferred == 1;
   cout << "begin use_deferred : " << use_deferred << endl;
 };
 

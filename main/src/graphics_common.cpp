@@ -56,8 +56,8 @@ void InitializeLights() {
     std::mt19937 random_engine(std::random_device{}());
     default_random_engine e;
 
-    float light_area = GameSetting::LightArea;
-    float light_height = GameSetting::LightHeight;
+    float light_area = GameSetting::GetFloatValue("LightArea"); // GameSetting::LightArea;
+    float light_height = GameSetting::GetFloatValue("LightHeight"); //  GameSetting::LightHeight;
 
     uniform_real_distribution<float> uniform_color(0.0f, 1.0f);
     uniform_real_distribution<float> uniform_position(-light_area, light_area);
@@ -86,11 +86,11 @@ void InitializeLights() {
 
 void InitRenderQueue() {
   std::mt19937 random_engine(std::random_device{}());
-  float object_area = GameSetting::ObjectArea;
+  float object_area = GameSetting::GetFloatValue("ObjectArea"); //  GameSetting::ObjectArea;
   uniform_real_distribution<float> uniform_position(-object_area, object_area);
   uniform_real_distribution<float> uniform_height(0.0f, 1.0f);
 
-  int object_count = GameSetting::ObjectCount / 2;
+  int object_count = GameSetting::GetIntValue("ObjectCount");  //  GameSetting::ObjectCount / 2;
   RenderGroup* group1 = new RenderGroup(RenderGroupType::RenderGroupType::kOpaque);
   for (int i = 0; i < object_count; ++i) {
     RenderObject* ro = new RenderObject();
