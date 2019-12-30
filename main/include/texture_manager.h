@@ -22,12 +22,20 @@ friend class TextureManager;
 
  protected:
   void Create(wstring filename);
-  void CreateDeriveView();
+  virtual void CreateDeriveView();
+
+ protected:
+  D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_;
 
  private:
   wstring filename_;
   Microsoft::WRL::ComPtr<ID3D12Resource> upload_heap_ = nullptr;
-  D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_;
+
+};
+
+class CubeTexture : public Texture {
+ protected:
+  void CreateDeriveView();
 };
 
 class TextureManager {
@@ -37,7 +45,7 @@ class TextureManager {
     return instance;
   }
 
- Texture* RequestTexture(const wstring& filename);
+ Texture* RequestTexture(const wstring& filename, D3D12_SRV_DIMENSION type = D3D12_SRV_DIMENSION_TEXTURE2D);
 
  private:
   map<wstring, Texture*> texture_pool_;

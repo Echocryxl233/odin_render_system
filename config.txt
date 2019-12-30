@@ -5,4 +5,4 @@ Int ObjectCount 80
 
 Bool UseDeferred 1
 
-String SkyTexture snowcube1024.dds
+String SkyTexture textures/snowcube1024.dds

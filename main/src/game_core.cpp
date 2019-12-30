@@ -8,6 +8,7 @@
 #include "game_setting.h"
 #include "graphics_common.h"
 #include "render_queue.h"
+#include "sky_box.h"
 
 
 
@@ -105,7 +106,7 @@ void Initialize(RenderSystem& rs) {
   PostProcess::DoF.Initialize();  
   Graphics::InitRenderQueue();
   Graphics::InitializeLights();
-
+  Graphics::SkyBox::Initialize();
   cout << GameSetting::GetStringValue("SkyTexture") << endl;
 
   rs.Initialize();
@@ -122,6 +123,7 @@ void Run(RenderSystem& rs) {
 
 void Update() {
   main_camera_controller_->Update(MainTimer);
+
   Graphics::UpdateConstants();
   Graphics::MainQueue.Update(MainTimer);
 }

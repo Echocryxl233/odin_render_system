@@ -171,6 +171,9 @@ void UpdateConstants() {
   MainConstants.EyePosition = MainCamera.Position();
   MainConstants.ZNear = MainCamera.ZNear();
   MainConstants.ZFar = MainCamera.ZFar();
+
+  //DebugUtility::Log(L"eye position = (%0, %1, %2)", to_wstring(MainConstants.EyePosition.x),
+  //    to_wstring(MainConstants.EyePosition.y), to_wstring(MainConstants.EyePosition.z));
 }
 
 void CreateQuad(float x, float y, float w, float h, float depth,

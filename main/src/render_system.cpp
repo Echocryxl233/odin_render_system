@@ -14,6 +14,7 @@
 #include "model.h"
 #include "math_helper.h"
 #include "sampler_manager.h"
+#include "sky_box.h"
 
 
 using namespace GameCore;
@@ -40,6 +41,8 @@ void RenderSystem::Initialize() {
       debug_vertex_buffer_, debug_index_buffer_);
   ssao_.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
 
+
+
   use_deferred = GameSetting::GetBoolValue("UseDeferred"); //  GameSetting::UseDeferred == 1;
   cout << "begin use_deferred : " << use_deferred << endl;
 };
@@ -59,6 +62,10 @@ void RenderSystem::Update() {
 
 void RenderSystem::RenderScene() {
   GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
+  auto& display_plane = Graphics::Core.DisplayPlane();
+
+  draw_context.SetViewports(&Graphics::Core.ViewPort());
+  draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
 
   if (false) {
     //ssao_.BeginRender(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
@@ -74,9 +81,16 @@ void RenderSystem::RenderScene() {
     //ssao_.ComputeAo(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
   }
 
+  Graphics::SkyBox::Render(draw_context, display_plane);
+
+  //auto& display_plane = Graphics::Core.DisplayPlane();
+
+
+  
+
   optional_system_->Render(draw_context);
 
-  auto& display_plane = Graphics::Core.DisplayPlane();
+
  
   //PostProcess::DoF.Render(display_plane, 5);
   //draw_context.CopyBuffer(display_plane, PostProcess::DoF.DoFBuffer());

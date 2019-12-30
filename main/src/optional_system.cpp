@@ -63,7 +63,7 @@ void ForwardShading::OnRender(GraphicsContext& context) {
   context.SetScissorRects(&Graphics::Core.ScissorRect());
   context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-  context.ClearColor(display_plane);
+  //  context.ClearColor(display_plane);
   context.ClearDepthStencil(Graphics::Core.DepthBuffer());
   context.SetRenderTargets(1, &Graphics::Core.DisplayPlane().Rtv(), Graphics::Core.DepthBuffer().DSV());
 
@@ -95,8 +95,8 @@ void DeferredShading::Initialize() {
   std::vector<D3D12_INPUT_ELEMENT_DESC> input_layout =
   {
     { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-  { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-  { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
   };
 
   SamplerDesc default_sampler;
@@ -109,10 +109,6 @@ void DeferredShading::Initialize() {
   pass1_signature_.Finalize();
 
   pass1_pso_.SetInputLayout(input_layout.data(), (UINT)input_layout.size());
-  //deferred_pass1_pso_.SetVertexShader(reinterpret_cast<BYTE*>(deferred_pass1_vs->GetBufferPointer()),
-  //  (UINT)deferred_pass1_vs->GetBufferSize());
-  //deferred_pass1_pso_.SetPixelShader(reinterpret_cast<BYTE*>(deferred_pass1_ps->GetBufferPointer()),
-  //  (UINT)deferred_pass1_ps->GetBufferSize());
   pass1_pso_.SetVertexShader(deferred_pass1_vs);
   pass1_pso_.SetPixelShader(deferred_pass1_ps);
 
@@ -202,7 +198,7 @@ void DeferredShading::OnRender(GraphicsContext& context) {
   context.TransitionResource(Graphics::Core.DepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
   context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-  context.ClearColor(display_plane);
+  //  context.ClearColor(display_plane);
 
 //  pass2 start
 
@@ -385,8 +381,8 @@ void DeferredLighting::Initialize() {
 void DeferredLighting::OnRender(GraphicsContext& context) {
   auto& display_plane = Graphics::Core.DisplayPlane();
   //  pass1 start
-  context.SetViewports(&Graphics::Core.ViewPort());
-  context.SetScissorRects(&Graphics::Core.ScissorRect());
+  //context.SetViewports(&Graphics::Core.ViewPort());
+  //context.SetScissorRects(&Graphics::Core.ScissorRect());
   context.TransitionResource(normal_buffer_, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   context.ClearColor(normal_buffer_);
 
@@ -468,7 +464,7 @@ void DeferredLighting::OnRender(GraphicsContext& context) {
 
   context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   context.SetRenderTargets(1, &display_plane.Rtv(), Graphics::Core.DepthBuffer().DSV());
-  context.ClearColor(display_plane);
+  //  context.ClearColor(display_plane);
 
   context.SetPipelineState(pass3_pso_);
   context.SetRootSignature(pass3_signature_);

@@ -101,13 +101,6 @@ void LoadConfig(const string& filename) {
     iss_line.clear();
   }
   fin.close();
-
-  //fin >> type >> name >> LightArea;
-  //fin >> name >> LightHeight;
-  //fin >> name >> ObjectArea;
-  //fin >> name >> ObjectCount;
-
-  //fin >> name >> UseDeferred;
 }
 
 };

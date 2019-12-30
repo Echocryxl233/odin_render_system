@@ -123,7 +123,8 @@ uint32_t DynamicDescriptorHeap::DescriptorHandleCache::ComputeStagedSize() {
 
     uint32_t max_staled_size;
     assert(_BitScanReverse((unsigned long*)&max_staled_size, bitmap)
-      && "Root entry has marked as stale but has no staled descriptor");
+      && "Root entry has marked as stale but has no staled descriptor" 
+      && "maybe you forgot to set root signature");
 
     need_space += max_staled_size + 1;
   }

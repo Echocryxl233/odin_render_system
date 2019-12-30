@@ -31,14 +31,63 @@ void Texture::CreateDeriveView() {
   Graphics::Core.Device()->CreateShaderResourceView(resource_.Get(), &srv_desc, srv_handle_);
 }
 
-Texture* TextureManager::RequestTexture(const wstring& filename) {
+void CubeTexture::CreateDeriveView() {
+  assert(resource_ != nullptr);
+
+  D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+  srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+  srv_desc.Format = resource_->GetDesc().Format;
+  srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+  srv_desc.TextureCube.MostDetailedMip = 0;
+  srv_desc.TextureCube.MipLevels = resource_->GetDesc().MipLevels;
+  srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+  srv_handle_ = DescriptorAllocatorManager::Instance().Allocate(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+  Graphics::Core.Device()->CreateShaderResourceView(resource_.Get(), &srv_desc, srv_handle_);
+}
+
+
+Texture* TextureManager::RequestTexture(const wstring& filename, D3D12_SRV_DIMENSION type) {
   auto iter = texture_pool_.find(filename);
 
   if (iter != texture_pool_.end()) {
     return iter->second;
   } 
 
-  Texture* texture = new Texture();
+  Texture* texture; // = new Texture();
+  switch (type)
+  {
+  case D3D12_SRV_DIMENSION_UNKNOWN:
+    break;
+  case D3D12_SRV_DIMENSION_BUFFER:
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURE1D:
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURE1DARRAY:
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURE2D: 
+    texture = new Texture();
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURE2DARRAY:
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURE2DMS:
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY:
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURE3D:
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURECUBE:
+    texture = new CubeTexture();
+    break;
+  case D3D12_SRV_DIMENSION_TEXTURECUBEARRAY:
+    break;
+  case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
+    break;
+  default:
+    break;
+  }
+
   texture->Create(filename);
   texture_pool_.emplace(filename, texture);
 

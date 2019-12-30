@@ -2,6 +2,11 @@
 primery code about DX12 with beginning
 just for learning
 
+2019-12-30
+1. Cube texture
+2. Skybox
+3. Game settings configure modification
+
 2019-12-11
 1. Deferred lighting for 4 passes
 2. Simple render group, render queue
