@@ -41,3 +41,4 @@ cbuffer cbPassConstant : register(b2) {
   Light Lights[MaxLights];
 };
 
+

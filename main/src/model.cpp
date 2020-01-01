@@ -4,8 +4,10 @@
 #include "model.h"
 #include "texture_manager.h"
 
+
 using namespace DebugUtility;
 using namespace std;
+using namespace Graphics::Geometry;
 
 void Model::LoadFromFile(const string& filename) {
   ifstream fin(filename);
@@ -18,11 +20,23 @@ void Model::LoadFromFile(const string& filename) {
   }
 
   string ignore;
-  string meshname;
 
-  fin >> ignore >> meshname;
+  string load_type;
 
-  mesh_ = MeshManager::Instance().LoadFromFile(meshname);
+  fin >> ignore >> load_type;
+
+  if (load_type == "file") {
+    string meshname;
+    fin >> meshname;
+    mesh_ = MeshManager::Instance().LoadFromFile(meshname);
+  }
+  else if (load_type == "sphere") {
+    float radius = 1.0f;
+    int slice_count = 10;
+    int stack_count = 10;
+    fin >> radius >> slice_count >> stack_count;
+    mesh_ = MeshManager::Instance().CreateSphere(radius, slice_count, stack_count);
+  }
 
   fin >> ignore >> ignore >> ignore;
 
@@ -53,6 +67,15 @@ void Model::LoadFromFile(const string& filename) {
   fin.close();
 
   name = filename;
+}
+
+void Model::CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount) {
+  mesh_ = MeshManager::Instance().CreateSphere(radius, sliceCount, stackCount);
+  material_.DiffuseAlbedo = {1.0f, 1.0f, 1.0f, 1.0f};
+  material_.FresnelR0 = { 1.0f, 1.0f, 1.0f };
+  material_.MatTransform = MathHelper::Identity4x4();
+  XMMATRIX matTransform = XMLoadFloat4x4(&material_.MatTransform);
+  XMStoreFloat4x4(&material_.MatTransform, XMMatrixTranspose(matTransform));
 }
 
 void Mesh::LoadMesh(const string& filename) {
@@ -148,6 +171,25 @@ Mesh* MeshManager::LoadFromFile(const string& filename) {
   mesh_pool_.emplace(filename, mesh);
 
   return mesh_pool_[filename];
+}
+
+Mesh* MeshManager::CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount) {
+  string name = std::to_string(radius);
+  name += "_";
+  name += std::to_string(sliceCount);
+  name += "_";
+  name += std::to_string(stackCount);
+
+  map<string, Mesh*>::iterator it = mesh_pool_.find(name);
+  if (it != mesh_pool_.end()) {
+    return it->second;
+  }
+
+  auto mesh_data = GeometryGenerator::Instance().CreateSphere(radius, sliceCount, stackCount);
+  Mesh* mesh = new Mesh();
+  mesh->LoadMeshData(mesh_data);
+  mesh_pool_.emplace(name, mesh);
+  return mesh;
 }
 
 void Mesh::LoadFromObj(const string& filename) {
@@ -278,3 +320,29 @@ void Mesh::LoadFromObj(const string& filename) {
   index_buffer_.Create(L"Index Buffer",
     (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
 }
+
+void Mesh::LoadMeshData(const GeometryGenerator::MeshData& mesh_data) {
+  vector<Vertex> vertices(mesh_data.Vertices.size());
+  for (int i = 0; i < mesh_data.Vertices.size(); ++i) {
+    Vertex& vertex = vertices[i];
+    vertex.Position = mesh_data.Vertices[i].Position;
+    vertex.Normal = mesh_data.Vertices[i].Normal;
+    vertex.TexCoord = mesh_data.Vertices[i].TexC;
+  }
+  
+  std::vector<std::uint16_t> indices = const_cast<GeometryGenerator::MeshData&>(mesh_data).GetIndices16();
+
+  vertex_buffer_.Create(L"Generic Sphere Vertex", (uint32_t)vertices.size(), sizeof(Vertex), vertices.data());
+  index_buffer_.Create(L"Generic Sphere Index", (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
+}
+
+//void Mesh::CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount) {
+//  
+//  LoadMeshData(mesh_data);
+//}
+void Mesh::CreateQuad(float x, float y, float w, float h, float depth) {
+  auto mesh_data = GeometryGenerator::Instance().CreateQuad(x, y, w, h, depth);
+  LoadMeshData(mesh_data);
+}
+
+

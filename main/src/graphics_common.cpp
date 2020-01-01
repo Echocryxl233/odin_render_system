@@ -3,7 +3,8 @@
 #include "game_setting.h"
 #include "render_queue.h"
 #include "mesh_geometry.h"
-
+#include "sampler_manager.h"
+#include "graphics_core.h"
 
 
 namespace Graphics {
@@ -94,7 +95,7 @@ void InitRenderQueue() {
   RenderGroup* group1 = new RenderGroup(RenderGroupType::RenderGroupType::kOpaque);
   for (int i = 0; i < object_count; ++i) {
     RenderObject* ro = new RenderObject();
-    ro->LoadFromFile("models/skull_full.txt");
+    ro->LoadFromFile("models/sphere_full.txt");
 
     ro->Position().x = (float)uniform_position(random_engine);
     ro->Position().y = (float)uniform_height(random_engine);
@@ -112,7 +113,7 @@ void InitRenderQueue() {
   RenderGroup* group2 = new RenderGroup(RenderGroupType::RenderGroupType::kOpaque2);
   for (int i = 0; i < object_count; ++i) {
     RenderObject* ro = new RenderObject();
-    ro->LoadFromFile("models/skull_full_1.txt");
+    ro->LoadFromFile("models/sphere_full.txt");
 
     ro->Position().x = (float)uniform_position(random_engine);
     ro->Position().y = (float)uniform_height(random_engine);
@@ -174,24 +175,6 @@ void UpdateConstants() {
 
   //DebugUtility::Log(L"eye position = (%0, %1, %2)", to_wstring(MainConstants.EyePosition.x),
   //    to_wstring(MainConstants.EyePosition.y), to_wstring(MainConstants.EyePosition.z));
-}
-
-void CreateQuad(float x, float y, float w, float h, float depth,
-    GpuBuffer& vertex_buffer, GpuBuffer& index_buffer) {
-
-  auto mesh_data = GeometryGenerator::Instance().CreateQuad(x, y, w, h, depth);
-  vector<Vertex> vertices(mesh_data.Vertices.size());
-  for (int i = 0; i < mesh_data.Vertices.size(); ++i) {
-    Vertex& vertex = vertices[i];
-    vertex.Position = mesh_data.Vertices[i].Position;
-    vertex.Normal = mesh_data.Vertices[i].Normal;
-    vertex.TexCoord = mesh_data.Vertices[i].TexC;
-  }
-
-  std::vector<std::uint16_t> indices = mesh_data.GetIndices16();
-
-  vertex_buffer.Create(L"Vertex Buffer", (uint32_t)vertices.size(), sizeof(Vertex), vertices.data());
-  index_buffer.Create(L"Index Buffer", (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
 }
 
 }

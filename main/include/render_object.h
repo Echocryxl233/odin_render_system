@@ -13,13 +13,12 @@ using namespace GameCore;
 class RenderObject {
  public:
   void LoadFromFile(const string& filename);
+  void CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount);
 
   Model& GetModel() { return model_;}
   ObjectConstants& GetObjConst() { return constants_; }
 
   XMFLOAT3& Position() { return position_; }
-
-  //  void Position(float x, float y, float z) ;
 
   void Update(const GameTimer& gt);
 
@@ -29,7 +28,6 @@ class RenderObject {
   Model model_;
   ObjectConstants constants_;
   XMFLOAT3 position_;
-
 };
 
 //inline void RenderObject::Position(float x, float y, float z) {

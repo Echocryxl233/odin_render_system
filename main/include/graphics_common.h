@@ -8,6 +8,7 @@
 #include "gpu_resource.h"
 #include "mesh_geometry.h"
 #include "render_queue.h"
+#include "pipeline_state.h"
 
 namespace Graphics {
 
@@ -22,8 +23,6 @@ void InitializeCommonState();
 void InitializeLights();
 void InitRenderQueue();
 void UpdateConstants();
-void CreateQuad(float x, float y, float w, float h, float depth, 
-    GpuBuffer& vertex_buffer, GpuBuffer& index_buffer);
 
 };
 

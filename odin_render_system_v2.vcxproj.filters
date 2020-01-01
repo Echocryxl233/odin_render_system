@@ -126,7 +126,7 @@
     <ClCompile Include="main\src\mesh_geometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main\src\sky_box.cpp">
+    <ClCompile Include="main\src\skybox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -257,7 +257,7 @@
     <ClInclude Include="main\include\singleton.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\sky_box.h">
+    <ClInclude Include="main\include\skybox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

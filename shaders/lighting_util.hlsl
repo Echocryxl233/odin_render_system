@@ -18,6 +18,8 @@ struct Material
     float Shininess;
 };
 
+// Schlick approximation F0 is the only parameter that controls Fresnel reflectance (see pg. 321 "Real-Time Rendering 4th Ed.").
+// R0 = ((n-1) / (n+1))^2, formula 9.17
 float3 SchlickFresnel(float3 fresnelR0, float3 normal, float3 light_direction) {
     float cos_incident_angle = saturate(dot(normal, light_direction));
     float f0 = 1.0f - cos_incident_angle;

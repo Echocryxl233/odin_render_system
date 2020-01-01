@@ -1,9 +1,9 @@
-#include "sky_box.h"
+#include "skybox.h"
 #include "mesh_geometry.h"
 #include "sampler_manager.h"
 #include "graphics_core.h"
 #include "graphics_common.h"
-#include "texture_manager.h"
+
 #include "game_setting.h"
 
 namespace Graphics {
@@ -12,22 +12,28 @@ namespace SkyBox {
 
 using namespace Geometry;
 
-ByteAddressBuffer index_buffer_;
-StructuredBuffer vertex_buffer_;
+//ByteAddressBuffer index_buffer_;
+//StructuredBuffer vertex_buffer_;
+
+Texture* SkyBoxTexture;
+
+Mesh* mesh_sphere_;
 
 GraphicsPso pso_;
 RootSignature signature_;
 
 ObjectConstants constant_;
-Texture* sky_box_texture_;
+//  Texture* sky_box_texture_;
 Material material_;
 
 
-void InitBuffers();
+//void InitBuffers();
 void InitPso();
 
 void Initialize() {
-  InitBuffers();
+  //  InitBuffers();
+  mesh_sphere_ = MeshManager::Instance().CreateSphere(1.0f, 20, 20);
+
   InitPso();
 
   constant_.World = MathHelper::Identity4x4();
@@ -38,29 +44,13 @@ void Initialize() {
   XMMATRIX matTransform = XMLoadFloat4x4(&material_.MatTransform);
   XMStoreFloat4x4(&material_.MatTransform, XMMatrixTranspose(matTransform));
 
-  sky_box_texture_ = TextureManager::Instance().RequestTexture(w_texture_name, 
+  SkyBoxTexture = TextureManager::Instance().RequestTexture(w_texture_name,
     D3D12_SRV_DIMENSION::D3D12_SRV_DIMENSION_TEXTURECUBE);
 }
 
-void InitBuffers() {
-  auto mesh_data = GeometryGenerator::Instance().CreateSphere(1.0f, 20, 20);
-  vector<Vertex> vertices(mesh_data.Vertices.size());
-  for (int i = 0; i < mesh_data.Vertices.size(); ++i) {
-    Vertex& vertex = vertices[i];
-    vertex.Position = mesh_data.Vertices[i].Position;
-    vertex.Normal = mesh_data.Vertices[i].Normal;
-    vertex.TexCoord = mesh_data.Vertices[i].TexC;
-  }
-
-  std::vector<std::uint16_t> indices = mesh_data.GetIndices16();
-
-  vertex_buffer_.Create(L"SkyBox Vertex", (uint32_t)vertices.size(), sizeof(Vertex), vertices.data());
-  index_buffer_.Create(L"SkyBox Index", (uint32_t)indices.size(), sizeof(uint16_t), indices.data());
-}
-
 void InitPso() {
-  auto sky_vs = d3dUtil::CompileShader(L"shaders/sky_box.hlsl", nullptr, "VS", "vs_5_1");
-  auto sky_ps = d3dUtil::CompileShader(L"shaders/sky_box.hlsl", nullptr, "PS", "ps_5_1");
+  auto sky_vs = d3dUtil::CompileShader(L"shaders/skybox.hlsl", nullptr, "VS", "vs_5_1");
+  auto sky_ps = d3dUtil::CompileShader(L"shaders/skybox.hlsl", nullptr, "PS", "ps_5_1");
 
   std::vector<D3D12_INPUT_ELEMENT_DESC> input_layout =
   {
@@ -76,7 +66,7 @@ void InitPso() {
   signature_[0].InitAsConstantBufferView(0, 0);
   signature_[1].InitAsConstantBufferView(1, 0);
   signature_[2].InitAsConstantBufferView(2, 0);
-  signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+  signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
 
   signature_.Finalize();
 
@@ -120,14 +110,12 @@ void Render(GraphicsContext& context, ColorBuffer& display_plane) {
   //  context.SetDynamicConstantBufferView(0, sizeof(material_), &material_);
   context.SetDynamicConstantBufferView(2, sizeof(PassConstant), &Graphics::MainConstants);
   
-  context.SetDynamicDescriptors(3, 0, 1, &sky_box_texture_->SrvHandle());
+  context.SetDynamicDescriptors(3, 0, 1, &SkyBoxTexture->SrvHandle());
 
-  context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
-  context.SetIndexBuffer(index_buffer_.IndexBufferView());
+  context.SetVertexBuffer(mesh_sphere_->VertexBuffer().VertexBufferView());
+  context.SetIndexBuffer(mesh_sphere_->IndexBuffer().IndexBufferView());
   context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
- 
-  //context.Finish(true);
+  context.DrawIndexedInstanced(mesh_sphere_->IndexBuffer().ElementCount(), 1, 0, 0, 0);
 }
 
 }

@@ -2,6 +2,10 @@
 primery code about DX12 with beginning
 just for learning
 
+2020-01-01
+1. IBL:environment lighting
+2. Sphere render object config
+
 2019-12-30
 1. Cube texture
 2. Skybox

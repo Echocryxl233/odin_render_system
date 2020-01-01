@@ -52,13 +52,8 @@ class RenderSystem {
   float mSunTheta = 1.25f * XM_PI;
   float mSunPhi = XM_PI; //  XM_PIDIV4
 
-  //ObjectConstants objConstants;
+
   PassConstant    pass_constant_;
-  //  Material car_material_;
-
-  //  unique_ptr<TempTexture> car_texture_;
-
-  //  XMFLOAT3 eye_pos_;
 
   POINT mLastMousePos;
 
@@ -67,6 +62,8 @@ class RenderSystem {
 //  -------------  for debug plane
   ByteAddressBuffer debug_index_buffer_;
   StructuredBuffer debug_vertex_buffer_;
+  Mesh debug_mesh_;
+
   RootSignature debug_signature_;
   GraphicsPso   debug_pso_;
 //  ----------------  end debug plane

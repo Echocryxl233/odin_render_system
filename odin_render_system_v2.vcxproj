@@ -53,7 +53,7 @@
     <ClCompile Include="main\src\render_system.cpp" />
     <ClCompile Include="main\src\root_signature.cpp" />
     <ClCompile Include="main\src\sampler_manager.cpp" />
-    <ClCompile Include="main\src\sky_box.cpp" />
+    <ClCompile Include="main\src\skybox.cpp" />
     <ClCompile Include="main\src\ssao.cpp" />
     <ClCompile Include="main\src\texture_manager.cpp" />
     <ClCompile Include="main\src\utility.cpp" />
@@ -98,7 +98,7 @@
     <ClInclude Include="main\include\root_signature.h" />
     <ClInclude Include="main\include\sampler_manager.h" />
     <ClInclude Include="main\include\singleton.h" />
-    <ClInclude Include="main\include\sky_box.h" />
+    <ClInclude Include="main\include\skybox.h" />
     <ClInclude Include="main\include\ssao.h" />
     <ClInclude Include="main\include\texture_manager.h" />
     <ClInclude Include="main\include\utility.h" />

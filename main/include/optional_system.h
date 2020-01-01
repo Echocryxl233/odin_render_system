@@ -42,9 +42,9 @@ class DeferredBase : public OptionalSystem {
  public :
   void Initialize() override;
  protected : 
-  StructuredBuffer vertex_buffer_;
-  ByteAddressBuffer index_buffer_;
-  
+  //StructuredBuffer vertex_buffer_;
+  //ByteAddressBuffer index_buffer_;
+  Mesh mesh_quad_;
 };
 
 class DeferredShading : public DeferredBase {

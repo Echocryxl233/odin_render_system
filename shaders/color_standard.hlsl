@@ -2,7 +2,8 @@
 
 Texture2D    gDiffuseMap : register(t0);
 Texture2D    gDiffuseMap2 : register(t1);
-// Texture2D    gSsapMap : register(t0, space2);
+TextureCube skyCubeMap : register(t0, space2);
+
 SamplerState gsamLinear  : register(s0);
 
 struct VertexIn {
@@ -27,8 +28,9 @@ VertexOut VS(VertexIn vin) {
 
   vout.Position = mul(posW, ViewProj);
   //  vout.Color = vin.Color;
-  float4 Normal = mul(float4(vin.Normal, 1.0f), gWorld);
-  vout.Normal = Normal.xyz;
+  float4 Normal = mul(float4(vin.Normal, 0.0f), gWorld);
+  vout.Normal = normalize(Normal.xyz);
+  // vout.Normal = mul(vin.Normal, (float3x3)gWorld);
   float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), MatTransform);
   vout.TexC = texC.xy;
 
@@ -38,8 +40,8 @@ VertexOut VS(VertexIn vin) {
 
 float4 PS(VertexOut pin) : SV_Target
 {
-  float4 diffuseAlbedo = gDiffuseMap.Sample(gsamLinear, pin.TexC) * DiffuseAlbedo;
-  // float4 diffuseAlbedo = gSsapMap.Sample(gsamLinear, pin.TexC) * DiffuseAlbedo;
+  float4 diffuse_albedo = gDiffuseMap.Sample(gsamLinear, pin.TexC) * DiffuseAlbedo;
+  // float4 diffuse_albedo = gSsapMap.Sample(gsamLinear, pin.TexC) * DiffuseAlbedo;
 
   pin.Normal = normalize(pin.Normal);
 
@@ -56,10 +58,10 @@ float4 PS(VertexOut pin) : SV_Target
 #endif
 
 // Indirect lighting.
-  float4 ambient = AmbientLight * diffuseAlbedo * ambient_access;
+  float4 ambient = AmbientLight * diffuse_albedo * ambient_access;
 
   const float shininess = 1.0f - Roughness;
-  Material mat = { diffuseAlbedo, FresnelR0, shininess };
+  Material mat = { diffuse_albedo, FresnelR0, shininess };
   float3 shadowFactor = 1.0f;
 
    // float3 direct_light = ComputeDirectLight(Lights[0], toEyeW, pin.Normal, mat);
@@ -73,13 +75,16 @@ float4 PS(VertexOut pin) : SV_Target
   }
 #endif
 
-  //  float4 directLight = 
+  float4 litColor = float4(point_light, 0.0f);
 
-  // float3 point_light = ComputePointLight(Lights[1], pin.PosW, toEyeW, pin.Normal, mat);
+  float3 reflection_dir = reflect(-toEyeW, pin.Normal);
 
-  float4 litColor =  float4(point_light.xyz, 1.0f); //  ambient +
+  float4 reflection_color = skyCubeMap.Sample(gsamLinear, reflection_dir);
+  float3 reflect_factor = SchlickFresnel(FresnelR0, pin.Normal, reflection_dir);
+  float3 env_light = shininess * reflect_factor * reflection_color;
 
-  litColor.a = diffuseAlbedo.a;
+  litColor.rgb += env_light.xyz;
+  litColor.a = diffuse_albedo.a;
 
   return litColor;
 }

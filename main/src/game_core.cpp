@@ -8,7 +8,7 @@
 #include "game_setting.h"
 #include "graphics_common.h"
 #include "render_queue.h"
-#include "sky_box.h"
+#include "skybox.h"
 
 
 

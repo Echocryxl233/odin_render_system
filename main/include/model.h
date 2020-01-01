@@ -3,10 +3,12 @@
 #include "light.h"
 #include "utility.h"
 #include "gpu_buffer.h"
+#include "mesh_geometry.h"
 
 using namespace Lighting;
 using namespace DirectX;
 using namespace std;
+using namespace Graphics::Geometry;
 
 struct Vertex
 {
@@ -55,14 +57,20 @@ class Model;
 class Mesh {
 friend class MeshManager;
 friend class Model;
+
  public:
   StructuredBuffer& VertexBuffer() { return vertex_buffer_; }
   ByteAddressBuffer& IndexBuffer() { return index_buffer_; }
 
   void LoadFromObj(const string& filename);
 
+  //  void CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount);
+  void CreateQuad(float x, float y, float w, float h, float depth);
+
  private:
   void LoadMesh(const string& filename);
+
+  void LoadMeshData(const GeometryGenerator::MeshData& data);
 
   StructuredBuffer vertex_buffer_;
   ByteAddressBuffer index_buffer_;
@@ -76,6 +84,7 @@ class MeshManager {
   }
 
   Mesh* LoadFromFile(const string& filename);
+  Mesh* CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount);
 
 private:
   map<string, Mesh*> mesh_pool_;
@@ -84,6 +93,8 @@ private:
 class Model {
  public:
   void LoadFromFile(const string& filename);
+
+  void CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount);
 
   Mesh* GetMesh() const { return mesh_; }
   Material& GetMaterial() { return material_; }

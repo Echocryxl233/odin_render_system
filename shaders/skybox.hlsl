@@ -11,7 +11,7 @@ struct VertexOut {
     float3 PosL : POSITION;
 };
 
-TextureCube skyCubeMap : register(t0);
+TextureCube skyCubeMap : register(t0, space2);
 SamplerState gsamLinearWrap : register(s0);
 
 VertexOut VS(VertexIn vin) {

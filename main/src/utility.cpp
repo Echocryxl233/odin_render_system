@@ -64,7 +64,6 @@ Microsoft::WRL::ComPtr<ID3D12Resource> d3dUtil::CreateDefaultBuffer(
     // the command list has not been executed yet that performs the actual copy.
     // The caller can Release the uploadBuffer after it knows the copy has been executed.
 
-
     return defaultBuffer;
 }
 
@@ -86,8 +85,10 @@ ComPtr<ID3DBlob> d3dUtil::CompileShader(
 	hr = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 		entrypoint.c_str(), target.c_str(), compileFlags, 0, &byteCode, &errors);
 
-	if(errors != nullptr)
+	if(errors != nullptr) {
 		OutputDebugStringA((char*)errors->GetBufferPointer());
+    DebugUtility::Log(L"CompileShader Error filename = '%0'", filename);
+  }
 
 	ThrowIfFailed(hr);
 

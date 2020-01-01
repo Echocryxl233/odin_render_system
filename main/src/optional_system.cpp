@@ -3,6 +3,7 @@
 #include "graphics_common.h"
 #include "mesh_geometry.h"
 #include "model.h"
+#include "skybox.h"
 
 namespace Graphics {
 
@@ -14,7 +15,7 @@ void OptionalSystem::SetRenderQueue(RenderQueue* queue) {
 
 void OptionalSystem::Render(GraphicsContext& context) {
   OnRender(context);
-  context.Flush();
+  //context.Flush();
 }
 
 void ForwardShading::Initialize() {
@@ -69,6 +70,8 @@ void ForwardShading::OnRender(GraphicsContext& context) {
 
   context.SetPipelineState(graphics_pso_);
   context.SetRootSignature(root_signature_);
+
+  context.SetDynamicDescriptors(4, 0, 1, &Graphics::SkyBox::SkyBoxTexture->SrvHandle());
   
   auto begin = render_queue_->Begin();
 
@@ -80,11 +83,11 @@ void ForwardShading::OnRender(GraphicsContext& context) {
       (*it_obj)->Render(context);
     }
   }
-  
 }
 
 void DeferredBase::Initialize() {
-  Graphics::CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f, vertex_buffer_, index_buffer_);
+  //  Graphics::CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f, vertex_buffer_, index_buffer_);
+  mesh_quad_.CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f);
 }
 
 void DeferredShading::Initialize() {
@@ -219,10 +222,11 @@ void DeferredShading::OnRender(GraphicsContext& context) {
 
   context.SetDynamicDescriptors(3, 0, _countof(handles), handles);
 
-  context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
-  context.SetIndexBuffer(index_buffer_.IndexBufferView());
+  
+  context.SetVertexBuffer(mesh_quad_.VertexBuffer().VertexBufferView());
+  context.SetIndexBuffer(mesh_quad_.IndexBuffer().IndexBufferView());
   context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
+  context.DrawIndexedInstanced(mesh_quad_.IndexBuffer().ElementCount(), 1, 0, 0, 0);
 }
 
 
@@ -350,13 +354,13 @@ void DeferredLighting::Initialize() {
   //};
 
 
-  pass4_signature_.Reset(4, 1);
+  pass4_signature_.Reset(5, 1);
   pass4_signature_.InitSampler(0, default_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
   pass4_signature_[0].InitAsConstantBufferView(0, 0);
   pass4_signature_[1].InitAsConstantBufferView(1, 0);
   pass4_signature_[2].InitAsConstantBufferView(2, 0);
   pass4_signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-  //pass4_signature_[4].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+  pass4_signature_[4].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
   pass4_signature_.Finalize();
 
   pass4_pso_.SetInputLayout(input_layout.data(), (UINT)input_layout.size());
@@ -448,10 +452,10 @@ void DeferredLighting::OnRender(GraphicsContext& context) {
 
   context.SetDynamicDescriptors(3, 0, _countof(handles), handles);
 
-  context.SetVertexBuffer(vertex_buffer_.VertexBufferView());
-  context.SetIndexBuffer(index_buffer_.IndexBufferView());
+  context.SetVertexBuffer(mesh_quad_.VertexBuffer().VertexBufferView());
+  context.SetIndexBuffer(mesh_quad_.IndexBuffer().IndexBufferView());
   context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  context.DrawIndexedInstanced(index_buffer_.ElementCount(), 1, 0, 0, 0);
+  context.DrawIndexedInstanced(mesh_quad_.IndexBuffer().ElementCount(), 1, 0, 0, 0);
 
   ////  pass3 start
 

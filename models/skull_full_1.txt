@@ -1,4 +1,4 @@
-mesh:  meshes/skull.txt
+mesh: file meshes/skull.txt
 material:
 {
     DiffuseAlbedo: 1.0 1.0 1.0 1.0

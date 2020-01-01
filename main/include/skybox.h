@@ -8,6 +8,7 @@
 #include "model.h"
 #include "command_context.h"
 #include "pipeline_state.h"
+#include "texture_manager.h"
 
 namespace Graphics {
 
@@ -15,6 +16,9 @@ namespace SkyBox {
 
 void Initialize();
 void Render(GraphicsContext& context, ColorBuffer& display_plane);
+
+extern Texture* SkyBoxTexture;
+
 
 }
 

@@ -14,7 +14,7 @@
 #include "model.h"
 #include "math_helper.h"
 #include "sampler_manager.h"
-#include "sky_box.h"
+#include "skybox.h"
 
 
 using namespace GameCore;
@@ -34,11 +34,13 @@ void RenderSystem::Initialize() {
   deferred_lighting_->Initialize();
   deferred_lighting_->SetRenderQueue(&Graphics::MainQueue);
 
-  optional_system_ = deferred_lighting_;
+  optional_system_ = forward_shading_;
 
   BuildDebugPso();
-  Graphics::CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 
-      debug_vertex_buffer_, debug_index_buffer_);
+  
+  debug_mesh_.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+  //Graphics::CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 
+  //    debug_vertex_buffer_, debug_index_buffer_);
   ssao_.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
 
 
@@ -85,16 +87,11 @@ void RenderSystem::RenderScene() {
 
   //auto& display_plane = Graphics::Core.DisplayPlane();
 
-
-  
-
   optional_system_->Render(draw_context);
 
-
- 
   //PostProcess::DoF.Render(display_plane, 5);
   //draw_context.CopyBuffer(display_plane, PostProcess::DoF.DoFBuffer());
-  DrawDebug(draw_context);
+  //  DrawDebug(draw_context);
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_PRESENT, true);
 
   draw_context.Finish(true);
@@ -137,8 +134,8 @@ void RenderSystem::BuildDebugPso() {
 void RenderSystem::DrawDebug(GraphicsContext& context) {
   auto& display_plane = Graphics::Core.DisplayPlane();
 
-  context.SetViewports(&Graphics::Core.ViewPort());
-  context.SetScissorRects(&Graphics::Core.ScissorRect());
+  //context.SetViewports(&Graphics::Core.ViewPort());
+  //context.SetScissorRects(&Graphics::Core.ScissorRect());
   context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   
   context.SetRenderTarget(&Graphics::Core.DisplayPlane().Rtv());
@@ -148,9 +145,9 @@ void RenderSystem::DrawDebug(GraphicsContext& context) {
   D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { Graphics::Core.GetMrtBuffer(1).Srv() };
   context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 
-  context.SetVertexBuffer(debug_vertex_buffer_.VertexBufferView());
-  context.SetIndexBuffer(debug_index_buffer_.IndexBufferView());
+  context.SetVertexBuffer(debug_mesh_.VertexBuffer().VertexBufferView());
+  context.SetIndexBuffer(debug_mesh_.IndexBuffer().IndexBufferView());
   context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  context.DrawIndexedInstanced(debug_index_buffer_.ElementCount(), 1, 0, 0, 0);
-  context.Flush();
+  context.DrawIndexedInstanced(debug_mesh_.IndexBuffer().ElementCount(), 1, 0, 0, 0);
+  //context.Flush();
 }
