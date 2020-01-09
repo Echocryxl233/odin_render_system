@@ -76,6 +76,7 @@
     <ClInclude Include="main\include\dynamic_descriptor_heap.h" />
     <ClInclude Include="main\include\depth_of_field.h" />
     <ClInclude Include="main\include\file_utility.h" />
+    <ClInclude Include="main\include\game_include.h" />
     <ClInclude Include="main\include\game_setting.h" />
     <ClInclude Include="main\include\game_timer.h" />
     <ClInclude Include="main\include\game_core.h" />

@@ -2,14 +2,22 @@
 
 #include "command_context.h"
 #include "graphics_core.h"
+#include "graphics_common.h"
 #include "math_helper.h"
 #include "sampler_manager.h"
 #include "ssao.h"
 #include "utility.h"
+#include "game_include.h"
 
+
+namespace GI {
+
+namespace AO {
 
 using namespace DirectX;
 using namespace DirectX::PackedVector;
+
+Ssao MainSsao;
 
 
 void Ssao::Initialize(UINT width, UINT height) {
@@ -221,15 +229,15 @@ void Ssao::EndRender(GraphicsContext& context) {
   //  context.TransitionResource(normal_map_1, D3D12_RESOURCE_STATE_GENERIC_READ, true);
 }
 
-void Ssao::ComputeAo(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj) {
+void Ssao::ComputeAoInternal(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj) {
   XMMATRIX proj_matrix = XMLoadFloat4x4(&proj);
   XMMATRIX inv_proj_matrix = XMMatrixInverse(&XMMatrixDeterminant(proj_matrix), proj_matrix);
 
   XMStoreFloat4x4(&ssao_constants_.Proj, XMMatrixTranspose(proj_matrix));
   XMStoreFloat4x4(&ssao_constants_.InvProj, XMMatrixTranspose(inv_proj_matrix));
   XMStoreFloat4x4(&ssao_constants_.ProjTex, XMMatrixTranspose(proj_matrix * Ssao::kTextureTransform));
-  ssao_constants_.InvRenderTargetSize = {1.0f / width_, 1.0f / height_};
-  
+  ssao_constants_.InvRenderTargetSize = { 1.0f / width_, 1.0f / height_ };
+
   auto gauss_weight = GetGaussWeight(2.5f);
 
   ssao_constants_.BlurWeights[0] = XMFLOAT4(&gauss_weight[0]);
@@ -242,9 +250,9 @@ void Ssao::ComputeAo(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& pro
   ssao_constants_.OcclusionFadeStart = 0.2f;
   ssao_constants_.OcclusionFadeEnd = 1.0f;
   ssao_constants_.SurfaceEpsilon = 0.05f;
-  
-  context.SetViewports(&viewport_);
-  context.SetScissorRects(&scissor_rect_);
+
+  //context.SetViewports(&viewport_);
+  //context.SetScissorRects(&scissor_rect_);
 
   ColorBuffer* buffer = &ambient_map_0_;
 
@@ -259,7 +267,7 @@ void Ssao::ComputeAo(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& pro
 
   context.SetRoot32BitConstant(1, 1, 0);
 
-  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = {  normal_map_.Srv(), depth_buffer_.DepthSRV() }; 
+  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { normal_map_.Srv(), depth_buffer_.DepthSRV() };
   context.SetDynamicDescriptors(2, 0, _countof(handles), handles);
 
   context.SetVertexBuffers(0, 0, nullptr);
@@ -267,12 +275,46 @@ void Ssao::ComputeAo(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& pro
   context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   context.DrawInstanced(6, 1, 0, 0);
   context.TransitionResource(*buffer, D3D12_RESOURCE_STATE_GENERIC_READ, true);
-  context.Flush(true);
+  //  context.Flush(true);
 
-  for (int i=0; i<5; ++i) {
-    BlurAmbientMap(context, false);
-    BlurAmbientMap(context, true);
+}
+
+void Ssao::ComputeAo() {
+  GraphicsContext& context = GraphicsContext::Begin(L"SSAO Context");
+
+  XMFLOAT4X4& view = GameCore::MainCamera.View4x4f();
+  XMFLOAT4X4& proj = GameCore::MainCamera.Proj4x4f();
+
+  BeginRender(context, view, proj);
+  auto begin = Graphics::MainQueue.Begin();
+  for (auto it = begin; it != Graphics::MainQueue.End(); ++it) {
+
+    auto group_begin = it->second->Begin();
+    auto group_end = it->second->End();
+    for (auto it_obj = group_begin; it_obj != group_end; ++it_obj) {
+      //  (*it_obj)->Render(context);
+      auto& model = (*it_obj)->GetModel();
+      auto& obj_constant = (*it_obj)->GetObjConst();
+      context.SetDynamicConstantBufferView(0, sizeof(obj_constant), &obj_constant);
+      context.SetVertexBuffer(model.GetMesh()->VertexBuffer().VertexBufferView());
+      context.SetIndexBuffer(model.GetMesh()->IndexBuffer().IndexBufferView());
+
+      //  context.SetDynamicDescriptors(3, 0, model.TextureCount(), model.TextureData());
+      context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+      context.DrawIndexedInstanced(model.GetMesh()->IndexBuffer().ElementCount(), 1, 0, 0, 0);
+    }
   }
+
+  EndRender(context);
+
+  ComputeAoInternal(context, view, proj);
+
+  int iterate_count = GameSetting::GetIntValue("SsaoBlurIterateCount");
+  for (int i = 0; i < iterate_count; ++i) {
+    //  BlurAmbientMap(context, false);
+    //  BlurAmbientMap(context, true);
+  }
+  context.Finish(true);
 }
 
 void Ssao::BlurAmbientMap(GraphicsContext& context, bool is_horizontal) {
@@ -284,8 +326,8 @@ void Ssao::BlurAmbientMap(GraphicsContext& context, bool is_horizontal) {
   context.SetRootSignature(ssao_root_signature_);
   context.SetPipelineState(blur_pso_);
   
-  context.SetViewports(&viewport_);
-  context.SetScissorRects(&scissor_rect_);
+  //context.SetViewports(&viewport_);
+  //context.SetScissorRects(&scissor_rect_);
 
   context.TransitionResource(*output_color, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   context.ClearColor(*output_color);
@@ -294,16 +336,16 @@ void Ssao::BlurAmbientMap(GraphicsContext& context, bool is_horizontal) {
   context.SetDynamicConstantBufferView(0, sizeof(SsaoConstants), &ssao_constants_);
   context.SetRoot32BitConstant(1, root_32bit, 0);
 
-
   D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { normal_map_.Srv(), depth_buffer_.DepthSRV(), input_color->Srv() }; 
   context.SetDynamicDescriptors(2, 0, _countof(handles), handles);
 
   context.SetVertexBuffers(0, 0, nullptr);
+
   context.SetNullIndexBuffer();
   context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   context.DrawInstanced(6, 1, 0, 0);
   context.TransitionResource(*output_color, D3D12_RESOURCE_STATE_GENERIC_READ, true);
-  context.Flush(true);
+  //  context.Flush(true);
 }
 
 vector<float> Ssao::GetGaussWeight(float sigma) {
@@ -367,5 +409,9 @@ void Ssao::BuildOffsetVectors()
 
     XMStoreFloat4(&offsets_[i], v);
   }
+}
+
+}
+
 }
 

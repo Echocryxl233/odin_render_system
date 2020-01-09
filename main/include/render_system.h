@@ -26,7 +26,7 @@ class RenderSystem {
   void OnResize(UINT width, UINT height) {
     this->width = width;
     this->height = height;
-    ssao_.Resize(width, height);
+    //  ssao_.Resize(width, height);
     if (optional_system_ != nullptr) {
       optional_system_->OnResize(width, height);
     }
@@ -57,7 +57,7 @@ class RenderSystem {
 
   POINT mLastMousePos;
 
-  Ssao ssao_;
+  //Ssao ssao_;
 
 //  -------------  for debug plane
   ByteAddressBuffer debug_index_buffer_;

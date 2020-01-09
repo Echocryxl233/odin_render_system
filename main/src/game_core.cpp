@@ -9,6 +9,7 @@
 #include "graphics_common.h"
 #include "render_queue.h"
 #include "skybox.h"
+#include "ssao.h"
 
 
 
@@ -31,6 +32,8 @@ bool CreateMainWindow();
 void CalculateFrameStats();
 
 
+
+
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 {
   switch( message )
@@ -41,8 +44,10 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 
         if (width == 0 || height == 0)
           break;
-
+      
         Graphics::Core.OnResize(width, height);
+        Graphics::ResizeBuffers(width, height);
+        GI::AO::MainSsao.Resize(width, height);
         PostProcess::DoF.OnResize(width, height);
           render_system->OnResize(width, height);
       }
@@ -100,6 +105,8 @@ void Initialize(RenderSystem& rs) {
   GameSetting::LoadConfig("config.txt");
   CreateMainWindow();
   Graphics::Core.Initialize(window);
+  Graphics::InitCommonBuffers();
+  GI::AO::MainSsao.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
   InitMainCamera();
   main_camera_controller_.reset(new CameraController(MainCamera, 
       XMFLOAT3(0.0f, 1.0f, 0.0f)));
@@ -143,7 +150,7 @@ int UpdateGame(RenderSystem& rs) {
 
 
       Update();
-      //  rs.Update();
+      GI::AO::MainSsao.ComputeAo();
       rs.RenderScene();
       Graphics::Core.Present();
       CalculateFrameStats();

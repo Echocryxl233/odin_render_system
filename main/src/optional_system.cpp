@@ -4,6 +4,8 @@
 #include "mesh_geometry.h"
 #include "model.h"
 #include "skybox.h"
+#include "ssao.h"
+#include "game_setting.h"
 
 namespace Graphics {
 
@@ -15,11 +17,19 @@ void OptionalSystem::SetRenderQueue(RenderQueue* queue) {
 
 void OptionalSystem::Render(GraphicsContext& context) {
   OnRender(context);
+
+  OnOptionalPass(context);
   //context.Flush();
 }
 
 void ForwardShading::Initialize() {
-  auto color_vs = d3dUtil::CompileShader(L"shaders/color_standard.hlsl", nullptr, "VS", "vs_5_1");
+  D3D_SHADER_MACRO ssao_macro[] = {
+    "SSAO", "1", NULL, NULL
+  };
+
+  D3D_SHADER_MACRO* macro = GameSetting::GetBoolValue("UseSsao") ? ssao_macro : nullptr;;
+
+  auto color_vs = d3dUtil::CompileShader(L"shaders/color_standard.hlsl", macro, "VS", "vs_5_1");
   auto color_ps = d3dUtil::CompileShader(L"shaders/color_standard.hlsl", nullptr, "PS", "ps_5_1");
 
   std::vector<D3D12_INPUT_ELEMENT_DESC> input_layout =
@@ -31,13 +41,14 @@ void ForwardShading::Initialize() {
 
   SamplerDesc default_sampler;
 
-  root_signature_.Reset(5, 1);
+  root_signature_.Reset(6, 1);
   root_signature_.InitSampler(0, default_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
   root_signature_[0].InitAsConstantBufferView(0, 0);
   root_signature_[1].InitAsConstantBufferView(1, 0);
   root_signature_[2].InitAsConstantBufferView(2, 0);
   root_signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
   root_signature_[4].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+  root_signature_[5].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 2, D3D12_SHADER_VISIBILITY_PIXEL);
   root_signature_.Finalize();
 
   graphics_pso_.SetInputLayout(input_layout.data(), (UINT)input_layout.size());
@@ -60,8 +71,8 @@ void ForwardShading::Initialize() {
 void ForwardShading::OnRender(GraphicsContext& context) {
   auto& display_plane = Graphics::Core.DisplayPlane();
 
-  context.SetViewports(&Graphics::Core.ViewPort());
-  context.SetScissorRects(&Graphics::Core.ScissorRect());
+  //context.SetViewports(&Graphics::Core.ViewPort());
+  //context.SetScissorRects(&Graphics::Core.ScissorRect());
   context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
   //  context.ClearColor(display_plane);
@@ -72,7 +83,8 @@ void ForwardShading::OnRender(GraphicsContext& context) {
   context.SetRootSignature(root_signature_);
 
   context.SetDynamicDescriptors(4, 0, 1, &Graphics::SkyBox::SkyBoxTexture->SrvHandle());
-  
+  auto& ssao_ambient_handle = const_cast<D3D12_CPU_DESCRIPTOR_HANDLE&>(GI::AO::MainSsao.AmbientMap().Srv());
+  context.SetDynamicDescriptors(5, 0, 1, &ssao_ambient_handle);
   auto begin = render_queue_->Begin();
 
   for (auto it = begin; it != render_queue_->End(); ++it) {
@@ -168,8 +180,8 @@ void DeferredShading::Initialize() {
 void DeferredShading::OnRender(GraphicsContext& context) {
   auto& display_plane = Graphics::Core.DisplayPlane();
 //  pass1 start
-  context.SetViewports(&Graphics::Core.ViewPort());
-  context.SetScissorRects(&Graphics::Core.ScissorRect());
+  //context.SetViewports(&Graphics::Core.ViewPort());
+  //context.SetScissorRects(&Graphics::Core.ScissorRect());
 
   for (int i=0; i< Graphics::Core.kMRTBufferCount; ++i) {
     context.TransitionResource(Graphics::Core.GetMrtBuffer(i), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
@@ -222,7 +234,6 @@ void DeferredShading::OnRender(GraphicsContext& context) {
 
   context.SetDynamicDescriptors(3, 0, _countof(handles), handles);
 
-  
   context.SetVertexBuffer(mesh_quad_.VertexBuffer().VertexBufferView());
   context.SetIndexBuffer(mesh_quad_.IndexBuffer().IndexBufferView());
   context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -354,13 +365,14 @@ void DeferredLighting::Initialize() {
   //};
 
 
-  pass4_signature_.Reset(5, 1);
+  pass4_signature_.Reset(6, 1);
   pass4_signature_.InitSampler(0, default_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
   pass4_signature_[0].InitAsConstantBufferView(0, 0);
   pass4_signature_[1].InitAsConstantBufferView(1, 0);
   pass4_signature_[2].InitAsConstantBufferView(2, 0);
   pass4_signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
   pass4_signature_[4].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+  pass4_signature_[5].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 2, D3D12_SHADER_VISIBILITY_PIXEL);
   pass4_signature_.Finalize();
 
   pass4_pso_.SetInputLayout(input_layout.data(), (UINT)input_layout.size());

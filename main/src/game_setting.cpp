@@ -8,6 +8,51 @@ namespace GameSetting {
 
 using namespace std;
 
+//class UniformValue {
+// public:
+//  explicit UniformValue(int value){
+//    value_.IValue = value;
+//  }
+//  union InternalValue {
+//    int IValue;
+//    float FValue;
+//    bool BValue;
+//    string SValue;
+//  };
+// private:
+//  InternalValue value_;
+//};
+//
+//
+//
+//class UniformMap {
+// public:
+//  void UpdateValue(const string& name, UniformValue value) {
+//    values_[name] = move(value);
+//  }
+//
+//  void UpdateValue(const string& name, int value) {
+//
+//  }
+//
+//  void UpdateValue(const string& name, float value) {
+//
+//  }
+//
+//  void UpdateValue(const string& name, bool value) {
+//
+//  }
+//
+//  void UpdateValue(const string& name, string value) {
+//
+//  }
+//
+// private:
+//  map<string, UniformValue> values_;
+//
+//};
+
+
 template<typename T>
 class KeyValuePair {
 public:

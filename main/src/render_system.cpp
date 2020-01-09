@@ -15,6 +15,7 @@
 #include "math_helper.h"
 #include "sampler_manager.h"
 #include "skybox.h"
+#include "ssao.h"
 
 
 using namespace GameCore;
@@ -41,7 +42,7 @@ void RenderSystem::Initialize() {
   debug_mesh_.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
   //Graphics::CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 
   //    debug_vertex_buffer_, debug_index_buffer_);
-  ssao_.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
+  //  ssao_.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
 
 
 
@@ -65,23 +66,10 @@ void RenderSystem::Update() {
 void RenderSystem::RenderScene() {
   GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
   auto& display_plane = Graphics::Core.DisplayPlane();
+  GI::AO::MainSsao.ComputeAo();
 
   draw_context.SetViewports(&Graphics::Core.ViewPort());
   draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
-
-  if (false) {
-    //ssao_.BeginRender(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
-    //{
-    //  draw_context.SetDynamicConstantBufferView(0, sizeof(objConstants), &objConstants);
-    //  draw_context.SetVertexBuffer(car_.GetMesh()->VertexBuffer().VertexBufferView());
-    //  draw_context.SetIndexBuffer(car_.GetMesh()->IndexBuffer().IndexBufferView());
-    //  draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    //  draw_context.DrawIndexedInstanced(car_.GetMesh()->IndexBuffer().ElementCount(), 1, 0, 0, 0);
-    //}
-    //ssao_.EndRender(draw_context);
-    //draw_context.Flush(true);
-    //ssao_.ComputeAo(draw_context, MainCamera.View4x4f(), MainCamera.Proj4x4f());
-  }
 
   Graphics::SkyBox::Render(draw_context, display_plane);
 
@@ -91,7 +79,7 @@ void RenderSystem::RenderScene() {
 
   //PostProcess::DoF.Render(display_plane, 5);
   //draw_context.CopyBuffer(display_plane, PostProcess::DoF.DoFBuffer());
-  //  DrawDebug(draw_context);
+  DrawDebug(draw_context);
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_PRESENT, true);
 
   draw_context.Finish(true);
@@ -142,7 +130,7 @@ void RenderSystem::DrawDebug(GraphicsContext& context) {
   context.SetRootSignature(debug_signature_);
   context.SetPipelineState(debug_pso_);
 
-  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { Graphics::Core.GetMrtBuffer(1).Srv() };
+  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { GI::AO::MainSsao.AmbientMap().Srv() };
   context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 
   context.SetVertexBuffer(debug_mesh_.VertexBuffer().VertexBufferView());

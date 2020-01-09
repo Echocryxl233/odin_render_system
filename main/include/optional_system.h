@@ -17,12 +17,15 @@ class OptionalSystem {
 
   virtual void Initialize() = 0;
   virtual void Render(GraphicsContext& context);
+  
   virtual void OnResize(uint32_t width, uint32_t height) {};
+  virtual void OnOptionalPass(GraphicsContext& context) {};
 
   void SetRenderQueue(RenderQueue* queue);
 
  protected :
   virtual void OnRender(GraphicsContext& context) = 0;
+
 
  protected :
   RenderQueue* render_queue_;
@@ -35,6 +38,8 @@ class ForwardShading : public OptionalSystem {
   ForwardShading() {};
   void Initialize() override;
   void OnRender(GraphicsContext& context) override;
+
+  
 
 };
 

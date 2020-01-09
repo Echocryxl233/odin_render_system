@@ -11,16 +11,18 @@ namespace Graphics {
   CD3DX12_DEPTH_STENCIL_DESC DepthStateDisabled;
   PassConstant MainConstants;
 
-  D3D12_BLEND_DESC BlendDisable;
   D3D12_BLEND_DESC BlendAdditional;
 
-  RenderQueue MainQueue;
+  RenderQueue MainQueue;  
+  ColorBuffer NormalMap;
 };
 
 namespace Graphics {
 
 using namespace GameCore;
 using namespace Geometry;
+
+const DXGI_FORMAT kNormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 const XMMATRIX kTextureTransform = {
   0.5f, 0.0f, 0.0f, 0.0f,
@@ -81,8 +83,15 @@ void InitializeLights() {
       //  to_string(i), to_string(light.Strength.x),
       //  to_string(light.Strength.y), to_string(light.Strength.z));
       //cout << format << endl;
-
     }
+}
+
+void InitCommonBuffers() {
+  NormalMap.Create(L"Common NormalMap", Core.Width(), Core.Height(), 1, kNormalMapFormat);
+}
+
+void ResizeBuffers(UINT width, UINT height) {
+  NormalMap.Create(L"Common NormalMap", Core.Width(), Core.Height(), 1, kNormalMapFormat);
 }
 
 void InitRenderQueue() {
@@ -168,7 +177,7 @@ void UpdateConstants() {
   XMStoreFloat4x4(&MainConstants.InvViewProj, XMMatrixTranspose(inv_view_proj));
   XMStoreFloat4x4(&MainConstants.ViewProjTex, XMMatrixTranspose(view_proj_tex));
 
-  MainConstants.AmbientLight = { 0.5f, 0.0f, 0.5f, 0.1f };
+  MainConstants.AmbientLight = { 1.0f, 1.0f, 1.0f, 0.5f };
   MainConstants.EyePosition = MainCamera.Position();
   MainConstants.ZNear = MainCamera.ZNear();
   MainConstants.ZFar = MainCamera.ZFar();

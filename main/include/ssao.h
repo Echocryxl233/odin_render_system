@@ -12,16 +12,20 @@
 using namespace std;
 using namespace DirectX;
 
-class Ssao {
- public :
-   const XMMATRIX kTextureTransform = {
-     0.5f, 0.0f, 0.0f, 0.0f,
-     0.0f, -0.5f, 0.0f, 0.0f,
-     0.0f, 0.0f, 1.0f, 0.0f,
-     0.5f, 0.5f, 0.0f, 1.0f,
-   };
+namespace GI {
 
- public :
+namespace AO {
+
+class Ssao {
+public:
+  const XMMATRIX kTextureTransform = {
+    0.5f, 0.0f, 0.0f, 0.0f,
+    0.0f, -0.5f, 0.0f, 0.0f,
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.5f, 0.5f, 0.0f, 1.0f,
+  };
+
+public:
 
   void Initialize(UINT width, UINT height);
 
@@ -30,28 +34,31 @@ class Ssao {
   void BeginRender(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj);
   void EndRender(GraphicsContext& context);
 
-  void ComputeAo(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj);
+  void ComputeAo();
+
+  
 
   ColorBuffer& NormalMap() { return normal_map_; }
   ColorBuffer& AmbientMap() { return ambient_map_0_; }
   ColorBuffer& AmbientMap1() { return ambient_map_1_; }
-  
+
 
   DepthStencilBuffer& DepthMap() { return depth_buffer_; }
 
   ColorBuffer& RandomMap() { return random_map_; }
 
- private:
+private:
   void BuildDrawNormalComponents();
   void BuildAmbientComponents();
 
   void BlurAmbientMap(GraphicsContext& context, bool is_horizontal);
+  void ComputeAoInternal(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj);
 
   vector<float> GetGaussWeight(float sigma);
 
   void BuildOffsetVectors();
 
- private:
+private:
   RootSignature draw_normal_root_signature_;
   GraphicsPso   draw_normal_pso_;
 
@@ -62,7 +69,7 @@ class Ssao {
   RootSignature blur_root_signature_;
   GraphicsPso   blur_pso_;
 
-  
+
 
   ColorBuffer normal_map_;
   ColorBuffer normal_map_1;
@@ -85,10 +92,10 @@ class Ssao {
 
   // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
   // NDC space is bottom to top, and texture space is up to down
-  
 
-  __declspec(align(16)) 
-  struct SsaoConstants
+
+  __declspec(align(16))
+    struct SsaoConstants
   {
     XMFLOAT4X4 Proj;
     XMFLOAT4X4 InvProj;
@@ -132,8 +139,14 @@ class Ssao {
   };
 
   SsaoConstants ssao_constants_;
-
 };
+
+extern Ssao MainSsao;
+
+}
+};
+
+
 
 #endif // !SSAO_H
 

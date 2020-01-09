@@ -260,5 +260,8 @@
     <ClInclude Include="main\include\skybox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="main\include\game_include.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

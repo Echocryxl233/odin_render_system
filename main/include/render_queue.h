@@ -28,6 +28,7 @@ public:
 
   vector<RenderObject*>::const_iterator Begin() { return group_.begin(); }
   vector<RenderObject*>::const_iterator End() { return group_.end(); }
+
  private:
   GroupType group_type_;
   vector<RenderObject*> group_;

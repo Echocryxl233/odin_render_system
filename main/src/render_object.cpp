@@ -29,6 +29,7 @@ void RenderObject::Render(GraphicsContext& context) {
   context.SetDynamicConstantBufferView(1, sizeof(model_.GetMaterial()), &model_.GetMaterial());
   context.SetDynamicConstantBufferView(2, sizeof(Graphics::MainConstants), &Graphics::MainConstants);
 
+
   context.SetVertexBuffer(model_.GetMesh()->VertexBuffer().VertexBufferView());
   context.SetIndexBuffer(model_.GetMesh()->IndexBuffer().IndexBufferView());
 

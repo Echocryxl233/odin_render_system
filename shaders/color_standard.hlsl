@@ -2,7 +2,8 @@
 
 Texture2D    gDiffuseMap : register(t0);
 Texture2D    gDiffuseMap2 : register(t1);
-TextureCube skyCubeMap : register(t0, space2);
+TextureCube  skyCubeMap : register(t0, space2);
+Texture2D    gSsapMap : register(t1, space2);
 
 SamplerState gsamLinear  : register(s0);
 

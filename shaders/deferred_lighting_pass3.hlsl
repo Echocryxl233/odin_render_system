@@ -24,7 +24,7 @@ struct VertexOut {
     float3 Normal : NORMAL;
     float4 NormalH : POSITION1;
     float2 TexC : TEXCOORD;
-    float2 STexC : TEXCOORD1;
+    float2 STexC : TEXCOORD1;       //  screen-space texture coordinate
 };
 
 VertexOut VS(VertexIn vin)  {
