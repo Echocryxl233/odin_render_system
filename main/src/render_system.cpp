@@ -40,11 +40,6 @@ void RenderSystem::Initialize() {
   BuildDebugPso();
   
   debug_mesh_.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
-  //Graphics::CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 
-  //    debug_vertex_buffer_, debug_index_buffer_);
-  //  ssao_.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
-
-
 
   use_deferred = GameSetting::GetBoolValue("UseDeferred"); //  GameSetting::UseDeferred == 1;
   cout << "begin use_deferred : " << use_deferred << endl;
@@ -63,23 +58,24 @@ void RenderSystem::Update() {
   }
 }
 
-void RenderSystem::RenderScene() {
+void RenderSystem::Render() {
   GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
   auto& display_plane = Graphics::Core.DisplayPlane();
   GI::AO::MainSsao.ComputeAo();
 
-  draw_context.SetViewports(&Graphics::Core.ViewPort());
-  draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
-
-  Graphics::SkyBox::Render(draw_context, display_plane);
+  Graphics::SkyBox::Render(display_plane);
 
   //auto& display_plane = Graphics::Core.DisplayPlane();
 
-  optional_system_->Render(draw_context);
+  optional_system_->Render();
 
-  //PostProcess::DoF.Render(display_plane, 5);
-  //draw_context.CopyBuffer(display_plane, PostProcess::DoF.DoFBuffer());
+  if (GameSetting::GetBoolValue("UseDoF")) {
+    PostProcess::DoF.Render(display_plane, 5);
+
+  }
+
   DrawDebug(draw_context);
+
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_PRESENT, true);
 
   draw_context.Finish(true);
@@ -120,22 +116,25 @@ void RenderSystem::BuildDebugPso() {
 }
 
 void RenderSystem::DrawDebug(GraphicsContext& context) {
+  GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
+
   auto& display_plane = Graphics::Core.DisplayPlane();
 
-  //context.SetViewports(&Graphics::Core.ViewPort());
-  //context.SetScissorRects(&Graphics::Core.ScissorRect());
-  context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+  draw_context.SetViewports(&Graphics::Core.ViewPort());
+  draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
+  draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   
-  context.SetRenderTarget(&Graphics::Core.DisplayPlane().Rtv());
-  context.SetRootSignature(debug_signature_);
-  context.SetPipelineState(debug_pso_);
+  draw_context.SetRenderTarget(&Graphics::Core.DisplayPlane().Rtv());
+  draw_context.SetRootSignature(debug_signature_);
+  draw_context.SetPipelineState(debug_pso_);
 
   D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { GI::AO::MainSsao.AmbientMap().Srv() };
-  context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
+  draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 
-  context.SetVertexBuffer(debug_mesh_.VertexBuffer().VertexBufferView());
-  context.SetIndexBuffer(debug_mesh_.IndexBuffer().IndexBufferView());
-  context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  context.DrawIndexedInstanced(debug_mesh_.IndexBuffer().ElementCount(), 1, 0, 0, 0);
+  draw_context.SetVertexBuffer(debug_mesh_.VertexBuffer().VertexBufferView());
+  draw_context.SetIndexBuffer(debug_mesh_.IndexBuffer().IndexBufferView());
+  draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  draw_context.DrawIndexedInstanced(debug_mesh_.IndexBuffer().ElementCount(), 1, 0, 0, 0);
   //context.Flush();
+  draw_context.Finish();
 }

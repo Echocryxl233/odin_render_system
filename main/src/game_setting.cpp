@@ -119,13 +119,15 @@ void LoadConfig(const string& filename) {
   int value_int;
   float value_float;
   string value_string;
+  string bool_string;
   while (std::getline(fin, value_line)) {
     iss_line.str(value_line);
     iss_line >> type >> name;
 
     if (type == "Bool") {
-      iss_line >> value_int;
-      boolean_pairs_.AddPair(name, value_int);
+      iss_line >> bool_string;
+      bool bool_value = bool_string == "True" || bool_string == "true";
+      boolean_pairs_.AddPair(name, bool_value);
     }
     else if (type == "Float") {
 

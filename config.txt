@@ -5,8 +5,10 @@ Int ObjectCount 80
 
 Int SsaoBlurIterateCount 1
 
-Bool UseDeferred 1
-Bool UseSsao 0
+Bool UseDeferred False
+Bool UseSsao True
+Bool UseDoF True
+Bool EnableSkybox True
 
 Vector3 AmbientLight 1.0 1.0 1.0
 

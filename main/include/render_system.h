@@ -32,7 +32,7 @@ class RenderSystem {
     }
   }
 
-  void RenderScene();
+  void Render();
   void Update();
 
  private:

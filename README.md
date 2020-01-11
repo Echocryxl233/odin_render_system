@@ -2,6 +2,12 @@
 primery code about DX12 with beginning
 just for learning
 
+2020-01-12
+1. Clean up because of differences between graphics context and compute context
+
+2020-01-10
+1. Recover ssao without blur
+
 2020-01-01
 1. IBL:environment lighting
 2. Sphere render object config

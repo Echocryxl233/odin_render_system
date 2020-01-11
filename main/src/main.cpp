@@ -7,9 +7,9 @@ int main() {
     _CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
   #endif
   try {
-    RenderSystem* system = new RenderSystem();
-    GameCore::Run(*system);
-    delete system;
+
+    GameCore::Run();
+
 
     return 0;
   }

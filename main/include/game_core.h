@@ -12,11 +12,8 @@ namespace GameCore {
 class GameApp {
 
 };
-  
-extern long client_width_ ;
-extern long client_height_;
 
-void Run(RenderSystem& rs);
+void Run();
 
 };
 

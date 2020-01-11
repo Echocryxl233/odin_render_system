@@ -15,7 +15,7 @@ namespace Graphics {
 namespace SkyBox {
 
 void Initialize();
-void Render(GraphicsContext& context, ColorBuffer& display_plane);
+void Render(ColorBuffer& display_plane);
 
 extern Texture* SkyBoxTexture;
 

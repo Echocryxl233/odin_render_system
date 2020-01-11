@@ -15,11 +15,16 @@ void OptionalSystem::SetRenderQueue(RenderQueue* queue) {
   render_queue_ = queue;
 }
 
-void OptionalSystem::Render(GraphicsContext& context) {
-  OnRender(context);
+void OptionalSystem::Render() {
+  GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
+  auto& display_plane = Graphics::Core.DisplayPlane();
+  draw_context.SetViewports(&Graphics::Core.ViewPort());
+  draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
+  OnRender(draw_context);
 
-  OnOptionalPass(context);
+  OnOptionalPass(draw_context);
   //context.Flush();
+  draw_context.Finish();
 }
 
 void ForwardShading::Initialize() {

@@ -79,6 +79,7 @@ void DepthOfField::Render(ColorBuffer& input, int blur_count) {
   context.TransitionResource(Graphics::Core.DepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
   context.Finish(true);
   RenderInternal(input);
+  
 }
 
 void DepthOfField::Blur(ColorBuffer& input, int blur_count) {
@@ -163,7 +164,7 @@ void DepthOfField::RenderInternal(ColorBuffer& input) {
   context.SetDynamicDescriptors(2, 0, _countof(handles2), handles2);
 
   context.Dispatch(width_, height_, 1);
-
+  context.CopyBuffer(Graphics::Core.DisplayPlane(), PostProcess::DoF.DoFBuffer());
   context.Finish(true);
 }
 

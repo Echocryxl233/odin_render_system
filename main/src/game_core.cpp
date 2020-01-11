@@ -16,18 +16,18 @@
 
 namespace GameCore {
 
-RenderSystem* render_system;
+//  RenderSystem* render_system;
 
 long client_width_ = 800;
 long client_height_ = 600;
 HWND  window;
 
-POINT mLastMousePos;
+POINT last_mouse_pos_;
 std::auto_ptr<CameraController> main_camera_controller_;
+RenderSystem* render_system;
 
 
-
-int UpdateGame(RenderSystem& rs);
+int UpdateGame();
 bool CreateMainWindow();
 void CalculateFrameStats();
 
@@ -49,7 +49,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         Graphics::ResizeBuffers(width, height);
         GI::AO::MainSsao.Resize(width, height);
         PostProcess::DoF.OnResize(width, height);
-          render_system->OnResize(width, height);
+        render_system->OnResize(width, height);
       }
 
       break;
@@ -72,16 +72,16 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
       int x = GET_X_LPARAM(lParam);
       int y = GET_Y_LPARAM(lParam);
 
-      float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
-      float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
+      float dx = XMConvertToRadians(0.25f * static_cast<float>(x - last_mouse_pos_.x));
+      float dy = XMConvertToRadians(0.25f * static_cast<float>(y - last_mouse_pos_.y));
 
       if ((btnState & MK_LBUTTON) != 0) {
         main_camera_controller_->Pitch(dy);
         main_camera_controller_->RotateY(dx);
       }
 
-      mLastMousePos.x = x;
-      mLastMousePos.y = y;
+      last_mouse_pos_.x = x;
+      last_mouse_pos_.y = y;
     
       return 0;
     }
@@ -100,8 +100,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 
 
 
-void Initialize(RenderSystem& rs) {
+void Initialize() {
 //  cout << "sizeof(PassConstant) = " << sizeof(PassConstant) << endl;
+  MainTimer.Reset();
   GameSetting::LoadConfig("config.txt");
   CreateMainWindow();
   Graphics::Core.Initialize(window);
@@ -116,42 +117,39 @@ void Initialize(RenderSystem& rs) {
   Graphics::SkyBox::Initialize();
   cout << GameSetting::GetStringValue("SkyTexture") << endl;
 
-  rs.Initialize();
+  //  rs.Initialize();
+  render_system = new RenderSystem();
+  render_system->Initialize();
 
   ShowWindow(window, SW_SHOWDEFAULT);
 }
 
-void Run(RenderSystem& rs) {
-  MainTimer.Reset();
-  render_system = &rs;
-  Initialize(rs);
-  UpdateGame(rs);
+void Run() {
+  Initialize();
+  UpdateGame();
+  delete render_system;
 }
 
 void Update() {
   main_camera_controller_->Update(MainTimer);
-
   Graphics::UpdateConstants();
   Graphics::MainQueue.Update(MainTimer);
 }
 
 
-int UpdateGame(RenderSystem& rs) {
+int UpdateGame() {
   MSG msg = { 0 };
   //  timer_.Reset();
   while (msg.message != WM_QUIT) {
     if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
       TranslateMessage(&msg);
       DispatchMessage(&msg);
-
     }
     else {
       MainTimer.Tick();
-
-
       Update();
-      GI::AO::MainSsao.ComputeAo();
-      rs.RenderScene();
+
+      render_system->Render();
       Graphics::Core.Present();
       CalculateFrameStats();
       //  std::cout << "total time: " << MainTimer.TotalTime() << endl;

@@ -92,30 +92,31 @@ void InitPso() {
 }
 
 
-void Render(GraphicsContext& context, ColorBuffer& display_plane) {
-  //GraphicsContext& context = GraphicsContext::Begin(L"Draw Context");
+void Render(ColorBuffer& display_plane) {
+  GraphicsContext& draw_context = GraphicsContext::Begin(L"Skybox Context");
   //auto& display_plane = Graphics::Core.DisplayPlane();
-  //context.SetViewports(&Graphics::Core.ViewPort());
-  //context.SetScissorRects(&Graphics::Core.ScissorRect());
-  context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+  draw_context.SetViewports(&Graphics::Core.ViewPort());
+  draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
+  draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-  context.ClearColor(display_plane);
-  context.ClearDepthStencil(Graphics::Core.DepthBuffer());
+  draw_context.ClearColor(display_plane);
+  draw_context.ClearDepthStencil(Graphics::Core.DepthBuffer());
 
-  context.SetRenderTargets(1, &display_plane.Rtv(), Graphics::Core.DepthBuffer().DSV());
-  context.SetRootSignature(signature_);
-  context.SetPipelineState(pso_);
+  draw_context.SetRenderTargets(1, &display_plane.Rtv(), Graphics::Core.DepthBuffer().DSV());
+  draw_context.SetRootSignature(signature_);
+  draw_context.SetPipelineState(pso_);
 
-  context.SetDynamicConstantBufferView(0, sizeof(ObjectConstants), &constant_);
+  draw_context.SetDynamicConstantBufferView(0, sizeof(ObjectConstants), &constant_);
   //  context.SetDynamicConstantBufferView(0, sizeof(material_), &material_);
-  context.SetDynamicConstantBufferView(2, sizeof(PassConstant), &Graphics::MainConstants);
+  draw_context.SetDynamicConstantBufferView(2, sizeof(PassConstant), &Graphics::MainConstants);
   
-  context.SetDynamicDescriptors(3, 0, 1, &SkyBoxTexture->SrvHandle());
+  draw_context.SetDynamicDescriptors(3, 0, 1, &SkyBoxTexture->SrvHandle());
 
-  context.SetVertexBuffer(mesh_sphere_->VertexBuffer().VertexBufferView());
-  context.SetIndexBuffer(mesh_sphere_->IndexBuffer().IndexBufferView());
-  context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  context.DrawIndexedInstanced(mesh_sphere_->IndexBuffer().ElementCount(), 1, 0, 0, 0);
+  draw_context.SetVertexBuffer(mesh_sphere_->VertexBuffer().VertexBufferView());
+  draw_context.SetIndexBuffer(mesh_sphere_->IndexBuffer().IndexBufferView());
+  draw_context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+  draw_context.DrawIndexedInstanced(mesh_sphere_->IndexBuffer().ElementCount(), 1, 0, 0, 0);
+  draw_context.Finish(true);
 }
 
 }

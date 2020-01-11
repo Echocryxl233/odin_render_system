@@ -16,7 +16,7 @@ class OptionalSystem {
   virtual ~OptionalSystem() {};
 
   virtual void Initialize() = 0;
-  virtual void Render(GraphicsContext& context);
+  virtual void Render();
   
   virtual void OnResize(uint32_t width, uint32_t height) {};
   virtual void OnOptionalPass(GraphicsContext& context) {};
