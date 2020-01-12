@@ -63,11 +63,6 @@ void DepthOfField::ResizeBuffers(UINT width, UINT height, UINT mip_level, DXGI_F
     mip_level_ = mip_level;
     format_ = format;
 
-    blur_buffer_.Destroy();
-    color_buffer_.Destroy();
-    dof_buffer_.Destroy();
-    depth_buffer_.Destroy();
-
     blur_buffer_.Create(L"FoV Blur Map 00", width_, height_, 1, format);
     color_buffer_.Create(L"FoV Blur Map 01", width_, height_, 1, format);
     depth_buffer_.Create(L"DoF DepthBuffer", width_, height_, Graphics::Core.DepthStencilFormat);

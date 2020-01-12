@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef DEBUG_LOG
+//#define DEBUG_LOG
+#endif // !DEBUG_LOG
+
 #ifndef DESCRIPTORALLOCATOR_H
 #define DESCRIPTORALLOCATOR_H
 

@@ -1,6 +1,7 @@
 #include "graphics_utility.h"
 #include "pipeline_state.h"
 #include "command_context.h"
+#include "utility.h"
 
 namespace Graphics {
 
@@ -43,12 +44,12 @@ void Blur(ColorBuffer& input, int blur_count) {
 
   uint16_t mip_level = input.MipCount();
 
-  if (blur_buffer_0_.Width() != width || blur_buffer_0_.Height() != height ||
+  if (blur_buffer_0_.GetResource() == nullptr || blur_buffer_1_.GetResource()==nullptr ||
+      blur_buffer_0_.Width() != width || blur_buffer_0_.Height() != height ||
       blur_buffer_0_.MipCount() != mip_level || input.Format() != blur_buffer_0_.Format()) {
-    blur_buffer_0_.Destroy();
+
     blur_buffer_0_.Create(L"blur_map_00", width, height, input.MipCount(), input.Format());
-    
-    blur_buffer_1_.Destroy();
+   
     blur_buffer_1_.Create(L"blur_map_01", width, height, input.MipCount(), input.Format());
   }
 

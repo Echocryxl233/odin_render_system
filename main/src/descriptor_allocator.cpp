@@ -3,7 +3,9 @@
 #include "descriptor_allocator.h"
 #include "graphics_core.h"
 
-//  std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> DescriptorAllocator::allocaltor_pool_;
+
+
+
 
 DescriptorAllocatorManager::DescriptorAllocator::DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type)
     : type_(type), 
@@ -26,9 +28,11 @@ ID3D12DescriptorHeap* DescriptorAllocatorManager::DescriptorAllocator::RequestNe
   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap;
   ThrowIfFailed(device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(heap.GetAddressOf())));
   allocaltor_pool_.emplace_back(heap);
+#ifdef DEBUG_LOG
+  DebugUtility::Log(L"DescriptorAllocator::RequestNewHeap, type = %0, pool count %1",
+    to_wstring(type), to_wstring(allocaltor_pool_.size()));
+#endif // !DEBUG_LOG
 
-  DebugUtility::Log(L"DescriptorAllocator::RequestNewHeap, type = %0, pool count %1", 
-      to_wstring(type), to_wstring(allocaltor_pool_.size()));
   return heap.Get();
 }
 
@@ -48,20 +52,6 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocatorManager::DescriptorAllocator::All
   current_handle_.ptr += (descriptor_count * desciptor_size);
   return ret;
 }
-
-//ID3D12DescriptorHeap* DescriptorPool::RequestNewHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type) {
-//  D3D12_DESCRIPTOR_HEAP_DESC heap_desc;
-//  heap_desc.Type = type;
-//  heap_desc.NumDescriptors = DescriptorAllocator::kDescriptorCount;
-//  heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-//  heap_desc.NodeMask = 0;
-//
-//  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap;
-//  ThrowIfFailed(device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(heap.GetAddressOf())));
-//  allocaltor_pool_.emplace_back(heap);
-//
-//  return heap.Get();
-//}
 
 DescriptorAllocatorManager::DescriptorAllocatorManager() {
   int count = (int)D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;

@@ -6,12 +6,14 @@
 #include <array>
 
 #include <fstream>
+#include <iostream>
 #include <memory>
 #include <map>
-#include <string>
-#include <sstream>
 #include <queue>
 #include <random>
+#include <string>
+#include <sstream>
+
 #include <vector>
 #include <unordered_map>
 
