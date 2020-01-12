@@ -2,6 +2,8 @@
 #include "graphics_core.h"
 #include "command_context.h"
 #include "camera.h"
+#include "graphics_utility.h"
+#include "game_setting.h"
 
 namespace PostProcess {
 
@@ -16,8 +18,8 @@ void DepthOfField::Initialize() {
 
   auto format = Graphics::Core.BackBufferFormat;
   
-  blur_buffer_0_.Create(L"DoF Blur Map 00", width_, height_, 1, format);
-  unknown_buffer_.Create(L"DoF Blur Map 01", width_, height_, 1, format);
+  blur_buffer_.Create(L"DoF Blur Map 00", width_, height_, 1, format);
+  color_buffer_.Create(L"DoF Blur Map 01", width_, height_, 1, format);
   depth_buffer_.Create(L"DoF DepthBuffer", width_, height_, Graphics::Core.DepthStencilFormat);
 
   blur_root_signature_.Reset(3, 0);
@@ -52,102 +54,58 @@ void DepthOfField::Initialize() {
   dof_pso_.Finalize();
 }
 
-void DepthOfField::OnResize(UINT width, UINT height) {
-  if (width != width_ || height != height_) {
+void DepthOfField::ResizeBuffers(UINT width, UINT height, UINT mip_level, DXGI_FORMAT format) {
+  if (width != width_ || height != height_ ||
+      mip_level_ != mip_level || format != format_) {
+
     width_ = width;
     height_ = height;
+    mip_level_ = mip_level;
+    format_ = format;
 
-    blur_buffer_0_.Destroy();
-    unknown_buffer_.Destroy();
+    blur_buffer_.Destroy();
+    color_buffer_.Destroy();
     dof_buffer_.Destroy();
+    depth_buffer_.Destroy();
 
-    auto format = Graphics::Core.BackBufferFormat;
-
-    blur_buffer_0_.Create(L"FoV Blur Map 00", width_, height_, 1, format);
-    unknown_buffer_.Create(L"FoV Blur Map 01", width_, height_, 1, format);
+    blur_buffer_.Create(L"FoV Blur Map 00", width_, height_, 1, format);
+    color_buffer_.Create(L"FoV Blur Map 01", width_, height_, 1, format);
     depth_buffer_.Create(L"DoF DepthBuffer", width_, height_, Graphics::Core.DepthStencilFormat);
     dof_buffer_.Create(L"DoF Standard Map 00", width_, height_, 1, format);
   }
 
 }
 
-void DepthOfField::Render(ColorBuffer& input, int blur_count) {
+void DepthOfField::Render(ColorBuffer& input) {
 
-  Blur(input, blur_count);
+  ResizeBuffers(input.Width(), input.Height(), input.MipCount(), input.Format());
+
   auto& context = GraphicsContext::Begin(L"Blur Compute Context 1");
-  context.CopyBuffer(depth_buffer_, Graphics::Core.DepthBuffer());
-  context.TransitionResource(Graphics::Core.DepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+  context.CopyBuffer(blur_buffer_, input);
+  //  context.TransitionResource(Graphics::Core.DepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
   context.Finish(true);
+
+  int blur_count = GameSetting::GetIntValue("DofBlurIterateCount");
+  Graphics::Utility::Blur(blur_buffer_, blur_count);
+
   RenderInternal(input);
-  
-}
-
-void DepthOfField::Blur(ColorBuffer& input, int blur_count) {
-  auto weights = CalculateGaussWeights(2.5f);
-  UINT radius = (UINT)weights.size()/2;
-
-  auto& context = ComputeContext::Begin(L"Blur Compute Context 0");
-
-  context.SetRootSignature(blur_root_signature_);
-
-  context.SetRoot32BitConstants(0, 1, &radius, 0);
-  context.SetRoot32BitConstants(0, (int)weights.size(), weights.data(), 1);
-  
-  context.CopyBuffer(blur_buffer_0_, input);
-  ////  context.CopyBuffer(blur_buffer_1_, input);
-
-  context.TransitionResource(blur_buffer_0_, D3D12_RESOURCE_STATE_GENERIC_READ);
-  context.TransitionResource(unknown_buffer_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-
-  for (int i=0; i<blur_count; ++i) {
-    D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { blur_buffer_0_.Srv() };
-    D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { unknown_buffer_.Uav() };
-
-    context.SetPipelineState(horizontal_pso_);
-    context.SetDynamicDescriptors(1, 0, _countof(handles), handles);
-    context.SetDynamicDescriptors(2, 0, _countof(handles2), handles2);
-
-    UINT group_x_count = (UINT)ceilf(width_ /256.0f);
-    context.Dispatch(group_x_count, height_, 1);
-
-    context.CopyBuffer(blur_buffer_0_,  unknown_buffer_);
-
-    context.TransitionResource(blur_buffer_0_, D3D12_RESOURCE_STATE_GENERIC_READ);
-    context.TransitionResource(unknown_buffer_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-  }
-
-  for (int i=0; i<blur_count; ++i) {
-
-    D3D12_CPU_DESCRIPTOR_HANDLE handles3[] = { blur_buffer_0_.Srv() };
-    D3D12_CPU_DESCRIPTOR_HANDLE handles4[] = { unknown_buffer_.Uav() };
-
-    context.SetPipelineState(vertical_pso_);
-    context.SetDynamicDescriptors(1, 0, _countof(handles3), handles3);
-    context.SetDynamicDescriptors(2, 0, _countof(handles4), handles4);
-
-    UINT group_y_count = (UINT)ceilf(height_/256.0f);
-    context.Dispatch(width_, group_y_count, 1);
-
-    context.CopyBuffer(blur_buffer_0_,  unknown_buffer_);
-
-    context.TransitionResource(blur_buffer_0_, D3D12_RESOURCE_STATE_GENERIC_READ);
-    context.TransitionResource(unknown_buffer_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-  }
-
-  context.Finish(true);
 }
 
 void DepthOfField::RenderInternal(ColorBuffer& input) {
   auto& context = ComputeContext::Begin(L"DoF Compute Context 2");
+  context.CopyBuffer(depth_buffer_, Graphics::Core.DepthBuffer());
+  context.TransitionResource(Graphics::Core.DepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+
   context.SetRootSignature(dof_root_signature_);
 
-  context.CopyBuffer(unknown_buffer_, input);
-  context.TransitionResource(unknown_buffer_, D3D12_RESOURCE_STATE_GENERIC_READ);
-  context.TransitionResource(blur_buffer_0_, D3D12_RESOURCE_STATE_GENERIC_READ);
+  context.CopyBuffer(color_buffer_, input);
+  context.TransitionResource(color_buffer_, D3D12_RESOURCE_STATE_GENERIC_READ);
+  context.TransitionResource(blur_buffer_, D3D12_RESOURCE_STATE_GENERIC_READ);
   context.TransitionResource(depth_buffer_, D3D12_RESOURCE_STATE_GENERIC_READ);
   context.TransitionResource(dof_buffer_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
 
-  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { blur_buffer_0_.Srv(), depth_buffer_.DepthSRV(), unknown_buffer_.Srv() };
+  //  
+  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { blur_buffer_.Srv(), depth_buffer_.DepthSRV(), color_buffer_.Srv() };
   D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { dof_buffer_.Uav() };
 
   float focus = 10.0f;
@@ -164,33 +122,8 @@ void DepthOfField::RenderInternal(ColorBuffer& input) {
   context.SetDynamicDescriptors(2, 0, _countof(handles2), handles2);
 
   context.Dispatch(width_, height_, 1);
-  context.CopyBuffer(Graphics::Core.DisplayPlane(), PostProcess::DoF.DoFBuffer());
+  context.CopyBuffer(Graphics::Core.DisplayPlane(), dof_buffer_);
   context.Finish(true);
-}
-
-vector<float> DepthOfField::CalculateGaussWeights(float sigma) {
-  float two_sigma_sigma = 2.0f * sigma* sigma;
-
-  int blur_radius = (int)ceil(2.0f * sigma);
-
-  vector<float> weights(blur_radius*2 + 1);
-  float weight_sum = 0.0f;
-    
-  for (int i=-blur_radius; i<=blur_radius; ++i) {
-    float x = (float)i;
-    float weight = expf(-x*x / two_sigma_sigma);
-    //  weights.emplace_back(weight);
-
-    weights[i+blur_radius] = weight;
-
-    weight_sum += weight;
-  }
-
-  for (auto& weight : weights) {
-    weight/=weight_sum;
-  }
-
-  return weights;
 }
 
 };

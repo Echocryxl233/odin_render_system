@@ -45,7 +45,8 @@ void ColorBuffer::Create(wstring name, uint32_t width, uint32_t height, uint32_t
   //  memcpy(clear_value.Color, color_.Ptr(), sizeof(clear_value.Color));
   CreateTextureResource(name, desciptor, clear_value);
   CreateDeriveView(format, mips_count);
-  DebugUtility::Log(L"ColorBuffer::Create");
+  DebugUtility::Log(L"ColorBuffer::Create %0", name);
+  name_ = name;
 }
 
 void ColorBuffer::CreateDeriveView(DXGI_FORMAT format, uint32_t mips_count) {

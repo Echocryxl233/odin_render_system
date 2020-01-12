@@ -8,6 +8,7 @@
 #include "ssao.h"
 #include "utility.h"
 #include "game_include.h"
+#include "graphics_utility.h"
 
 
 namespace GI {
@@ -38,12 +39,12 @@ void Ssao::Resize(UINT width, UINT height) {
 
     viewport_.TopLeftX = 0.0f;
     viewport_.TopLeftY = 0.0f;
-    viewport_.Width = width / 2.0f;
-    viewport_.Height = height / 2.0f;
+    viewport_.Width = width ;
+    viewport_.Height = height;
     viewport_.MinDepth = 0.0f;
     viewport_.MaxDepth = 1.0f;
 
-    scissor_rect_ = { 0, 0, (int)width / 2, (int)height / 2 };
+    scissor_rect_ = { 0, 0, (int)width , (int)height  };
 
     normal_map_.Destroy();
     depth_buffer_.Destroy();
@@ -53,9 +54,9 @@ void Ssao::Resize(UINT width, UINT height) {
     normal_map_.Create(L"Ssao_Normal", width_, height_, 1, Ssao::kNormalMapFormat);
     depth_buffer_.Create(L"Ssao DepthBuffer", width_, height_, Graphics::Core.DepthStencilFormat);
 
-    ambient_map_0_.Create(L"Ssao_Ambient_Map_0", width_/2, height_/2, 1, Ssao::kNormalMapFormat);
+    ambient_map_0_.Create(L"Ssao_Ambient_Map_0", width_, height_, 1, Ssao::kNormalMapFormat);
 
-    ambient_map_1_.Create(L"Ssao_Ambient_Map_1", width_/2, height_/2, 1, Ssao::kNormalMapFormat);
+    ambient_map_1_.Create(L"Ssao_Ambient_Map_1", width_, height_, 1, Ssao::kNormalMapFormat);
 
     const uint32_t random_width = 64;
     const uint32_t random_height = 64;
@@ -197,8 +198,11 @@ void Ssao::BeginRender(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& p
 
   //  ColorBuffer* buffer = &ambient_map_0_;
 
-  context.SetViewports(&Graphics::Core.ViewPort());
-  context.SetScissorRects(&Graphics::Core.ScissorRect());
+  //context.SetViewports(&Graphics::Core.ViewPort());
+  //context.SetScissorRects(&Graphics::Core.ScissorRect());
+
+  context.SetViewports(&viewport_);
+  context.SetScissorRects(&scissor_rect_);
 
   context.TransitionResource(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
@@ -314,7 +318,10 @@ void Ssao::ComputeAo() {
     //  BlurAmbientMap(context, false);
     //  BlurAmbientMap(context, true);
   }
+  
   context.Finish(true);
+
+  Graphics::Utility::Blur(ambient_map_0_, iterate_count);
 }
 
 void Ssao::BlurAmbientMap(GraphicsContext& context, bool is_horizontal) {

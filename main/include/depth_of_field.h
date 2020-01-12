@@ -14,23 +14,24 @@ namespace PostProcess {
 class DepthOfField {
  public:
   void Initialize();
-  void OnResize(UINT width, UINT height);
 
-  void Render(ColorBuffer& input, int blur_count);
-  ColorBuffer& BlurBuffer() { return blur_buffer_0_; }
+
+  void Render(ColorBuffer& input);
+  ColorBuffer& BlurBuffer() { return blur_buffer_; }
   ColorBuffer& DoFBuffer() { return dof_buffer_; }
 
  private:
-  vector<float> CalculateGaussWeights(float sigma);
+  //  vector<float> CalculateGaussWeights(float sigma);
 
  private:
-  void Blur(ColorBuffer& input, int blur_count);
+  //  void Blur(ColorBuffer& input, int blur_count);
+  void ResizeBuffers(UINT width, UINT height, UINT mip_level, DXGI_FORMAT format);
   void RenderInternal(ColorBuffer& input);
 
 
  private:
-  ColorBuffer blur_buffer_0_;
-  ColorBuffer unknown_buffer_;
+  ColorBuffer blur_buffer_;
+  ColorBuffer color_buffer_;
   
   ColorBuffer dof_buffer_;
 
@@ -45,6 +46,8 @@ class DepthOfField {
 
   UINT width_;
   UINT height_;
+  UINT mip_level_;
+  DXGI_FORMAT format_;
 };
 
 extern DepthOfField DoF;

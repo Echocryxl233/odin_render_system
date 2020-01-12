@@ -41,6 +41,20 @@ void RenderSystem::Initialize() {
   
   debug_mesh_.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
 
+  int width = Graphics::Core.Width() / 2;
+  int height = Graphics::Core.Height() / 2;
+
+  screen_viewport_.TopLeftX = 0.5f;
+  screen_viewport_.TopLeftY = 0.5f;
+  screen_viewport_.Width = static_cast<float>(height);
+  screen_viewport_.Height = static_cast<float>(height);
+  screen_viewport_.MinDepth = 0.0f;
+  screen_viewport_.MaxDepth = 1.0f;
+
+  long x = (long)(0.5f * width);
+  long y = (long)(0.5f * height);
+
+  scissor_rect_ = { x, y, width, height };
   use_deferred = GameSetting::GetBoolValue("UseDeferred"); //  GameSetting::UseDeferred == 1;
   cout << "begin use_deferred : " << use_deferred << endl;
 };
@@ -70,8 +84,7 @@ void RenderSystem::Render() {
   optional_system_->Render();
 
   if (GameSetting::GetBoolValue("UseDoF")) {
-    PostProcess::DoF.Render(display_plane, 5);
-
+    PostProcess::DoF.Render(display_plane);
   }
 
   DrawDebug(draw_context);
@@ -128,6 +141,7 @@ void RenderSystem::DrawDebug(GraphicsContext& context) {
   draw_context.SetRootSignature(debug_signature_);
   draw_context.SetPipelineState(debug_pso_);
 
+  //  GI::AO::MainSsao.AmbientMap().Srv()
   D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { GI::AO::MainSsao.AmbientMap().Srv() };
   draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 

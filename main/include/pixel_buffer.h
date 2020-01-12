@@ -13,6 +13,10 @@ public:
   PixelBuffer();
   ~PixelBuffer();
 
+  uint32_t Width() const { return width_; }
+  uint32_t Height() const { return height_; }
+  DXGI_FORMAT Format() const { return format_; }
+
 protected:
   void AssoiateWithResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES state_usage);
 

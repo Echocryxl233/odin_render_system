@@ -10,6 +10,7 @@
 #include "render_queue.h"
 #include "skybox.h"
 #include "ssao.h"
+#include "graphics_utility.h"
 
 
 
@@ -48,7 +49,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         Graphics::Core.OnResize(width, height);
         Graphics::ResizeBuffers(width, height);
         GI::AO::MainSsao.Resize(width, height);
-        PostProcess::DoF.OnResize(width, height);
+        //PostProcess::DoF.OnResize(width, height);
         render_system->OnResize(width, height);
       }
 
@@ -115,6 +116,7 @@ void Initialize() {
   Graphics::InitRenderQueue();
   Graphics::InitializeLights();
   Graphics::SkyBox::Initialize();
+  Graphics::Utility::InitBlur();
   cout << GameSetting::GetStringValue("SkyTexture") << endl;
 
   //  rs.Initialize();

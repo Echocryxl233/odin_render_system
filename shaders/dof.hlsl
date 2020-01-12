@@ -19,7 +19,7 @@ groupshared float4 gCache[CacheSize];
 
 [numthreads(1, N, 1)]
 void DofCS(int3 groupThreadID : SV_GroupThreadID,
-				int3 dispatchThreadID : SV_DispatchThreadID)
+        int3 dispatchThreadID : SV_DispatchThreadID)
 {
     float depth = DepthMap[dispatchThreadID.xy];
     float objectDistance = -ZFar * ZNear / (depth * (ZFar - ZNear) - ZFar);

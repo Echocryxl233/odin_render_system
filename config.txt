@@ -3,7 +3,8 @@ Float LightHeight 8.0
 Float ObjectArea 15.0
 Int ObjectCount 80
 
-Int SsaoBlurIterateCount 1
+Int SsaoBlurIterateCount 5
+Int DofBlurIterateCount 3
 
 Bool UseDeferred False
 Bool UseSsao True

@@ -66,6 +66,9 @@ class RenderSystem {
 
   RootSignature debug_signature_;
   GraphicsPso   debug_pso_;
+
+  D3D12_VIEWPORT screen_viewport_;
+  D3D12_RECT scissor_rect_;
 //  ----------------  end debug plane
 
   Graphics::OptionalSystem* optional_system_;

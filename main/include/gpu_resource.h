@@ -31,6 +31,7 @@ friend class CommandContext;
 inline void GpuResource::Destroy() {
   //  assert(resource_ != nullptr);
   resource_.Reset();
+  DebugUtility::Log(L"GpuResource::Destroy, name = %0", name_);
 }
 
 #endif // !GPURESOURCE_H

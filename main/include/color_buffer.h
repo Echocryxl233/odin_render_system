@@ -25,6 +25,8 @@ class ColorBuffer : public PixelBuffer
   Color GetColor() const { return color_; }
   void SetColor(const Color& color) { color_ = color; }
 
+  uint32_t MipCount() const { return resource_->GetDesc().MipLevels; }
+
   //  D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorHandle() { return descriptor_handle_; }
 
  private:
@@ -54,6 +56,7 @@ class ColorBuffer : public PixelBuffer
   Color color_;
   uint32_t fragment_count_;
   uint32_t mips_count_;
+  bool create_from_swapchain_flag_;
 };
 
 #endif // !COLORBUFFER_H

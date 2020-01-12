@@ -22,6 +22,7 @@ void PixelBuffer::AssoiateWithResource(ID3D12Resource* resource, D3D12_RESOURCE_
   width_ = (uint32_t)resource_desc.Width;
   height_ = resource_desc.Height;
   format_ = resource_desc.Format;
+  
 }
 
 D3D12_RESOURCE_DESC PixelBuffer::DescribeTexture2D(uint32_t width, uint32_t height, DXGI_FORMAT format,
