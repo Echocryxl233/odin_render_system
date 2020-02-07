@@ -67,16 +67,25 @@ float4 PS(VertexOut pin) : SV_Target
 
    // float3 direct_light = ComputeDirectLight(Lights[0], toEyeW, pin.Normal, mat);
 
-  float3 point_light = 0.0f;
+
+  float3 direct_radiance = 0.0f;
   int i=0;
+#if NUM_DIR_LIGHTS
+  for (i=0; i<NUM_DIR_LIGHTS; ++i) {
+    direct_radiance += ComputeDirectLight(Lights[i], toEyeW, pin.Normal, mat);
+  }
+#endif
+
+  float3 point_light = 0.0f;
+
 #if NUM_POINT_LIGHTS
   // point_light += ComputePointLight(Lights[i], pin.PosW, toEyeW, pin.Normal, mat);
-  for (i=0; i<NUM_POINT_LIGHTS; ++i) {
+  for (i=NUM_DIR_LIGHTS; i<NUM_POINT_LIGHTS; ++i) {
     point_light += ComputePointLight(Lights[i], pin.PosW, toEyeW, pin.Normal, mat);
   }
 #endif
 
-  float4 litColor = float4(point_light, 0.0f);
+  float4 litColor = float4(direct_radiance + point_light, 0.0f);
 
   float3 reflection_dir = reflect(-toEyeW, pin.Normal);
 

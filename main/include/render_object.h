@@ -14,6 +14,7 @@ class RenderObject {
  public:
   void LoadFromFile(const string& filename);
   void CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount);
+  void CreateGrid(float width, float depth, std::uint32_t m, std::uint32_t n);
 
   Model& GetModel() { return model_;}
   ObjectConstants& GetObjConst() { return constants_; }

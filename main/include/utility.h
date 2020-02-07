@@ -49,7 +49,8 @@ const int kNumFrameResources = 3;
 
 const int kCubeMapSize = 512;
 
-const int kPointLightCount = 50;
+const int kDirectightCount = 1;
+const int kPointLightCount = 49;
 
 
 class DxException

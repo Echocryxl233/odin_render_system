@@ -9,6 +9,7 @@
 #include "utility.h"
 #include "game_include.h"
 #include "graphics_utility.h"
+#include "gi_utility.h"
 
 
 namespace GI {
@@ -37,19 +38,14 @@ void Ssao::Resize(UINT width, UINT height) {
     height_ = height;
     DebugUtility::Log(L"Ssao resize : width %0, height %1", to_wstring(width_), to_wstring(height_));
 
-    viewport_.TopLeftX = 0.0f;
-    viewport_.TopLeftY = 0.0f;
-    viewport_.Width = width ;
-    viewport_.Height = height;
-    viewport_.MinDepth = 0.0f;
-    viewport_.MaxDepth = 1.0f;
+    //viewport_.TopLeftX = 0.0f;
+    //viewport_.TopLeftY = 0.0f;
+    //viewport_.Width = width ;
+    //viewport_.Height = height;
+    //viewport_.MinDepth = 0.0f;
+    //viewport_.MaxDepth = 1.0f;
 
-    scissor_rect_ = { 0, 0, (int)width , (int)height  };
-
-    normal_map_.Destroy();
-    depth_buffer_.Destroy();
-    ambient_map_0_.Destroy();
-    ambient_map_1_.Destroy();
+    //scissor_rect_ = { 0, 0, (int)width , (int)height  };
 
     normal_map_.Create(L"Ssao_Normal", width_, height_, 1, Ssao::kNormalMapFormat);
     depth_buffer_.Create(L"Ssao DepthBuffer", width_, height_, Graphics::Core.DepthStencilFormat);
@@ -71,7 +67,7 @@ void Ssao::Resize(UINT width, UINT height) {
     //  }
     //}
 
-    random_map_.Create(L"Ssao_Random_Map", random_width, random_height, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
+    //random_map_.Create(L"Ssao_Random_Map", random_width, random_height, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
     //CommandContext::InitializeBuffer(random_map_, random_buffer, sizeof(XMCOLOR) * map_size);
   }
 }
@@ -171,67 +167,27 @@ void Ssao::BuildAmbientComponents() {
   ssao_pso_.SetRenderTargetFormat(Ssao::kNormalMapFormat, DXGI_FORMAT_UNKNOWN);
   ssao_pso_.Finalize();
 
-  auto ssao_blur_vs = d3dUtil::CompileShader(L"shaders/ssao_blur.hlsl", nullptr, "VS", "vs_5_1");
-  auto ssao_blur_ps = d3dUtil::CompileShader(L"shaders/ssao_blur.hlsl", nullptr, "PS", "ps_5_1");
+  //auto ssao_blur_vs = d3dUtil::CompileShader(L"shaders/ssao_blur.hlsl", nullptr, "VS", "vs_5_1");
+  //auto ssao_blur_ps = d3dUtil::CompileShader(L"shaders/ssao_blur.hlsl", nullptr, "PS", "ps_5_1");
 
-  //  blur_pso_.CopyDesc(ssao_pso_);
+  ////  blur_pso_.CopyDesc(ssao_pso_);
 
-  blur_pso_.SetVertexShader(reinterpret_cast<BYTE*>(ssao_blur_vs->GetBufferPointer()),
-    (UINT)ssao_blur_vs->GetBufferSize());
-  blur_pso_.SetPixelShader(reinterpret_cast<BYTE*>(ssao_blur_ps->GetBufferPointer()),
-    (UINT)ssao_blur_ps->GetBufferSize());
+  //blur_pso_.SetVertexShader(reinterpret_cast<BYTE*>(ssao_blur_vs->GetBufferPointer()),
+  //  (UINT)ssao_blur_vs->GetBufferSize());
+  //blur_pso_.SetPixelShader(reinterpret_cast<BYTE*>(ssao_blur_ps->GetBufferPointer()),
+  //  (UINT)ssao_blur_ps->GetBufferSize());
 
-  blur_pso_.SetRootSignature(ssao_root_signature_);
-  blur_pso_.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
-  blur_pso_.SetRasterizeState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
-  blur_pso_.SetDepthStencilState(Graphics::DepthStateDisabled);
-  blur_pso_.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-  blur_pso_.SetSampleMask(UINT_MAX);
-  blur_pso_.SetRenderTargetFormat(Ssao::kNormalMapFormat, DXGI_FORMAT_UNKNOWN);
+  //blur_pso_.SetRootSignature(ssao_root_signature_);
+  //blur_pso_.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
+  //blur_pso_.SetRasterizeState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
+  //blur_pso_.SetDepthStencilState(Graphics::DepthStateDisabled);
+  //blur_pso_.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+  //blur_pso_.SetSampleMask(UINT_MAX);
+  //blur_pso_.SetRenderTargetFormat(Ssao::kNormalMapFormat, DXGI_FORMAT_UNKNOWN);
 
-  blur_pso_.Finalize();
+  //blur_pso_.Finalize();
 }
 
-void Ssao::BeginRender(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj) {
-  ColorBuffer* buffer = &normal_map_;
-  //  ColorBuffer* buffer = &normal_map_1;
-
-  //  ColorBuffer* buffer = &ambient_map_0_;
-
-  //context.SetViewports(&Graphics::Core.ViewPort());
-  //context.SetScissorRects(&Graphics::Core.ScissorRect());
-
-  context.SetViewports(&viewport_);
-  context.SetScissorRects(&scissor_rect_);
-
-  context.TransitionResource(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-
-  context.ClearColor(*buffer);
-  context.ClearDepthStencil(depth_buffer_);
-  context.SetRenderTargets(1, &buffer->Rtv(), depth_buffer_.DSV());
-  context.SetRootSignature(draw_normal_root_signature_);
-  context.SetPipelineState(draw_normal_pso_);
-  
-  __declspec(align(16)) 
-  struct SsaoVsConstant {
-    XMFLOAT4X4 proj;
-    XMFLOAT4X4 view_proj;
-  } ssao_vs_constant;  
-  
-  XMMATRIX view_matrix = XMLoadFloat4x4(&view);
-  XMMATRIX proj_matrix = XMLoadFloat4x4(&proj);
-  XMMATRIX view_proj_matrix = XMMatrixMultiply(view_matrix, proj_matrix);
-  
-  XMStoreFloat4x4(&ssao_vs_constant.proj, XMMatrixTranspose(proj_matrix));
-  XMStoreFloat4x4(&ssao_vs_constant.view_proj, XMMatrixTranspose(view_proj_matrix));
-
-  context.SetDynamicConstantBufferView(1, sizeof(ssao_vs_constant), &ssao_vs_constant);
-}
-
-void Ssao::EndRender(GraphicsContext& context) {
-  context.TransitionResource(normal_map_, D3D12_RESOURCE_STATE_GENERIC_READ, true);
-  //  context.TransitionResource(normal_map_1, D3D12_RESOURCE_STATE_GENERIC_READ, true);
-}
 
 void Ssao::ComputeAoInternal(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj) {
   XMMATRIX proj_matrix = XMLoadFloat4x4(&proj);
@@ -284,32 +240,23 @@ void Ssao::ComputeAoInternal(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT
 }
 
 void Ssao::ComputeAo() {
-  GraphicsContext& context = GraphicsContext::Begin(L"SSAO Context");
-
-  XMFLOAT4X4& view = GameCore::MainCamera.View4x4f();
-  XMFLOAT4X4& proj = GameCore::MainCamera.Proj4x4f();
-
-  BeginRender(context, view, proj);
+  vector<RenderObject*> objects;
   auto begin = Graphics::MainQueue.Begin();
   for (auto it = begin; it != Graphics::MainQueue.End(); ++it) {
 
     auto group_begin = it->second->Begin();
     auto group_end = it->second->End();
     for (auto it_obj = group_begin; it_obj != group_end; ++it_obj) {
-      //  (*it_obj)->Render(context);
-      auto& model = (*it_obj)->GetModel();
-      auto& obj_constant = (*it_obj)->GetObjConst();
-      context.SetDynamicConstantBufferView(0, sizeof(obj_constant), &obj_constant);
-      context.SetVertexBuffer(model.GetMesh()->VertexBuffer().VertexBufferView());
-      context.SetIndexBuffer(model.GetMesh()->IndexBuffer().IndexBufferView());
-
-      //  context.SetDynamicDescriptors(3, 0, model.TextureCount(), model.TextureData());
-      context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-      context.DrawIndexedInstanced(model.GetMesh()->IndexBuffer().ElementCount(), 1, 0, 0, 0);
+      objects.push_back((*it_obj));
     }
   }
 
-  EndRender(context);
+  GraphicsContext& context = GraphicsContext::Begin(L"SSAO Context");
+
+  XMFLOAT4X4& view = GameCore::MainCamera.View4x4f();
+  XMFLOAT4X4& proj = GameCore::MainCamera.Proj4x4f();
+
+  GI::Utility::DrawNormalAndDepthMap(context, normal_map_, depth_buffer_, objects);
 
   ComputeAoInternal(context, view, proj);
 

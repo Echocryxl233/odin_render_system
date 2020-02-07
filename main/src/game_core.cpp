@@ -10,6 +10,7 @@
 #include "render_queue.h"
 #include "skybox.h"
 #include "ssao.h"
+#include "ssr.h"
 #include "graphics_utility.h"
 
 
@@ -49,6 +50,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         Graphics::Core.OnResize(width, height);
         Graphics::ResizeBuffers(width, height);
         GI::AO::MainSsao.Resize(width, height);
+        GI::Specular::MainSSR.OnResize(width, height);
         //PostProcess::DoF.OnResize(width, height);
         render_system->OnResize(width, height);
       }
@@ -109,6 +111,7 @@ void Initialize() {
   Graphics::Core.Initialize(window);
   Graphics::InitCommonBuffers();
   GI::AO::MainSsao.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
+  GI::Specular::MainSSR.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
   InitMainCamera();
   main_camera_controller_.reset(new CameraController(MainCamera, 
       XMFLOAT3(0.0f, 1.0f, 0.0f)));

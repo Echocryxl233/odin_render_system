@@ -1,6 +1,13 @@
 # Odin Render System
 primery code about DX12 with beginning
 just for learning
+VS 2017 Windows SDK 10.0.17763.0 or greater
+
+2020-02-07
+1. Clean up because of differences between graphics context and compute context.
+2. Extract the blur function as a utility function.
+3. Ssao with blur.
+
 
 2020-01-12
 1. Clean up because of differences between graphics context and compute context.

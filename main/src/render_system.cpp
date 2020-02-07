@@ -16,11 +16,15 @@
 #include "sampler_manager.h"
 #include "skybox.h"
 #include "ssao.h"
+#include "gi_utility.h"
+#include "ssr.h"
 
 
 using namespace GameCore;
 
 void RenderSystem::Initialize() {
+  GI::Utility::Initialize();
+
   DebugUtility::Log(L"RenderSystem::Initialize()");
 
   forward_shading_ = new Graphics::ForwardShading();
@@ -87,6 +91,9 @@ void RenderSystem::Render() {
     PostProcess::DoF.Render(display_plane);
   }
 
+
+  GI::Specular::MainSSR.RenderReflection();
+
   DrawDebug(draw_context);
 
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_PRESENT, true);
@@ -142,7 +149,8 @@ void RenderSystem::DrawDebug(GraphicsContext& context) {
   draw_context.SetPipelineState(debug_pso_);
 
   //  GI::AO::MainSsao.AmbientMap().Srv()
-  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { GI::AO::MainSsao.AmbientMap().Srv() };
+//  GI::Specular::MainSSR.ColorMap().Srv()
+  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { GI::Specular::MainSSR.ColorMap().Srv() };
   draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 
   draw_context.SetVertexBuffer(debug_mesh_.VertexBuffer().VertexBufferView());

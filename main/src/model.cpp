@@ -23,6 +23,12 @@ void Model::LoadFromFile(const string& filename) {
 
   string load_type;
 
+  string value_line;
+  istringstream iss_line;
+
+  //std::getline(fin, value_line);
+  //iss_line.str(value_line);
+
   fin >> ignore >> load_type;
 
   if (load_type == "file") {
@@ -37,6 +43,17 @@ void Model::LoadFromFile(const string& filename) {
     fin >> radius >> slice_count >> stack_count;
     mesh_ = MeshManager::Instance().CreateSphere(radius, slice_count, stack_count);
   }
+  else if (load_type == "grid") {
+    float width = 10.0f;
+    float height = 10.0f;
+    int m = 10;
+    int n = 10;
+    fin >> width >> height >> m >> n;
+    mesh_ = MeshManager::Instance().CreateGrid(width, height, m, n);
+  }
+  iss_line.clear();
+  
+
 
   fin >> ignore >> ignore >> ignore;
 
@@ -72,6 +89,15 @@ void Model::LoadFromFile(const string& filename) {
 void Model::CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount) {
   mesh_ = MeshManager::Instance().CreateSphere(radius, sliceCount, stackCount);
   material_.DiffuseAlbedo = {1.0f, 1.0f, 1.0f, 1.0f};
+  material_.FresnelR0 = { 1.0f, 1.0f, 1.0f };
+  material_.MatTransform = MathHelper::Identity4x4();
+  XMMATRIX matTransform = XMLoadFloat4x4(&material_.MatTransform);
+  XMStoreFloat4x4(&material_.MatTransform, XMMatrixTranspose(matTransform));
+}
+
+void Model::CreateGrid(float width, float depth, std::uint32_t m, std::uint32_t n) {
+  mesh_ = MeshManager::Instance().CreateGrid(width, depth, m, n);
+  material_.DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
   material_.FresnelR0 = { 1.0f, 1.0f, 1.0f };
   material_.MatTransform = MathHelper::Identity4x4();
   XMMATRIX matTransform = XMLoadFloat4x4(&material_.MatTransform);
@@ -174,11 +200,12 @@ Mesh* MeshManager::LoadFromFile(const string& filename) {
 }
 
 Mesh* MeshManager::CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount) {
-  string name = std::to_string(radius);
-  name += "_";
-  name += std::to_string(sliceCount);
-  name += "_";
-  name += std::to_string(stackCount);
+  string name = "sphere";
+  name += "_" + std::to_string(radius);
+
+  name += "_" + std::to_string(sliceCount);
+  name += "_" + std::to_string(stackCount);
+
 
   map<string, Mesh*>::iterator it = mesh_pool_.find(name);
   if (it != mesh_pool_.end()) {
@@ -186,6 +213,25 @@ Mesh* MeshManager::CreateSphere(float radius, std::uint32_t sliceCount, std::uin
   }
 
   auto mesh_data = GeometryGenerator::Instance().CreateSphere(radius, sliceCount, stackCount);
+  Mesh* mesh = new Mesh();
+  mesh->LoadMeshData(mesh_data);
+  mesh_pool_.emplace(name, mesh);
+  return mesh;
+}
+
+Mesh* MeshManager::CreateGrid(float width, float depth, std::uint32_t m, std::uint32_t n) {
+  string name = "grid";
+  name += "_" + to_string(width);
+  name += "_" + to_string(depth);
+  name += "_" + to_string(m);
+  name += "_" + to_string(n);
+
+  map<string, Mesh*>::iterator it = mesh_pool_.find(name);
+  if (it != mesh_pool_.end()) {
+    return it->second;
+  }
+  
+  auto mesh_data = GeometryGenerator::Instance().CreateGrid(width, depth, m, n);
   Mesh* mesh = new Mesh();
   mesh->LoadMeshData(mesh_data);
   mesh_pool_.emplace(name, mesh);

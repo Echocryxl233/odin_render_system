@@ -40,7 +40,7 @@ struct PassConstant {
   float padding2;
   XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-  Light Lights[kPointLightCount];
+  Light Lights[kDirectightCount + kPointLightCount];
 };
 
 __declspec(align(16))
@@ -85,6 +85,7 @@ class MeshManager {
 
   Mesh* LoadFromFile(const string& filename);
   Mesh* CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount);
+  Mesh* CreateGrid(float width, float depth, std::uint32_t m, std::uint32_t n);
 
 private:
   map<string, Mesh*> mesh_pool_;
@@ -95,6 +96,7 @@ class Model {
   void LoadFromFile(const string& filename);
 
   void CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount);
+  void CreateGrid(float width, float depth, std::uint32_t m, std::uint32_t n);
 
   Mesh* GetMesh() const { return mesh_; }
   Material& GetMaterial() { return material_; }

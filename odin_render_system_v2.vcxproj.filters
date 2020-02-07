@@ -132,6 +132,12 @@
     <ClCompile Include="main\src\graphics_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="main\include\gi_utility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\ssr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main\include\game_core.h">
@@ -267,6 +273,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\graphics_utility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\ssr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\gi_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

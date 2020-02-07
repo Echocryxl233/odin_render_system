@@ -8,13 +8,12 @@
 #include "pipeline_state.h"
 #include "gpu_buffer.h"
 
-
-using namespace std;
-using namespace DirectX;
-
 namespace GI {
 
 namespace AO {
+
+using namespace std;
+using namespace DirectX;
 
 class Ssao {
 public:
@@ -31,8 +30,8 @@ public:
 
   void Resize(UINT width, UINT height);
 
-  void BeginRender(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj);
-  void EndRender(GraphicsContext& context);
+  //void BeginRender(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj);
+  //void EndRender(GraphicsContext& context);
 
   void ComputeAo();
 
@@ -72,7 +71,6 @@ private:
 
 
   ColorBuffer normal_map_;
-  ColorBuffer normal_map_1;
   ColorBuffer ambient_map_0_;
   ColorBuffer ambient_map_1_;
   DepthStencilBuffer depth_buffer_;
@@ -81,8 +79,8 @@ private:
   UINT width_;
   UINT height_;
 
-  D3D12_VIEWPORT viewport_;
-  D3D12_RECT scissor_rect_;
+  //D3D12_VIEWPORT viewport_;
+  //D3D12_RECT scissor_rect_;
 
   XMFLOAT4 offsets_[14];
 
@@ -117,26 +115,26 @@ private:
     float SurfaceEpsilon = 0.05f;
   };
 
-  struct SsaoConstants2
-  {
-    XMFLOAT4X4 Proj;
-    XMFLOAT4X4 InvProj;
-    XMFLOAT4X4 ProjTex;
-    XMFLOAT4   OffsetVectors[14];
+  //struct SsaoConstants2
+  //{
+  //  XMFLOAT4X4 Proj;
+  //  XMFLOAT4X4 InvProj;
+  //  XMFLOAT4X4 ProjTex;
+  //  XMFLOAT4   OffsetVectors[14];
 
-    // For SsaoBlur.hlsl
-    XMFLOAT4 BlurWeights[3];
+  //  // For SsaoBlur.hlsl
+  //  XMFLOAT4 BlurWeights[3];
 
-    XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
-    float padding1;
-    float padding2;
+  //  XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
+  //  float padding1;
+  //  float padding2;
 
-    // Coordinates given in view space.
-    float OcclusionRadius = 0.5f;
-    float OcclusionFadeStart = 0.2f;
-    float OcclusionFadeEnd = 2.0f;
-    float SurfaceEpsilon = 0.05f;
-  };
+  //  // Coordinates given in view space.
+  //  float OcclusionRadius = 0.5f;
+  //  float OcclusionFadeStart = 0.2f;
+  //  float OcclusionFadeEnd = 2.0f;
+  //  float SurfaceEpsilon = 0.05f;
+  //};
 
   SsaoConstants ssao_constants_;
 };

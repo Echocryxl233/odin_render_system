@@ -14,6 +14,12 @@ void RenderObject::CreateSphere(float radius, std::uint32_t sliceCount,
   constants_.World = MathHelper::Identity4x4();
 }
 
+void RenderObject::CreateGrid(float width, float depth, std::uint32_t m, std::uint32_t n) {
+  model_.CreateGrid(width, depth, m, n);
+  position_ = { 0.0f, 0.0f, 0.0f };
+  constants_.World = MathHelper::Identity4x4();
+}
+
 void RenderObject::Update(const GameTimer& gt) {
   auto scaling = XMMatrixScaling(0.7f, 0.7f, 0.7f);
   auto offset = XMMatrixTranslation(position_.x, position_.y, position_.z);

@@ -25,6 +25,17 @@ void ColorBuffer::CreateFromSwapChain(std::wstring& name, ID3D12Device* device, 
 
   rtv_handle_ = DescriptorAllocatorManager::Instance().Allocate(D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
   device->CreateRenderTargetView(resource_.Get(), nullptr, rtv_handle_ );
+  
+  D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+  srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+  srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  srv_desc.Format = resource_->GetDesc().Format;
+  srv_desc.Texture2D.MostDetailedMip = 0;
+  srv_desc.Texture2D.MipLevels = resource_->GetDesc().MipLevels;
+
+  srv_handle_ = DescriptorAllocatorManager::Instance().Allocate(D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  device->CreateShaderResourceView(resource_.Get(), &srv_desc, srv_handle_);
+
   resource_->SetName(name.c_str());
 }
 

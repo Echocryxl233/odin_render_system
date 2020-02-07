@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="main\include\gi_utility.cpp" />
     <ClCompile Include="main\src\camera.cpp" />
     <ClCompile Include="main\src\camera_controller.cpp" />
     <ClCompile Include="main\src\color_buffer.cpp" />
@@ -56,6 +57,7 @@
     <ClCompile Include="main\src\sampler_manager.cpp" />
     <ClCompile Include="main\src\skybox.cpp" />
     <ClCompile Include="main\src\ssao.cpp" />
+    <ClCompile Include="main\src\ssr.cpp" />
     <ClCompile Include="main\src\texture_manager.cpp" />
     <ClCompile Include="main\src\utility.cpp" />
   </ItemGroup>
@@ -81,6 +83,7 @@
     <ClInclude Include="main\include\game_setting.h" />
     <ClInclude Include="main\include\game_timer.h" />
     <ClInclude Include="main\include\game_core.h" />
+    <ClInclude Include="main\include\gi_utility.h" />
     <ClInclude Include="main\include\gpu_buffer.h" />
     <ClInclude Include="main\include\gpu_resource.h" />
     <ClInclude Include="main\include\graphics_common.h" />
@@ -103,6 +106,7 @@
     <ClInclude Include="main\include\singleton.h" />
     <ClInclude Include="main\include\skybox.h" />
     <ClInclude Include="main\include\ssao.h" />
+    <ClInclude Include="main\include\ssr.h" />
     <ClInclude Include="main\include\texture_manager.h" />
     <ClInclude Include="main\include\utility.h" />
   </ItemGroup>

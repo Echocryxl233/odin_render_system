@@ -12,6 +12,7 @@ namespace RenderGroupType {
   enum RenderGroupType {
     kOpaque,
     kOpaque2,
+    kOpaque3,   //  
     kTransparent
   };
 }

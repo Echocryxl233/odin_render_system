@@ -67,7 +67,11 @@ void InitializeLights() {
     uniform_real_distribution<float> falloffs(0.5f, 8.0f);
     normal_distribution<float> uniform_height(light_height, 1.0f);
 
-    for (int i = 0; i < kPointLightCount; ++i) {
+    auto& light = MainConstants.Lights[0];
+    light.Strength = { 1.0f, 1.0f, 1.0f };
+    light.Direction = { 1.0f, -1.0f, 1.0f };
+
+    for (int i = kDirectightCount; i < kPointLightCount; ++i) {
       //  std::cout << u(e) << endl;
       auto& light = MainConstants.Lights[i];
       light.Position = { uniform_position(random_engine), uniform_height(random_engine), uniform_position(random_engine) };
@@ -153,6 +157,24 @@ void InitRenderQueue() {
     group3->AddObject(transparent);
   }
   MainQueue.AddGroup(group3->GetType(), group3);
+
+  RenderGroup* group4 = new RenderGroup(RenderGroupType::RenderGroupType::kOpaque3);
+  for (int i = 0; i < 1; ++i)
+  {
+    RenderObject* grid = new RenderObject();
+    grid->LoadFromFile("models/grid_full.txt");
+
+    grid->Position().x = 0.0f;
+    grid->Position().y = -10.0f;
+    grid->Position().z = 0.0f;
+    //auto format = DebugUtility::Format("render object index = %0, position = (%1, %2, %3)",
+    //    to_string(i), to_string(ro.Position().x),
+    //    to_string(ro.Position().y), to_string(ro.Position().z));
+    //cout << format << endl;
+    //  Graphics::TransparentQueue.AddObject(transparent);
+    group4->AddObject(grid);
+  }
+  MainQueue.AddGroup(group4->GetType(), group4);
 }
 
 void UpdateConstants() {

@@ -1,0 +1,11 @@
+mesh:  grid 200.0 200.0 20 20
+material:
+{
+    DiffuseAlbedo: 1.0 1.0 1.0 1.0
+    FresnelR0: 0.15 0.15 0.15
+    Roughness: 0.3
+}
+texture 1
+{
+    Albedo: textures/white1x1.dds
+}
