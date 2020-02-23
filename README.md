@@ -4,9 +4,9 @@ just for learning
 VS 2017 Windows SDK 10.0.17763.0 or greater
 
 2020-02-07
-1. Clean up because of differences between graphics context and compute context.
-2. Extract the blur function as a utility function.
-3. Ssao with blur.
+1. Screen-space reflection component.
+2. Recover direct light.
+3. Standard grid support.
 
 
 2020-01-12
