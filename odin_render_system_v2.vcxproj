@@ -50,6 +50,7 @@
     <ClCompile Include="main\src\optional_system.cpp" />
     <ClCompile Include="main\src\pipeline_state.cpp" />
     <ClCompile Include="main\src\pixel_buffer.cpp" />
+    <ClCompile Include="main\src\postprocess\bloom.cpp" />
     <ClCompile Include="main\src\render_object.cpp" />
     <ClCompile Include="main\src\render_queue.cpp" />
     <ClCompile Include="main\src\render_system.cpp" />
@@ -98,6 +99,7 @@
     <ClInclude Include="main\include\optional_system.h" />
     <ClInclude Include="main\include\pipeline_state.h" />
     <ClInclude Include="main\include\pixel_buffer.h" />
+    <ClInclude Include="main\include\postprocess\bloom.h" />
     <ClInclude Include="main\include\render_object.h" />
     <ClInclude Include="main\include\render_queue.h" />
     <ClInclude Include="main\include\render_system.h" />

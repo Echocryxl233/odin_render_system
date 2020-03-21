@@ -60,6 +60,7 @@ class ComputePso : public PSO {
   void Finalize();
 
   void SetComputeShader(const BYTE* code_buffer, UINT size);
+  void SetComputeShader(ComPtr<ID3DBlob>& pixel_shader);
   void SetRootSig(ID3D12RootSignature* rootSig) {
     root_sig_ = rootSig;
   }
@@ -110,6 +111,11 @@ inline void GraphicsPso::SetRenderTargetFormat(DXGI_FORMAT RTVFormat,
     DXGI_FORMAT DSVFormat, UINT MsaaCount, UINT MsaaQuality) {
 
   SetRenderTargetFormats(1, &RTVFormat, DSVFormat, MsaaCount, MsaaQuality);
+}
+
+inline void ComputePso::SetComputeShader(ComPtr<ID3DBlob>& pixel_shader) {
+  pso_desc_.CS = { reinterpret_cast<BYTE*>(pixel_shader->GetBufferPointer()),
+       (UINT)pixel_shader->GetBufferSize() };
 }
 
 inline void ComputePso::SetComputeShader(const BYTE* code_buffer, UINT size) {

@@ -45,7 +45,7 @@ class GraphicsCore {
   const static int kSwapBufferCount = 2;
   const static int kMRTBufferCount = 4;
 
-  DXGI_FORMAT BackBufferFormat = DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM;
+  DXGI_FORMAT BackBufferFormat = DXGI_FORMAT::DXGI_FORMAT_R16G16B16A16_FLOAT;
   DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT;
 
   DXGI_FORMAT MrtBufferFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;

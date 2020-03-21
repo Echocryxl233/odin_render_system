@@ -8,7 +8,7 @@ Int DofBlurIterateCount 3
 
 Bool UseDeferred False
 Bool UseSsao True
-Bool UseDoF True
+Bool UseDoF False
 Bool EnableSkybox True
 
 Vector3 AmbientLight 1.0 1.0 1.0

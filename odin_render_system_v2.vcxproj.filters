@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\postprocess">
+      <UniqueIdentifier>{13d1cae8-ada1-48f3-ba57-c0ed277aed41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\postprocess">
+      <UniqueIdentifier>{90f771f0-9a0c-4923-878a-3a7467a791c5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main\src\main.cpp">
@@ -137,6 +143,9 @@
     </ClCompile>
     <ClCompile Include="main\src\ssr.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\postprocess\bloom.cpp">
+      <Filter>Source Files\postprocess</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -280,6 +289,9 @@
     </ClInclude>
     <ClInclude Include="main\include\gi_utility.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\postprocess\bloom.h">
+      <Filter>Header Files\postprocess</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

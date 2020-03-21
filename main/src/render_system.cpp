@@ -18,6 +18,7 @@
 #include "ssao.h"
 #include "gi_utility.h"
 #include "ssr.h"
+#include "postprocess/bloom.h"
 
 
 using namespace GameCore;
@@ -87,6 +88,8 @@ void RenderSystem::Render() {
 
   optional_system_->Render();
 
+  PostProcess::BloomEffect.Render(display_plane);
+
   if (GameSetting::GetBoolValue("UseDoF")) {
     PostProcess::DoF.Render(display_plane);
   }
@@ -150,7 +153,7 @@ void RenderSystem::DrawDebug(GraphicsContext& context) {
 
   //  GI::AO::MainSsao.AmbientMap().Srv()
 //  GI::Specular::MainSSR.ColorMap().Srv()
-  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { GI::Specular::MainSSR.ColorMap().Srv() };
+  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { PostProcess::BloomEffect.BloomBuffer().Srv() };
   draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 
   draw_context.SetVertexBuffer(debug_mesh_.VertexBuffer().VertexBufferView());

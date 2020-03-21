@@ -3,6 +3,10 @@ primery code about DX12 with beginning
 just for learning
 VS 2017 Windows SDK 10.0.17763.0 or greater
 
+2020-03-20
+1. HDR
+2. Bloom for post-process
+
 2020-02-07
 1. Screen-space reflection component.
 2. Recover direct light.

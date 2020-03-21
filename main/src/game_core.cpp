@@ -12,8 +12,7 @@
 #include "ssao.h"
 #include "ssr.h"
 #include "graphics_utility.h"
-
-
+#include "postprocess/bloom.h"
 
 
 namespace GameCore {
@@ -32,8 +31,6 @@ RenderSystem* render_system;
 int UpdateGame();
 bool CreateMainWindow();
 void CalculateFrameStats();
-
-
 
 
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
@@ -116,6 +113,7 @@ void Initialize() {
   main_camera_controller_.reset(new CameraController(MainCamera, 
       XMFLOAT3(0.0f, 1.0f, 0.0f)));
   PostProcess::DoF.Initialize();  
+  PostProcess::BloomEffect.Initialize();
   Graphics::InitRenderQueue();
   Graphics::InitializeLights();
   Graphics::SkyBox::Initialize();

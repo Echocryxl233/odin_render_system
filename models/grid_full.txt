@@ -7,5 +7,5 @@ material:
 }
 texture 1
 {
-    Albedo: textures/white1x1.dds
+    Albedo: textures/grass.dds
 }
