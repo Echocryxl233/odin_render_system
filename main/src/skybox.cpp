@@ -1,10 +1,10 @@
 #include "skybox.h"
 #include "mesh_geometry.h"
-#include "sampler_manager.h"
-#include "graphics_core.h"
-#include "graphics_common.h"
+#include "graphics/sampler_manager.h"
+#include "graphics/graphics_core.h"
+#include "graphics/graphics_common.h"
 
-#include "game_setting.h"
+#include "game/game_setting.h"
 
 namespace Graphics {
 

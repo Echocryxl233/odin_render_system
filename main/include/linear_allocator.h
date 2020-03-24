@@ -3,7 +3,7 @@
 #ifndef LINEARALLOCATOR_H
 #define LINEARALLOCATOR_H
 
-#include "gpu_resource.h"
+#include "resource/gpu_resource.h"
 
 using namespace std;
 

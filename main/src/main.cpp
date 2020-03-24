@@ -1,6 +1,6 @@
 #include <windows.h>
 #include "debug_log.h"
-#include "game_core.h"
+#include "game/game_core.h"
 
 int main() {
   #if defined(DEBUG) | defined(_DEBUG)

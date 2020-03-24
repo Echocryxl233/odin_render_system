@@ -1,5 +1,5 @@
 #include "render_object.h"
-#include "graphics_common.h"
+#include "graphics/graphics_common.h"
 
 void RenderObject::LoadFromFile(const string& filename) {
   model_.LoadFromFile(filename);

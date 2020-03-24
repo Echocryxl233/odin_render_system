@@ -2,7 +2,7 @@
 
 #include "light.h"
 #include "utility.h"
-#include "gpu_buffer.h"
+#include "resource/gpu_buffer.h"
 #include "mesh_geometry.h"
 
 using namespace Lighting;

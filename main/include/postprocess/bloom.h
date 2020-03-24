@@ -3,8 +3,8 @@
 #ifndef BLOOM_H
 #define BLOOM_H
 
-#include "pipeline_state.h"
-#include "color_buffer.h"
+#include "graphics/pipeline_state.h"
+#include "resource/color_buffer.h"
 
 namespace PostProcess {
 

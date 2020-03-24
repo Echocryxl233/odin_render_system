@@ -1,10 +1,10 @@
 #include "GI/shadow.h"
-#include "command_context.h"
-#include "graphics_core.h"
-#include "graphics_common.h"
-#include "gi_utility.h"
+#include "graphics/command_context.h"
+#include "graphics/graphics_core.h"
+#include "graphics/graphics_common.h"
+#include "GI/gi_utility.h"
 #include "render_queue.h"
-#include "camera.h"
+#include "game/camera.h"
 
 
 namespace GI {

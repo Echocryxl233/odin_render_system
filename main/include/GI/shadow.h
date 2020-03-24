@@ -4,9 +4,9 @@
 #define GI_SHADOW_H
 
 #include "utility.h"
-#include "color_buffer.h"
-#include "depth_stencil_buffer.h"
-#include "pipeline_state.h"
+#include "resource/color_buffer.h"
+#include "resource/depth_stencil_buffer.h"
+#include "graphics/pipeline_state.h"
 
 namespace GI {
 

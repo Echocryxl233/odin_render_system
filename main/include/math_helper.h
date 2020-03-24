@@ -66,6 +66,14 @@ public:
 			1.0f);
 	}
 
+  static void CartesianToSpherical(const DirectX::XMFLOAT3 v, float& theta, float& phi) {
+    float length_xz = sqrtf(v.x * v.x + v.z * v.z);
+    theta = acosf(v.x / length_xz);
+
+    float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+    phi = acosf(v.y / length);
+  }
+
     static DirectX::XMMATRIX InverseTranspose(DirectX::CXMMATRIX M)
 	{
 		// Inverse-transpose is just applied to normals.  So zero out 

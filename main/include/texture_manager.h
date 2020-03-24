@@ -4,7 +4,7 @@
 #define TEXTUREMANAGER_H
 
 #include "utility.h"
-#include "gpu_resource.h"
+#include "resource/gpu_resource.h"
 
 using namespace std;
 

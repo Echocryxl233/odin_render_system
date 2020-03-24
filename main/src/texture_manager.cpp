@@ -1,7 +1,7 @@
 #include "texture_manager.h"
 
-#include "command_context.h"
-#include "graphics_core.h"
+#include "graphics/command_context.h"
+#include "graphics/graphics_core.h"
 
 void Texture::Create(wstring name) {
   filename_ = name;

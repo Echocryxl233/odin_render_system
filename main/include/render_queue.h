@@ -36,8 +36,6 @@ public:
 };
 
 class RenderQueue {
-
-
  public:
   void AddGroup(GroupType, RenderGroup* group);
   RenderGroup* GetGroup(GroupType);

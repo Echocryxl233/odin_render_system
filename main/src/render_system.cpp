@@ -3,23 +3,24 @@
 
 #include "render_system.h"
 
-#include "camera.h"
-#include "command_context.h"
+#include "game/camera.h"
+#include "graphics/command_context.h"
 #include "defines_common.h"
-#include "depth_of_field.h"
-#include "graphics_core.h"
-#include "graphics_common.h"
-#include "game_setting.h"
-#include "game_timer.h"
+#include "postprocess/depth_of_field.h"
+#include "graphics/graphics_core.h"
+#include "graphics/graphics_common.h"
+#include "game/game_setting.h"
+#include "game/game_timer.h"
 #include "model.h"
 #include "math_helper.h"
-#include "sampler_manager.h"
+#include "graphics/sampler_manager.h"
 #include "skybox.h"
-#include "ssao.h"
-#include "gi_utility.h"
-#include "ssr.h"
-#include "postprocess/bloom.h"
+#include "GI/ssao.h"
+#include "GI/gi_utility.h"
 #include "GI/shadow.h"
+#include "GI/ssr.h"
+#include "postprocess/bloom.h"
+
 
 
 using namespace GameCore;

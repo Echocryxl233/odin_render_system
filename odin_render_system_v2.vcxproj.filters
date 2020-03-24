@@ -25,57 +25,33 @@
     <Filter Include="Source Files\GI">
       <UniqueIdentifier>{0b93d6d0-666d-4ffb-b304-df4ce444713b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\graphics">
+      <UniqueIdentifier>{96a6108c-ad0b-4ef9-9d2d-b67c245bc801}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics">
+      <UniqueIdentifier>{01265fa8-9ece-4943-9b42-5ab0d9215b6a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game">
+      <UniqueIdentifier>{9b7a5598-fd19-402e-97b4-409b53cd1647}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\resource">
+      <UniqueIdentifier>{659c7d93-0e0e-4ebe-9185-f3525d3fa708}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\resource">
+      <UniqueIdentifier>{f40750db-e26d-4adf-87f2-f2cb7b50ebbc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\game">
+      <UniqueIdentifier>{02df8907-0d49-41f3-9913-84c445269b89}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main\src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main\src\game_core.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\color_buffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\command_allocator_pool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\command_context.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\command_list_manager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\command_queue.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\depth_stencil_buffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\descriptor_allocator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\gpu_resource.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\graphics_core.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\pixel_buffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main\src\utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main\src\gpu_buffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\pipeline_state.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main\src\root_signature.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\linear_allocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main\src\debug_log.cpp">
@@ -87,46 +63,19 @@
     <ClCompile Include="main\src\math_helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main\src\game_timer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main\src\DDSTextureLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main\src\file_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main\src\sampler_manager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\dynamic_descriptor_heap.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\ssao.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main\src\texture_manager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\graphics_common.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\depth_of_field.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\camera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\camera_controller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main\src\model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main\src\render_object.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\game_setting.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main\src\render_queue.cpp">
@@ -141,42 +90,93 @@
     <ClCompile Include="main\src\skybox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main\src\graphics_utility.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\include\gi_utility.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main\src\ssr.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main\src\postprocess\bloom.cpp">
       <Filter>Source Files\postprocess</Filter>
     </ClCompile>
     <ClCompile Include="main\src\GI\shadow.cpp">
       <Filter>Source Files\GI</Filter>
     </ClCompile>
+    <ClCompile Include="main\src\GI\gi_utility.cpp">
+      <Filter>Source Files\GI</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\GI\ssao.cpp">
+      <Filter>Source Files\GI</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\GI\ssr.cpp">
+      <Filter>Source Files\GI</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\postprocess\depth_of_field.cpp">
+      <Filter>Source Files\postprocess</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\graphics_common.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\graphics_core.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\graphics_utility.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\game\game_core.cpp">
+      <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\game\game_setting.cpp">
+      <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\game\game_timer.cpp">
+      <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\resource\gpu_buffer.cpp">
+      <Filter>Source Files\resource</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\resource\gpu_resource.cpp">
+      <Filter>Source Files\resource</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\resource\color_buffer.cpp">
+      <Filter>Source Files\resource</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\game\camera.cpp">
+      <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\game\camera_controller.cpp">
+      <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\resource\depth_stencil_buffer.cpp">
+      <Filter>Source Files\resource</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\command_allocator_pool.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\command_context.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\command_list_manager.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\command_queue.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\resource\pixel_buffer.cpp">
+      <Filter>Source Files\resource</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\pipeline_state.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\descriptor_allocator.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\dynamic_descriptor_heap.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\linear_allocator.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\graphics\sampler_manager.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="main\include\game_core.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\color.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\color_buffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\command_allocator_pool.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\command_context.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\command_list_manager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\command_queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\d3dx12.h">
@@ -185,43 +185,16 @@
     <ClInclude Include="main\include\debug_log.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\depth_stencil_buffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\descriptor_allocator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\gpu_resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\pixel_buffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\render_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\gpu_buffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\graphics_core.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\root_signature.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\pipeline_state.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\linear_allocator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\common_helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\memory_utility.h">
@@ -233,43 +206,16 @@
     <ClInclude Include="main\include\math_helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\game_timer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\texture_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\file_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\sampler_manager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\dynamic_descriptor_heap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\ssao.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\graphics_common.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\depth_of_field.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\camera.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\camera_controller.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\render_object.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\game_setting.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\render_queue.h">
@@ -287,23 +233,95 @@
     <ClInclude Include="main\include\skybox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\game_include.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\graphics_utility.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\ssr.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\gi_utility.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\postprocess\bloom.h">
       <Filter>Header Files\postprocess</Filter>
     </ClInclude>
     <ClInclude Include="main\include\GI\shadow.h">
       <Filter>Header Files\GI</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\GI\gi_utility.h">
+      <Filter>Header Files\GI</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\GI\ssao.h">
+      <Filter>Header Files\GI</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\GI\ssr.h">
+      <Filter>Header Files\GI</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\postprocess\depth_of_field.h">
+      <Filter>Header Files\postprocess</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\graphics_utility.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\graphics_common.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\graphics_core.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\game\game_core.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\game\game_include.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\game\game_setting.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\game\game_timer.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\resource\color_buffer.h">
+      <Filter>Header Files\resource</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\resource\depth_stencil_buffer.h">
+      <Filter>Header Files\resource</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\resource\pixel_buffer.h">
+      <Filter>Header Files\resource</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\resource\gpu_buffer.h">
+      <Filter>Header Files\resource</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\resource\gpu_resource.h">
+      <Filter>Header Files\resource</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\game\camera.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\game\camera_controller.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\command_allocator_pool.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\command_context.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\command_list_manager.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\command_queue.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\common_helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\pipeline_state.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\descriptor_allocator.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\dynamic_descriptor_heap.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\root_signature.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\graphics\sampler_manager.h">
+      <Filter>Header Files\graphics</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

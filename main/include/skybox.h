@@ -4,10 +4,10 @@
 #define SKYBOX_H
 
 #include "utility.h"
-#include "color_buffer.h"
+#include "resource/color_buffer.h"
 #include "model.h"
-#include "command_context.h"
-#include "pipeline_state.h"
+#include "graphics/command_context.h"
+#include "graphics/pipeline_state.h"
 #include "texture_manager.h"
 
 namespace Graphics {

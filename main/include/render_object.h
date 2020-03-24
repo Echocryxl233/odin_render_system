@@ -3,8 +3,8 @@
 #ifndef RENDEROBJECT_H
 #define RENDEROBJECT_H
 
-#include "command_context.h"
-#include "game_timer.h"
+#include "graphics/command_context.h"
+#include "game/game_timer.h"
 #include "model.h"
 #include "utility.h"
 

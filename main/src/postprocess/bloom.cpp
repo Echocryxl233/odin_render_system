@@ -1,6 +1,6 @@
 #include "postprocess/bloom.h"
-#include "graphics_core.h"
-#include "graphics_utility.h"
+#include "graphics/graphics_core.h"
+#include "graphics/graphics_utility.h"
 
 using namespace PostProcess;
 

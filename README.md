@@ -3,6 +3,10 @@ primery code about DX12 with beginning
 just for learning
 VS 2017 Windows SDK 10.0.17763.0 or greater
 
+2020-03-24
+1. Shadow
+2. SampleDesc expand
+
 2020-03-20
 1. HDR
 2. Bloom for post-process

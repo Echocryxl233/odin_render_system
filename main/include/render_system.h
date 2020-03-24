@@ -6,9 +6,9 @@
 
 #include "model.h"
 #include "optional_system.h"
-#include "pipeline_state.h"
+#include "graphics/pipeline_state.h"
 #include "render_object.h"
-#include "ssao.h"
+#include "GI/ssao.h"
 #include "texture_manager.h"
 
 

@@ -1,11 +1,11 @@
 #include "optional_system.h"
-#include "graphics_core.h"
-#include "graphics_common.h"
+#include "graphics/graphics_core.h"
+#include "graphics/graphics_common.h"
 #include "mesh_geometry.h"
 #include "model.h"
 #include "skybox.h"
-#include "ssao.h"
-#include "game_setting.h"
+#include "GI/ssao.h"
+#include "game/game_setting.h"
 #include "GI/shadow.h"
 
 namespace Graphics {

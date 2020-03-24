@@ -1,5 +1,5 @@
-#include "root_signature.h"
-#include "graphics_core.h"
+#include "graphics/root_signature.h"
+#include "graphics/graphics_core.h"
 
 using Microsoft::WRL::ComPtr;
 

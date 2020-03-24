@@ -3,11 +3,11 @@
 #ifndef OPTIONALSYSTEM_H
 #define OPTIONALSYSTEM_H
 
-#include "command_context.h"
+#include "graphics/command_context.h"
 
-#include "pipeline_state.h"
+#include "graphics/pipeline_state.h"
 #include "render_queue.h"
-#include "sampler_manager.h"
+#include "graphics/sampler_manager.h"
 
 namespace Graphics {
 
