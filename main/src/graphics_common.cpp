@@ -5,9 +5,12 @@
 #include "mesh_geometry.h"
 #include "sampler_manager.h"
 #include "graphics_core.h"
+#include "GI/shadow.h"
 
 
 namespace Graphics {
+  //  SamplerDesc SamplerShadowDesc;
+
   CD3DX12_DEPTH_STENCIL_DESC DepthStateDisabled;
   PassConstant MainConstants;
 
@@ -32,6 +35,9 @@ const XMMATRIX kTextureTransform = {
 };
 
 void InitializeCommonState() {
+  //SamplerShadowDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+
+
   DepthStateDisabled = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
   DepthStateDisabled.DepthEnable = false;
   DepthStateDisabled.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
@@ -69,7 +75,7 @@ void InitializeLights() {
 
     auto& light = MainConstants.Lights[0];
     light.Strength = { 1.0f, 1.0f, 1.0f };
-    light.Direction = { 1.0f, -1.0f, 1.0f };
+    light.Direction = { 0.57735f, -0.57735f, 0.57735f };
 
     for (int i = kDirectightCount; i < kPointLightCount; ++i) {
       //  std::cout << u(e) << endl;
@@ -199,6 +205,9 @@ void UpdateConstants() {
   XMStoreFloat4x4(&MainConstants.InvViewProj, XMMatrixTranspose(inv_view_proj));
   XMStoreFloat4x4(&MainConstants.ViewProjTex, XMMatrixTranspose(view_proj_tex));
 
+  XMMATRIX shadow_transform = XMLoadFloat4x4(&GI::Shadow::MainShadow.ShadowTransform());
+  XMStoreFloat4x4(&MainConstants.ShadowTransform, XMMatrixTranspose(shadow_transform));
+  
   MainConstants.AmbientLight = { 1.0f, 1.0f, 1.0f, 0.5f };
   MainConstants.EyePosition = MainCamera.Position();
   MainConstants.ZNear = MainCamera.ZNear();

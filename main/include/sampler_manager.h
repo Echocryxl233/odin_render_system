@@ -4,6 +4,7 @@
 #define SAMPLERMANAGER_H
 
 #include <d3d12.h>
+#include "color.h"
 
 class SamplerDesc : public D3D12_SAMPLER_DESC {
  public : 
@@ -25,7 +26,18 @@ class SamplerDesc : public D3D12_SAMPLER_DESC {
 
   D3D12_CPU_DESCRIPTOR_HANDLE CreateDescriptor();
 
-  
+  void SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE mode) {
+    AddressU = mode;
+    AddressV = mode;
+    AddressW = mode;
+  }
+ 
+  void SetBoarderColor(Color color) {
+    BorderColor[0] = color.R();
+    BorderColor[1] = color.G();
+    BorderColor[2] = color.B();
+    BorderColor[3] = color.A();
+  }
 
  private:
 

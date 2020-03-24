@@ -19,6 +19,7 @@
 #include "gi_utility.h"
 #include "ssr.h"
 #include "postprocess/bloom.h"
+#include "GI/shadow.h"
 
 
 using namespace GameCore;
@@ -81,8 +82,10 @@ void RenderSystem::Render() {
   GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
   auto& display_plane = Graphics::Core.DisplayPlane();
   GI::AO::MainSsao.ComputeAo();
-
+  
   Graphics::SkyBox::Render(display_plane);
+
+  GI::Shadow::MainShadow.Render();
 
   //auto& display_plane = Graphics::Core.DisplayPlane();
 
@@ -106,6 +109,7 @@ void RenderSystem::Render() {
 
 void RenderSystem::BuildDebugPso() {
   SamplerDesc debug_sampler;
+  debug_sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
   debug_signature_.Reset(1, 1);
   debug_signature_[0].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
   debug_signature_.InitSampler(0, debug_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -152,8 +156,8 @@ void RenderSystem::DrawDebug(GraphicsContext& context) {
   draw_context.SetPipelineState(debug_pso_);
 
   //  GI::AO::MainSsao.AmbientMap().Srv()
-//  GI::Specular::MainSSR.ColorMap().Srv()
-  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { PostProcess::BloomEffect.BloomBuffer().Srv() };
+//  GI::Specular::MainSSR.ColorMap().Srv()  //  GI::AO::MainSsao.DepthMap().DepthSRV()
+  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { GI::Shadow::MainShadow.DepthBuffer().DepthSRV() };
   draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
 
   draw_context.SetVertexBuffer(debug_mesh_.VertexBuffer().VertexBufferView());

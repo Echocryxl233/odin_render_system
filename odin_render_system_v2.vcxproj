@@ -37,6 +37,7 @@
     <ClCompile Include="main\src\game_setting.cpp" />
     <ClCompile Include="main\src\game_timer.cpp" />
     <ClCompile Include="main\src\game_core.cpp" />
+    <ClCompile Include="main\src\GI\shadow.cpp" />
     <ClCompile Include="main\src\gpu_buffer.cpp" />
     <ClCompile Include="main\src\gpu_resource.cpp" />
     <ClCompile Include="main\src\graphics_common.cpp" />
@@ -84,6 +85,7 @@
     <ClInclude Include="main\include\game_setting.h" />
     <ClInclude Include="main\include\game_timer.h" />
     <ClInclude Include="main\include\game_core.h" />
+    <ClInclude Include="main\include\GI\shadow.h" />
     <ClInclude Include="main\include\gi_utility.h" />
     <ClInclude Include="main\include\gpu_buffer.h" />
     <ClInclude Include="main\include\gpu_resource.h" />

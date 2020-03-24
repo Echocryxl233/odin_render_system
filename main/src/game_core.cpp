@@ -13,6 +13,7 @@
 #include "ssr.h"
 #include "graphics_utility.h"
 #include "postprocess/bloom.h"
+#include "GI/shadow.h"
 
 
 namespace GameCore {
@@ -109,6 +110,7 @@ void Initialize() {
   Graphics::InitCommonBuffers();
   GI::AO::MainSsao.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
   GI::Specular::MainSSR.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
+  GI::Shadow::MainShadow.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
   InitMainCamera();
   main_camera_controller_.reset(new CameraController(MainCamera, 
       XMFLOAT3(0.0f, 1.0f, 0.0f)));
@@ -135,6 +137,7 @@ void Run() {
 
 void Update() {
   main_camera_controller_->Update(MainTimer);
+  GI::Shadow::MainShadow.Update();
   Graphics::UpdateConstants();
   Graphics::MainQueue.Update(MainTimer);
 }

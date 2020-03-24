@@ -12,6 +12,7 @@
     #define NUM_SPOT_LIGHTS 0
 #endif
 
+
 cbuffer cbPerObject : register(b0) {
   float4x4 gWorld;
 };
@@ -31,6 +32,7 @@ cbuffer cbPassConstant : register(b2) {
   float4x4 ViewProj;
   float4x4 InvViewProj;
   float4x4 ViewProjTex;
+  float4x4 ShadowTransform;
   float3 EyePosition;
   float  Padding1;
   float ZNear;
@@ -40,5 +42,6 @@ cbuffer cbPassConstant : register(b2) {
   float4 AmbientLight;
   Light Lights[MaxLights];
 };
+
 
 

@@ -4,8 +4,11 @@ Texture2D    gDiffuseMap : register(t0);
 Texture2D    gDiffuseMap2 : register(t1);
 TextureCube  skyCubeMap : register(t0, space2);
 Texture2D    gSsapMap : register(t1, space2);
+Texture2D    gShadowMap : register(t2, space2);
 
-SamplerState gsamLinear  : register(s0);
+
+SamplerState samplerLinear  : register(s0);
+SamplerComparisonState samplerShadow : register(s1);
 
 struct VertexIn {
   float3 PosL : POSITION;
@@ -19,6 +22,7 @@ struct VertexOut
   float3 Normal : NORMAL;
   float3 PosW : POSITION0;
   float4 SsaoPosH : POSITION1;
+  float4 ShadowPosH : POSITION2;
   float2 TexC : TEXCOORD;
 };
 
@@ -36,13 +40,46 @@ VertexOut VS(VertexIn vin) {
   vout.TexC = texC.xy;
 
   vout.SsaoPosH = mul(posW, ViewProjTex);
+  vout.ShadowPosH = mul(posW, ShadowTransform);
   return vout;
+}
+
+float CalcShadowFactor(float4 shadowPosH)
+{
+    // Complete projection by doing division by w.
+    shadowPosH.xyz /= shadowPosH.w;
+
+    // Depth in NDC space.
+    float depth = shadowPosH.z;
+
+    uint width, height, numMips;
+    gShadowMap.GetDimensions(0, width, height, numMips);
+
+    // Texel size.
+    float dx = 1.0f / (float)width;
+
+    float percentLit = 0.0f;
+    const float2 offsets[9] =
+    {
+        float2(-dx,  -dx), float2(0.0f,  -dx), float2(dx,  -dx),
+        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+        float2(-dx,  +dx), float2(0.0f,  +dx), float2(dx,  +dx)
+    };
+
+    [unroll]
+    for(int i = 0; i < 9; ++i)
+    {
+        percentLit += gShadowMap.SampleCmpLevelZero(samplerShadow,
+            shadowPosH.xy + offsets[i], depth).r;
+    }
+    
+    return percentLit / 9.0f;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
-  float4 diffuse_albedo = gDiffuseMap.Sample(gsamLinear, pin.TexC) * DiffuseAlbedo;
-  // float4 diffuse_albedo = gSsapMap.Sample(gsamLinear, pin.TexC) * DiffuseAlbedo;
+  float4 diffuse_albedo = gDiffuseMap.Sample(samplerLinear, pin.TexC) * DiffuseAlbedo;
+  // float4 diffuse_albedo = gSsapMap.Sample(samplerLinear, pin.TexC) * DiffuseAlbedo;
 
   pin.Normal = normalize(pin.Normal);
 
@@ -51,11 +88,11 @@ float4 PS(VertexOut pin) : SV_Target
   
   float ambient_access = 1.0f;
   // pin.SsaoPosH /= pin.SsaoPosH.w;
-  // ambient_access = gDiffuseMap2.SampleLevel(gsamLinear, pin.SsaoPosH.xy, 0.0f).r;
+  // ambient_access = gDiffuseMap2.SampleLevel(samplerLinear, pin.SsaoPosH.xy, 0.0f).r;
 
 #ifdef SSAO
   pin.SsaoPosH /= pin.SsaoPosH.w;
-  ambient_access = gSsapMap.SampleLevel(gsamLinear, pin.SsaoPosH.xy, 0.0f).r;
+  ambient_access = gSsapMap.SampleLevel(samplerLinear, pin.SsaoPosH.xy, 0.0f).r;
 #endif
 
 // Indirect lighting.
@@ -64,7 +101,7 @@ float4 PS(VertexOut pin) : SV_Target
   const float shininess = 1.0f - Roughness;
   Material mat = { diffuse_albedo, FresnelR0, shininess };
   float3 shadowFactor = 1.0f;
-
+  shadowFactor = CalcShadowFactor(pin.ShadowPosH);
    // float3 direct_light = ComputeDirectLight(Lights[0], toEyeW, pin.Normal, mat);
 
 
@@ -72,7 +109,7 @@ float4 PS(VertexOut pin) : SV_Target
   int i=0;
 #if NUM_DIR_LIGHTS
   for (i=0; i<NUM_DIR_LIGHTS; ++i) {
-    direct_radiance += ComputeDirectLight(Lights[i], toEyeW, pin.Normal, mat);
+    direct_radiance += shadowFactor * ComputeDirectLight(Lights[i], toEyeW, pin.Normal, mat);
   }
 #endif
 
@@ -89,7 +126,7 @@ float4 PS(VertexOut pin) : SV_Target
 
   float3 reflection_dir = reflect(-toEyeW, pin.Normal);
 
-  float4 reflection_color = skyCubeMap.Sample(gsamLinear, reflection_dir);
+  float4 reflection_color = skyCubeMap.Sample(samplerLinear, reflection_dir);
   float3 reflect_factor = SchlickFresnel(FresnelR0, pin.Normal, reflection_dir);
   float3 env_light = shininess * reflect_factor * reflection_color;
 
@@ -98,3 +135,5 @@ float4 PS(VertexOut pin) : SV_Target
 
   return litColor;
 }
+
+

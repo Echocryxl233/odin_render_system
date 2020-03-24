@@ -23,38 +23,38 @@ void RootSignature::InitSampler(UINT shader_register, const D3D12_SAMPLER_DESC& 
   static_sampler_desc.RegisterSpace = 0;
   static_sampler_desc.ShaderVisibility = visibility;
 
-  //if (StaticSamplerDesc.AddressU == D3D12_TEXTURE_ADDRESS_MODE_BORDER ||
-  //  StaticSamplerDesc.AddressV == D3D12_TEXTURE_ADDRESS_MODE_BORDER ||
-  //  StaticSamplerDesc.AddressW == D3D12_TEXTURE_ADDRESS_MODE_BORDER)
-  //{
-  //  WARN_ONCE_IF_NOT(
-  //    // Transparent Black
-  //    NonStaticSamplerDesc.BorderColor[0] == 0.0f &&
-  //    NonStaticSamplerDesc.BorderColor[1] == 0.0f &&
-  //    NonStaticSamplerDesc.BorderColor[2] == 0.0f &&
-  //    NonStaticSamplerDesc.BorderColor[3] == 0.0f ||
-  //    // Opaque Black
-  //    NonStaticSamplerDesc.BorderColor[0] == 0.0f &&
-  //    NonStaticSamplerDesc.BorderColor[1] == 0.0f &&
-  //    NonStaticSamplerDesc.BorderColor[2] == 0.0f &&
-  //    NonStaticSamplerDesc.BorderColor[3] == 1.0f ||
-  //    // Opaque White
-  //    NonStaticSamplerDesc.BorderColor[0] == 1.0f &&
-  //    NonStaticSamplerDesc.BorderColor[1] == 1.0f &&
-  //    NonStaticSamplerDesc.BorderColor[2] == 1.0f &&
-  //    NonStaticSamplerDesc.BorderColor[3] == 1.0f,
-  //    "Sampler border color does not match static sampler limitations");
+  if (static_sampler_desc.AddressU == D3D12_TEXTURE_ADDRESS_MODE_BORDER ||
+    static_sampler_desc.AddressV == D3D12_TEXTURE_ADDRESS_MODE_BORDER ||
+    static_sampler_desc.AddressW == D3D12_TEXTURE_ADDRESS_MODE_BORDER)
+  {
+    //WARN_ONCE_IF_NOT(
+    //  // Transparent Black
+    //  NonStaticSamplerDesc.BorderColor[0] == 0.0f &&
+    //  NonStaticSamplerDesc.BorderColor[1] == 0.0f &&
+    //  NonStaticSamplerDesc.BorderColor[2] == 0.0f &&
+    //  NonStaticSamplerDesc.BorderColor[3] == 0.0f ||
+    //  // Opaque Black
+    //  NonStaticSamplerDesc.BorderColor[0] == 0.0f &&
+    //  NonStaticSamplerDesc.BorderColor[1] == 0.0f &&
+    //  NonStaticSamplerDesc.BorderColor[2] == 0.0f &&
+    //  NonStaticSamplerDesc.BorderColor[3] == 1.0f ||
+    //  // Opaque White
+    //  NonStaticSamplerDesc.BorderColor[0] == 1.0f &&
+    //  NonStaticSamplerDesc.BorderColor[1] == 1.0f &&
+    //  NonStaticSamplerDesc.BorderColor[2] == 1.0f &&
+    //  NonStaticSamplerDesc.BorderColor[3] == 1.0f,
+    //  "Sampler border color does not match static sampler limitations");
 
-  //  if (NonStaticSamplerDesc.BorderColor[3] == 1.0f)
-  //  {
-  //    if (NonStaticSamplerDesc.BorderColor[0] == 1.0f)
-  //      StaticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
-  //    else
-  //      StaticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
-  //  }
-  //  else
-  //    StaticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-  //}
+    if (desc.BorderColor[3] == 1.0f)
+    {
+      if (desc.BorderColor[0] == 1.0f)
+        static_sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+      else
+        static_sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+    }
+    else
+      static_sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+  }
 }
 
 void RootSignature::Finalize() {

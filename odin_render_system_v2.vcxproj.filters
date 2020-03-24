@@ -19,6 +19,12 @@
     <Filter Include="Source Files\postprocess">
       <UniqueIdentifier>{90f771f0-9a0c-4923-878a-3a7467a791c5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\GI">
+      <UniqueIdentifier>{98f46c04-dfac-4b2e-859f-e875b69fbbb0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\GI">
+      <UniqueIdentifier>{0b93d6d0-666d-4ffb-b304-df4ce444713b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main\src\main.cpp">
@@ -146,6 +152,9 @@
     </ClCompile>
     <ClCompile Include="main\src\postprocess\bloom.cpp">
       <Filter>Source Files\postprocess</Filter>
+    </ClCompile>
+    <ClCompile Include="main\src\GI\shadow.cpp">
+      <Filter>Source Files\GI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -292,6 +301,9 @@
     </ClInclude>
     <ClInclude Include="main\include\postprocess\bloom.h">
       <Filter>Header Files\postprocess</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\GI\shadow.h">
+      <Filter>Header Files\GI</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
