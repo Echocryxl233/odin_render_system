@@ -5,9 +5,9 @@
 
 #include "memory_utility.h"
 
-ContextManager::ContextManager()
-{
-}
+//ContextManager::ContextManager()
+//{
+//}
 
 //
 //ContextManager::~ContextManager()

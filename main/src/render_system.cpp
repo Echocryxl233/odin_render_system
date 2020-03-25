@@ -82,17 +82,18 @@ void RenderSystem::Update() {
 void RenderSystem::Render() {
   GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
   auto& display_plane = Graphics::Core.DisplayPlane();
-  GI::AO::MainSsao.ComputeAo();
-  
-  Graphics::SkyBox::Render(display_plane);
 
+  
+  GI::AO::MainSsao.ComputeAo();
   GI::Shadow::MainShadow.Render();
+
+  Graphics::SkyBox::Render(display_plane);
 
   //auto& display_plane = Graphics::Core.DisplayPlane();
 
   optional_system_->Render();
 
-  PostProcess::BloomEffect.Render(display_plane);
+  PostProcess::BloomEffect->Render(display_plane);
 
   if (GameSetting::GetBoolValue("UseDoF")) {
     PostProcess::DoF.Render(display_plane);
@@ -158,8 +159,8 @@ void RenderSystem::DrawDebug(GraphicsContext& context) {
 
   //  GI::AO::MainSsao.AmbientMap().Srv()
 //  GI::Specular::MainSSR.ColorMap().Srv()  //  GI::AO::MainSsao.DepthMap().DepthSRV()
-  D3D12_CPU_DESCRIPTOR_HANDLE handles2[] = { GI::Shadow::MainShadow.DepthBuffer().DepthSRV() };
-  draw_context.SetDynamicDescriptors(0, 0, _countof(handles2), handles2);
+  D3D12_CPU_DESCRIPTOR_HANDLE handles[] = { GI::Shadow::MainShadow.DepthBuffer().DepthSRV() };
+  draw_context.SetDynamicDescriptors(0, 0, 1, handles );
 
   draw_context.SetVertexBuffer(debug_mesh_.VertexBuffer().VertexBufferView());
   draw_context.SetIndexBuffer(debug_mesh_.IndexBuffer().IndexBufferView());

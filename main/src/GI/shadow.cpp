@@ -17,6 +17,11 @@ using namespace GI::Shadow;
 using namespace GI::Utility;
 using namespace Graphics;
 
+ShadowMap::~ShadowMap() {
+  depth_buffer_.Destroy();
+  color_buffer_.Destroy();
+}
+
 void ShadowMap::Initialize(uint32_t width, uint32_t height) {
   width_ = width;
   height_ = height;
@@ -57,10 +62,11 @@ void ShadowMap::Initialize(uint32_t width, uint32_t height) {
   pso_.SetRenderTargetFormat(Graphics::Core.BackBufferFormat, Graphics::Core.DepthStencilFormat,
     (Graphics::Core.Msaa4xState() ? 4 : 1), (Graphics::Core.Msaa4xState() ? (Graphics::Core.Msaa4xQuanlity() - 1) : 0));
   pso_.Finalize();
+
 }
 
 void ShadowMap::Update() {
-  //  light space view matrix and projection matrix
+
   XMVECTOR direction = XMLoadFloat3(&Graphics::MainConstants.Lights[0].Direction);
   XMVECTOR light_pos = -2.0f * direction * scene_bounds_.Radius;
   XMVECTOR target_pos = XMLoadFloat3(&scene_bounds_.Center);
@@ -93,6 +99,9 @@ void ShadowMap::Update() {
 }
 
 void ShadowMap::Render() {
+  if (!is_enabled_)
+    return;
+
   GraphicsContext& context = GraphicsContext::Begin(L"shadow context");
 
   context.SetViewports(&Graphics::Core.ViewPort());
@@ -119,28 +128,6 @@ void ShadowMap::Render() {
   context.SetDynamicConstantBufferView(1, sizeof(vs_constant), &vs_constant);
 
   vector<RenderObject*> objects;
-  //auto begin = Graphics::MainQueue.Begin();
-  //for (auto it = begin; it != Graphics::MainQueue.End(); ++it) {
-
-  //  //if (it->first == Graphics::RenderGroupType::kTransparent)
-  //  //  continue;
-
-  //  auto group_begin = it->second->Begin();
-  //  auto group_end = it->second->End();
-  //  for (auto it_obj = group_begin; it_obj != group_end; ++it_obj) {
-  //    //  objects.push_back((*it_obj));
-
-  //    auto render_object = *it_obj;
-  //    auto& model = render_object->GetModel();
-  //    auto& obj_constant = render_object->GetObjConst();
-  //    context.SetDynamicConstantBufferView(0, sizeof(obj_constant), &obj_constant);
-  //    context.SetVertexBuffer(model.GetMesh()->VertexBuffer().VertexBufferView());
-  //    context.SetIndexBuffer(model.GetMesh()->IndexBuffer().IndexBufferView());
-
-  //    context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  //    context.DrawIndexedInstanced(model.GetMesh()->IndexBuffer().ElementCount(), 1, 0, 0, 0);
-  //  }
-  //}
 
   auto* opaque3 = Graphics::MainQueue.GetGroup(Graphics::RenderGroupType::kOpaque2);
   auto group_begin = opaque3->Begin();
@@ -162,4 +149,13 @@ void ShadowMap::Render() {
 
 
   context.Finish();
+}
+
+void ShadowMap::OnSetEnabled(bool enable) {
+
+  if (!enable) {
+    GraphicsContext& context = GraphicsContext::Begin(L"shadow clearer");
+    context.ClearDepth(depth_buffer_);
+    context.Finish();
+  }
 }

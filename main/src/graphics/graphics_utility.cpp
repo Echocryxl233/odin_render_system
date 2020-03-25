@@ -53,8 +53,6 @@ void Blur(ColorBuffer& input, int blur_count) {
     blur_buffer_1_.Create(L"blur_map_01", width, height, input.MipCount(), input.Format());
   }
 
-  
-
   auto weights = CalculateGaussWeights(2.5f);
   UINT radius = (UINT)weights.size() / 2;
 
@@ -102,7 +100,6 @@ void Blur(ColorBuffer& input, int blur_count) {
   }
 
   context.CopyBuffer(input, blur_buffer_1_);
-  
   context.Finish(true);
 
 }

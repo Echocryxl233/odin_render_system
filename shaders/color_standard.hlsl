@@ -79,7 +79,6 @@ float CalcShadowFactor(float4 shadowPosH)
 float4 PS(VertexOut pin) : SV_Target
 {
   float4 diffuse_albedo = gDiffuseMap.Sample(samplerLinear, pin.TexC) * DiffuseAlbedo;
-  // float4 diffuse_albedo = gSsapMap.Sample(samplerLinear, pin.TexC) * DiffuseAlbedo;
 
   pin.Normal = normalize(pin.Normal);
 
@@ -87,8 +86,6 @@ float4 PS(VertexOut pin) : SV_Target
   float3 toEyeW = normalize(EyePosition - pin.PosW);
   
   float ambient_access = 1.0f;
-  // pin.SsaoPosH /= pin.SsaoPosH.w;
-  // ambient_access = gDiffuseMap2.SampleLevel(samplerLinear, pin.SsaoPosH.xy, 0.0f).r;
 
 #ifdef SSAO
   pin.SsaoPosH /= pin.SsaoPosH.w;

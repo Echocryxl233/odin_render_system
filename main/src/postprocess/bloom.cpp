@@ -5,8 +5,13 @@
 using namespace PostProcess;
 
 namespace PostProcess {
-  Bloom BloomEffect;
+  Bloom* BloomEffect = new Bloom();
 };
+
+Bloom::~Bloom() {
+  bloom_buffer_.Destroy();
+  temp_buffer_.Destroy();
+}
 
 void Bloom::Initialize() {
   width_ = (UINT)Graphics::Core.Width();
@@ -57,7 +62,7 @@ void Bloom::ResizeBuffers(UINT width, UINT height, UINT mip_level, DXGI_FORMAT f
   }
 }
 
-void Bloom::Render(ColorBuffer& input) {
+void Bloom::OnRender(ColorBuffer& input) {
 
   ResizeBuffers(input.Width(), input.Height(), input.MipCount(), input.Format());
 
@@ -100,6 +105,8 @@ void Bloom::Render(ColorBuffer& input) {
   context2.SetDynamicDescriptors(1, 0, _countof(handles2), handles2);
 
   context2.Dispatch(width_, height_, 1);
+
+  context2.CopyBuffer(input, bloom_buffer_);
 
   context2.Finish();
 }

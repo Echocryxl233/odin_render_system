@@ -77,12 +77,8 @@ friend class Model;
   ByteAddressBuffer index_buffer_;
 };
 
-class MeshManager {
+class MeshManager : public Singleton<MeshManager> {
  public:
-  static MeshManager& Instance() {
-    static MeshManager instance;
-    return instance;
-  }
 
   Mesh* LoadFromFile(const string& filename);
   Mesh* CreateSphere(float radius, std::uint32_t sliceCount, std::uint32_t stackCount);

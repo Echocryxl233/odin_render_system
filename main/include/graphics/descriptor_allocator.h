@@ -69,7 +69,8 @@ class DescriptorHandle {
 
 
 
-class DescriptorAllocatorManager {
+class DescriptorAllocatorManager : public Singleton<DescriptorAllocatorManager> {
+friend class Singleton<DescriptorAllocatorManager>;
 
   class DescriptorAllocator
   {
@@ -94,10 +95,10 @@ class DescriptorAllocatorManager {
   DescriptorAllocatorManager();
 //  ~DescriptorAllocatorManager();
 //
-  static DescriptorAllocatorManager& Instance() {
-    static DescriptorAllocatorManager instance;
-    return instance;
-  }
+  //static DescriptorAllocatorManager& Instance() {
+  //  static DescriptorAllocatorManager instance;
+  //  return instance;
+  //}
 
   //  ID3D12Device* device;
 

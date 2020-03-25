@@ -4,12 +4,12 @@
 #include "graphics/graphics_core.h"
 #include "graphics/graphics_common.h"
 #include "graphics/graphics_utility.h"
-#include "math_helper.h"
 #include "graphics/sampler_manager.h"
-#include "GI/ssao.h"
-#include "utility.h"
 #include "game/game_include.h"
 #include "GI/gi_utility.h"
+#include "GI/ssao.h"
+#include "math_helper.h"
+#include "utility.h"
 
 
 namespace GI {
@@ -28,8 +28,9 @@ void Ssao::Initialize(UINT width, UINT height) {
   BuildDrawNormalComponents();
   BuildAmbientComponents();
 
-
   Resize(width, height);
+
+  is_enabled_ = GameSetting::GetBoolValue("UseSsao");
 }
 
 void Ssao::Resize(UINT width, UINT height) {
@@ -166,26 +167,6 @@ void Ssao::BuildAmbientComponents() {
   ssao_pso_.SetSampleMask(UINT_MAX);
   ssao_pso_.SetRenderTargetFormat(Ssao::kNormalMapFormat, DXGI_FORMAT_UNKNOWN);
   ssao_pso_.Finalize();
-
-  //auto ssao_blur_vs = d3dUtil::CompileShader(L"shaders/ssao_blur.hlsl", nullptr, "VS", "vs_5_1");
-  //auto ssao_blur_ps = d3dUtil::CompileShader(L"shaders/ssao_blur.hlsl", nullptr, "PS", "ps_5_1");
-
-  ////  blur_pso_.CopyDesc(ssao_pso_);
-
-  //blur_pso_.SetVertexShader(reinterpret_cast<BYTE*>(ssao_blur_vs->GetBufferPointer()),
-  //  (UINT)ssao_blur_vs->GetBufferSize());
-  //blur_pso_.SetPixelShader(reinterpret_cast<BYTE*>(ssao_blur_ps->GetBufferPointer()),
-  //  (UINT)ssao_blur_ps->GetBufferSize());
-
-  //blur_pso_.SetRootSignature(ssao_root_signature_);
-  //blur_pso_.SetBlendState(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
-  //blur_pso_.SetRasterizeState(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
-  //blur_pso_.SetDepthStencilState(Graphics::DepthStateDisabled);
-  //blur_pso_.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-  //blur_pso_.SetSampleMask(UINT_MAX);
-  //blur_pso_.SetRenderTargetFormat(Ssao::kNormalMapFormat, DXGI_FORMAT_UNKNOWN);
-
-  //blur_pso_.Finalize();
 }
 
 
@@ -240,6 +221,9 @@ void Ssao::ComputeAoInternal(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT
 }
 
 void Ssao::ComputeAo() {
+  if (!is_enabled_) 
+    return;
+
   vector<RenderObject*> objects;
   auto begin = Graphics::MainQueue.Begin();
   for (auto it = begin; it != Graphics::MainQueue.End(); ++it) {
@@ -363,6 +347,15 @@ void Ssao::BuildOffsetVectors()
 
     XMStoreFloat4(&offsets_[i], v);
   }
+}
+
+void Ssao::OnSetEnabled(bool enable) {
+  GraphicsContext& context = GraphicsContext::Begin(L"ssao clearer");
+  context.ClearColor(ambient_map_0_);
+  context.ClearColor(ambient_map_1_);
+  context.ClearDepth(depth_buffer_);
+  context.ClearColor(normal_map_);
+  context.Finish();
 }
 
 }

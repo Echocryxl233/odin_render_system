@@ -6,11 +6,6 @@ CommandListManager::CommandListManager()
   
 }
 
-CommandListManager& CommandListManager::Instance() {
-  static CommandListManager instance;
-  return instance;
-}
-
 void CommandListManager::Initialize(ID3D12Device* device) {
   device_ = device;
 

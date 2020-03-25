@@ -5,15 +5,24 @@
 
 #include "graphics/pipeline_state.h"
 #include "resource/color_buffer.h"
+#include "postprocess_base.h"
+#include "base/singleton.h"
 
 namespace PostProcess {
 
-class Bloom {
+class Bloom : public PostProcessBase , public Singleton<Bloom> {
+friend class Singleton<Bloom>;
+  
  public:
+  Bloom() = default;
+  ~Bloom();
   void Initialize();
-  void Render(ColorBuffer& input);
+  //void Render(ColorBuffer& input);
 
   ColorBuffer& BloomBuffer() { return bloom_buffer_; }
+
+ protected:
+  void OnRender(ColorBuffer& input);
 
  private:
   void ResizeBuffers(UINT width, UINT height, UINT mip_level, DXGI_FORMAT format);
@@ -34,8 +43,7 @@ class Bloom {
   ComputePso composite_pso_;
 };
 
-
-extern Bloom BloomEffect;
+extern Bloom* BloomEffect;
 
 };
 

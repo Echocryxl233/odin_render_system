@@ -3,8 +3,8 @@
 #ifndef TEXTUREMANAGER_H
 #define TEXTUREMANAGER_H
 
-#include "utility.h"
 #include "resource/gpu_resource.h"
+#include "utility.h"
 
 using namespace std;
 
@@ -38,14 +38,15 @@ class CubeTexture : public Texture {
   void CreateDeriveView();
 };
 
-class TextureManager {
+class TextureManager : public Singleton<TextureManager> {
+friend class Singleton<TextureManager>;
+
  public:
-  static TextureManager& Instance() {
-    static TextureManager instance;
-    return instance;
-  }
 
  Texture* RequestTexture(const wstring& filename, D3D12_SRV_DIMENSION type = D3D12_SRV_DIMENSION_TEXTURE2D);
+
+ private:
+  TextureManager() = default;
 
  private:
   map<wstring, Texture*> texture_pool_;

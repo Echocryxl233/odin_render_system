@@ -13,8 +13,8 @@ namespace PostProcess {
 
 class DepthOfField {
  public:
+  virtual ~DepthOfField();
   void Initialize();
-
 
   void Render(ColorBuffer& input);
   ColorBuffer& BlurBuffer() { return blur_buffer_; }
@@ -27,7 +27,6 @@ class DepthOfField {
   //  void Blur(ColorBuffer& input, int blur_count);
   void ResizeBuffers(UINT width, UINT height, UINT mip_level, DXGI_FORMAT format);
   void RenderInternal(ColorBuffer& input);
-
 
  private:
   ColorBuffer blur_buffer_;

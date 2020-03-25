@@ -43,6 +43,9 @@
     <Filter Include="Header Files\game">
       <UniqueIdentifier>{02df8907-0d49-41f3-9913-84c445269b89}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\base">
+      <UniqueIdentifier>{02de88d2-e27d-4fbf-a338-ca39a7fa0394}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main\src\main.cpp">
@@ -174,12 +177,12 @@
     <ClCompile Include="main\src\graphics\sampler_manager.cpp">
       <Filter>Source Files\graphics</Filter>
     </ClCompile>
+    <ClCompile Include="main\src\postprocess\postprocess_base.cpp">
+      <Filter>Source Files\postprocess</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main\include\color.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\d3dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\debug_log.h">
@@ -225,9 +228,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\mesh_geometry.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main\include\singleton.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="main\include\skybox.h">
@@ -305,9 +305,6 @@
     <ClInclude Include="main\include\graphics\command_queue.h">
       <Filter>Header Files\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="main\include\common_helper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="main\include\graphics\pipeline_state.h">
       <Filter>Header Files\graphics</Filter>
     </ClInclude>
@@ -322,6 +319,18 @@
     </ClInclude>
     <ClInclude Include="main\include\graphics\sampler_manager.h">
       <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\base\switch_enable_interface.h">
+      <Filter>Header Files\base</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\base\common_helper.h">
+      <Filter>Header Files\base</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\base\singleton.h">
+      <Filter>Header Files\base</Filter>
+    </ClInclude>
+    <ClInclude Include="main\include\postprocess\postprocess_base.h">
+      <Filter>Header Files\postprocess</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

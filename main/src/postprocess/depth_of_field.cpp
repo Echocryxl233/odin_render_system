@@ -11,6 +11,12 @@ using namespace GameCore;
 
 DepthOfField DoF;
 
+DepthOfField::~DepthOfField() {
+  blur_buffer_.Destroy();
+  dof_buffer_.Destroy();
+  color_buffer_.Destroy();
+}
+
 void DepthOfField::Initialize() {
   width_ = Graphics::Core.Width();
   height_ = Graphics::Core.Height();

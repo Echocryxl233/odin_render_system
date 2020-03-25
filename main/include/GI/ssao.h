@@ -7,6 +7,7 @@
 #include "graphics/command_context.h"
 #include "graphics/pipeline_state.h"
 #include "resource/gpu_buffer.h"
+#include "utility.h"
 
 namespace GI {
 
@@ -15,7 +16,7 @@ namespace AO {
 using namespace std;
 using namespace DirectX;
 
-class Ssao {
+class Ssao : public SwitchEnableInterface {
 public:
   const XMMATRIX kTextureTransform = {
     0.5f, 0.0f, 0.0f, 0.0f,
@@ -35,16 +36,15 @@ public:
 
   void ComputeAo();
 
-  
-
   ColorBuffer& NormalMap() { return normal_map_; }
   ColorBuffer& AmbientMap() { return ambient_map_0_; }
   ColorBuffer& AmbientMap1() { return ambient_map_1_; }
 
-
   DepthStencilBuffer& DepthMap() { return depth_buffer_; }
-
   ColorBuffer& RandomMap() { return random_map_; }
+
+ protected:
+  virtual void OnSetEnabled(bool enable) override;
 
 private:
   void BuildDrawNormalComponents();
@@ -54,7 +54,6 @@ private:
   void ComputeAoInternal(GraphicsContext& context, XMFLOAT4X4& view, XMFLOAT4X4& proj);
 
   vector<float> GetGaussWeight(float sigma);
-
   void BuildOffsetVectors();
 
 private:

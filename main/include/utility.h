@@ -29,9 +29,10 @@
 #include <wrl.h>
 
 #include "DDSTextureLoader.h" 
-#include "d3dx12.h"
+//  #include "d3dx12.h"
 #include "math_helper.h"
-#include "singleton.h"
+#include "base/singleton.h"
+#include "base/switch_enable_interface.h"
 
 #include "debug_log.h"
 

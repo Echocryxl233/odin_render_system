@@ -1,12 +1,15 @@
 #include "optional_system.h"
+
+
+#include "game/game_setting.h"
+#include "GI/shadow.h"
+#include "GI/ssao.h"
 #include "graphics/graphics_core.h"
 #include "graphics/graphics_common.h"
+
 #include "mesh_geometry.h"
 #include "model.h"
 #include "skybox.h"
-#include "GI/ssao.h"
-#include "game/game_setting.h"
-#include "GI/shadow.h"
 
 namespace Graphics {
 
@@ -41,9 +44,7 @@ void ForwardShading::Initialize() {
 
   D3D_SHADER_MACRO* macro = GameSetting::GetBoolValue("UseSsao") ? ssao_macro : nullptr;
 
-  auto color_vs = d3dUtil::CompileShader(ShaderPrefix + Shader_ColorStandar, macro, "VS", "vs_5_1");
-
-  //  auto color_vs = d3dUtil::CompileShader(ShaderPrefix + Shader_ColorStandar, macro, "VS", "vs_5_1");
+  auto color_vs = d3dUtil::CompileShader(ShaderPrefix + Shader_ColorStandar, macro, "VS", "vs_5_1");  
   auto color_ps = d3dUtil::CompileShader(ShaderPrefix + Shader_ColorStandar, nullptr, "PS", "ps_5_1");
 
   std::vector<D3D12_INPUT_ELEMENT_DESC> input_layout =

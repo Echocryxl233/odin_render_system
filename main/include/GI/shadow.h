@@ -12,19 +12,22 @@ namespace GI {
 
 namespace Shadow {
 
-class ShadowMap {
+class ShadowMap : public SwitchEnableInterface {
 
-public:
+ public:
+  virtual ~ShadowMap();
   void Initialize(uint32_t width, uint32_t height);
   void Render();
   void Update();
+  
 
   DepthStencilBuffer& DepthBuffer() { return depth_buffer_; }
   XMFLOAT4X4 ShadowTransform() const { return shadow_transform_;}
 
-private:
+ protected:
+  virtual void OnSetEnabled(bool enable) override;
 
-private:
+ private:
   DepthStencilBuffer depth_buffer_;
   ColorBuffer color_buffer_;
   D3D12_VIEWPORT viewport_;
@@ -32,7 +35,6 @@ private:
 
   UINT width_ = 0;
   UINT height_ = 0;
-
 
   RootSignature signature_;
   GraphicsPso pso_;

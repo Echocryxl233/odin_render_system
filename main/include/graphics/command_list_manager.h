@@ -7,10 +7,11 @@
 #include "graphics/command_queue.h"
 #include "utility.h"
 
-class CommandListManager {
+class CommandListManager : public Singleton<CommandListManager> {
+friend class Singleton<CommandListManager>;
  public:
-  CommandListManager();
-  static CommandListManager& Instance();
+  
+  //static CommandListManager& Instance();
   void Initialize(ID3D12Device* device);
 
   CommandQueue& GetQueue(D3D12_COMMAND_LIST_TYPE type) {
@@ -43,6 +44,9 @@ class CommandListManager {
   }
 
   void CreateNewCommandList(D3D12_COMMAND_LIST_TYPE type, ID3D12GraphicsCommandList** list, ID3D12CommandAllocator** allocator);
+
+ private:
+  CommandListManager() ;
 
  private:
   

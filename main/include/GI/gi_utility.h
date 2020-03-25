@@ -3,11 +3,11 @@
 #ifndef GIUTILITY_H
 #define GIUTILITY_H
 
-#include "utility.h"
-#include "resource/color_buffer.h"
-#include "resource/depth_stencil_buffer.h"
 #include "graphics/command_context.h"
 #include "render_object.h"
+#include "resource/color_buffer.h"
+#include "resource/depth_stencil_buffer.h"
+#include "utility.h"
 
 namespace GI {
 

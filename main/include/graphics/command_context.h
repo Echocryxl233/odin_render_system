@@ -5,21 +5,19 @@
 
 #include <assert.h>
 #include <d3d12.h>
+#include "base/common_helper.h"
 
-#include "resource/color_buffer.h"
-#include "common_helper.h"
 #include "graphics/command_queue.h"
-#include "resource/depth_stencil_buffer.h"
 #include "graphics/dynamic_descriptor_heap.h"
-#include "resource/gpu_buffer.h"
-#include "linear_allocator.h"
 #include "graphics/pipeline_state.h"
+#include "resource/depth_stencil_buffer.h"
+#include "resource/color_buffer.h"
+#include "resource/gpu_buffer.h"
 
+#include "linear_allocator.h"
+#include "utility.h"
 
 using namespace std;
-//  using namespace Graphics;
-
-//  #include "d3dx12.h"
 
 class GraphicsContext;
 class ComputeContext;
@@ -34,20 +32,24 @@ const int kBarrierBufferCount = 16;
     | D3D12_RESOURCE_STATE_COPY_DEST \
     | D3D12_RESOURCE_STATE_COPY_SOURCE )
 
-class ContextManager
+class ContextManager : public Singleton<ContextManager>
 {
-public:
-  ContextManager();
+friend class Singleton<ContextManager>;
+ public:
+  //ContextManager();
 
   CommandContext* Allocate(D3D12_COMMAND_LIST_TYPE type);
   void Free(CommandContext* used_context) ;
 
-  static ContextManager& Instance() {
-    static ContextManager instance;
-    return instance;
-  }
+  //static ContextManager& Instance() {
+  //  static ContextManager instance;
+  //  return instance;
+  //}
 
-private:
+ private:
+  ContextManager() = default;
+
+ private:
   vector<unique_ptr<CommandContext>> context_pool_[kTypeCount];
   queue<CommandContext*> avalible_contexts_[kTypeCount];
 

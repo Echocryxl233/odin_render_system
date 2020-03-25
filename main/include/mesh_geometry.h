@@ -9,12 +9,14 @@ namespace Graphics {
 
 namespace Geometry{
   
-class GeometryGenerator {
+class GeometryGenerator : public Singleton<GeometryGenerator> {
+friend class Singleton<GeometryGenerator>;
+
  public :
-  static GeometryGenerator& Instance() {
-    static GeometryGenerator instance;
-    return instance;
-  }
+  //static GeometryGenerator& Instance() {
+  //  static GeometryGenerator instance;
+  //  return instance;
+  //}
 
   using uint16 = std::uint16_t;
   using uint32 = std::uint32_t;

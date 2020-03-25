@@ -16,7 +16,6 @@
 
 
 
-
 namespace GameCore {
 
 //  RenderSystem* render_system;
@@ -112,18 +111,23 @@ void Initialize() {
   CreateMainWindow();
   Graphics::Core.Initialize(window);
   Graphics::InitCommonBuffers();
-  GI::AO::MainSsao.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
-  GI::Specular::MainSSR.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
-  GI::Shadow::MainShadow.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
-  InitMainCamera();
-  main_camera_controller_.reset(new CameraController(MainCamera, 
-      XMFLOAT3(0.0f, 1.0f, 0.0f)));
-  PostProcess::DoF.Initialize();  
-  PostProcess::BloomEffect.Initialize();
   Graphics::InitRenderQueue();
   Graphics::InitializeLights();
   Graphics::SkyBox::Initialize();
   Graphics::Utility::InitBlur();
+
+  GI::AO::MainSsao.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
+  GI::Specular::MainSSR.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
+  GI::Shadow::MainShadow.Initialize(Graphics::Core.Width(), Graphics::Core.Height());
+
+  
+  InitMainCamera();
+  main_camera_controller_.reset(new CameraController(MainCamera, 
+      XMFLOAT3(0.0f, 1.0f, 0.0f)));
+  PostProcess::DoF.Initialize();  
+  PostProcess::BloomEffect->Initialize();
+
+
   cout << GameSetting::GetStringValue("SkyTexture") << endl;
 
   //  rs.Initialize();
@@ -142,6 +146,15 @@ void Run() {
 void OnKeyboardInput() {
   if (GetAsyncKeyState('R') & 0x8000)
     Graphics::ResetDirectLightRotation();
+
+  if (GetAsyncKeyState('1') & 0x8000) {
+    GI::Shadow::MainShadow.SetEnabled(!GI::Shadow::MainShadow.Enabled());
+  }
+
+  if (GetAsyncKeyState('5') & 0x8000) {
+    PostProcess::BloomEffect->SetEnabled(!PostProcess::BloomEffect->Enabled());
+  }
+    
 }
 
 void Update() {
