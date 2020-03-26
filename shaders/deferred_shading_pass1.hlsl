@@ -23,7 +23,7 @@ struct VertexOut {
 };
 
 struct PixelOut {
-    float4 Position : SV_TARGET0;
+    float4 Material : SV_TARGET0;
     float4 Normal : SV_TARGET1;
     float4 Albedo : SV_TARGET2;
 };
@@ -48,10 +48,12 @@ VertexOut VS(VertexIn vin) {
 PixelOut PS(VertexOut pin) : SV_TARGET { // 
     PixelOut pout = (PixelOut)0.0f;
     
-    float position_w = length(pin.PosW);
-    float3 position = normalize(pin.PosW);
-    position = float3(0.5f, 0.5f, 0.5f) + position*0.5f;
-    pout.Position = float4(position, position_w/100.0f);   //  * 1000.0f
+    // float position_w = length(pin.PosW);
+    // float3 position = normalize(pin.PosW);
+    // position = float3(0.5f, 0.5f, 0.5f) + position*0.5f;
+    // pout.Position = float4(position, position_w/100.0f);   //  * 1000.0f
+
+    pout.Material = float4(FresnelR0, Roughness);
 
     float normal_w = length(pin.Normal);
     float3 normal = pin.Normal / normal_w;

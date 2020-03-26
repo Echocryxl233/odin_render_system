@@ -89,8 +89,9 @@ friend class DynamicDescriptorHeap;
  public:
   ID3D12RootSignature* GetSignature() const { return signature_; }
 
-  RootParameter& operator[](size_t index) const {
+  RootParameter& operator[](const size_t index) const {
     assert((index>=0 && index< parameter_count_) && "Get RootParameter index error");
+    //max_parameter_index_ = max(max_parameter_index_, index);
     return (parameters_.get())[index];
   }
 
@@ -117,7 +118,6 @@ friend class DynamicDescriptorHeap;
   void InitSampler(UINT shader_register, const D3D12_SAMPLER_DESC& desc,
       D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
 
-
   void Finalize();
 
  private:
@@ -130,5 +130,7 @@ friend class DynamicDescriptorHeap;
   uint32_t descriptor_sizes[16];
   std::unique_ptr<RootParameter[]> parameters_;
   std::unique_ptr<D3D12_STATIC_SAMPLER_DESC[]> samplers_;
+  int32_t max_parameter_index_;
+  int32_t max_sampler_index_;
 };
 

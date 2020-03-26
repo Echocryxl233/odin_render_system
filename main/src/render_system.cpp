@@ -42,7 +42,7 @@ void RenderSystem::Initialize() {
   deferred_lighting_->Initialize();
   deferred_lighting_->SetRenderQueue(&Graphics::MainQueue);
 
-  optional_system_ = forward_shading_;
+  optional_system_ = deferred_shading_;
 
   BuildDebugPso();
   
@@ -86,7 +86,7 @@ void RenderSystem::Render() {
   GI::AO::MainSsao.ComputeAo();
   GI::Shadow::MainShadow.Render();
 
-  Graphics::SkyBox::Render(display_plane);
+
 
   optional_system_->Render();
 

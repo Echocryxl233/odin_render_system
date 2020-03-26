@@ -2,6 +2,7 @@
 
 
 #include "game/game_setting.h"
+#include "game/camera.h"
 #include "GI/shadow.h"
 #include "GI/ssao.h"
 #include "graphics/graphics_core.h"
@@ -31,6 +32,8 @@ void OptionalSystem::Render() {
   auto& display_plane = Graphics::Core.DisplayPlane();
   draw_context.SetViewports(&Graphics::Core.ViewPort());
   draw_context.SetScissorRects(&Graphics::Core.ScissorRect());
+
+  Graphics::SkyBox::Render(display_plane);
   OnRender(draw_context);
 
   OnOptionalPass(draw_context);
@@ -103,6 +106,7 @@ void ForwardShading::OnRender(GraphicsContext& context) {
   context.SetPipelineState(graphics_pso_);
   context.SetRootSignature(root_signature_);
 
+  //  IBL 
   context.SetDynamicDescriptors(4, 0, 1, &Graphics::SkyBox::SkyBoxTexture->SrvHandle());
   auto& ssao_ambient_handle = const_cast<D3D12_CPU_DESCRIPTOR_HANDLE&>(GI::AO::MainSsao.AmbientMap().Srv());
   context.SetDynamicDescriptors(5, 0, 1, &ssao_ambient_handle);
@@ -170,13 +174,16 @@ void DeferredShading::Initialize() {
   depth_sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
   depth_sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
   depth_sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+
   pass2_signature_.Reset(4, 2);
   pass2_signature_.InitSampler(0, default_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
   pass2_signature_.InitSampler(1, depth_sampler, D3D12_SHADER_VISIBILITY_PIXEL);
   pass2_signature_[0].InitAsConstantBufferView(0, 0);
   pass2_signature_[1].InitAsConstantBufferView(1, 0);
   pass2_signature_[2].InitAsConstantBufferView(2, 0);
-  pass2_signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+  pass2_signature_[3].InitAsDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+
   pass2_signature_.Finalize();
 
   auto deferred_pass2_vs = d3dUtil::CompileShader(L"shaders/deferred_shading_pass2.hlsl", nullptr, "VS", "vs_5_1");
@@ -249,13 +256,25 @@ void DeferredShading::OnRender(GraphicsContext& context) {
 
   context.SetDynamicConstantBufferView(2, sizeof(Graphics::MainConstants), &Graphics::MainConstants);
 
-  D3D12_CPU_DESCRIPTOR_HANDLE handles[Graphics::Core.kMRTBufferCount];
+  D3D12_CPU_DESCRIPTOR_HANDLE handles[Graphics::Core.kMRTBufferCount + 1]; // 1 is skycube
 
   for (int i = 0; i < Graphics::Core.kMRTBufferCount-1; ++i) {
     handles[i] = Graphics::Core.GetMrtBuffer(i).Srv();
   }
+  handles[Graphics::Core.kMRTBufferCount] = Graphics::SkyBox::SkyBoxTexture->SrvHandle();
+
   context.TransitionResource(Graphics::Core.DeferredDepthBuffer(), D3D12_RESOURCE_STATE_GENERIC_READ);
   handles[Graphics::Core.kMRTBufferCount-1] = Graphics::Core.DeferredDepthBuffer().DepthSRV();
+
+  auto offset = XMMatrixTranslation(GameCore::MainCamera.Position().x, 
+      GameCore::MainCamera.Position().y,
+      GameCore::MainCamera.Position().z);
+  
+
+  //ObjectConstants constants;
+  //XMStoreFloat4x4(&constants.World, XMMatrixTranspose(XMMatrixInverse(&XMMatrixDeterminant(offset), offset)));
+
+  //context.SetDynamicConstantBufferView(0, sizeof(constants), &constants);
 
   context.SetDynamicDescriptors(3, 0, _countof(handles), handles);
 

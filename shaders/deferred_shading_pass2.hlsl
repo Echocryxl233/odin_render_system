@@ -1,9 +1,10 @@
 #include "common.hlsl"
 
-Texture2D    gPositionMap : register(t0);
+Texture2D    gMaterialMap : register(t0);
 Texture2D    gNormalMap : register(t1);
 Texture2D    gColorMap : register(t2);
 Texture2D    gDepthMap : register(t3);
+TextureCube    skyCubeMap : register(t4);
 
 // Texture2D gTextureMaps[10] : register(t2);
 
@@ -20,7 +21,9 @@ struct VertexIn
 struct VertexOut
 {
 	float4 PosH    : SV_POSITION;
+  
 	float2 TexC    : TEXCOORD;
+  float4 EyePosH : POSITION0;
 };
 
 VertexOut VS(VertexIn vin)
@@ -28,6 +31,11 @@ VertexOut VS(VertexIn vin)
 	VertexOut vout = (VertexOut)0.0f;
     // Already in homogeneous clip space.
   vout.PosH = float4(vin.PosL, 1.0f);
+
+  float3 eye_world_pos = EyePosition + float3(0.0f, 0.0f, 1.0f);
+  // float4 posH = mul(float4(eye_world_pos, 1.0f), ViewProj);
+  // vout.EyePosH = posH;
+
 	vout.TexC = vin.TexC;
   return vout;
 }
@@ -45,6 +53,12 @@ float4 PS(VertexOut pin) : SV_Target
   float4 worldPos = mul(ndc, InvViewProj);
   worldPos/= worldPos.w;
 
+  // if (depth >= 1.0f) {
+
+  //   return  skyCubeMap.Sample(gsamLinear, float3(pin.PosH.x - 0.5f, 0.5f-pin.PosH.y, 1.0f) );
+  //   // return float4(1.0f, 0.0f, 1.0f, 1.0f);
+  // }
+
   float3 result = 0.0f;
   int i=0; 
 
@@ -60,8 +74,6 @@ float4 PS(VertexOut pin) : SV_Target
   float3 specular_albedo = 0.0f;
 
   float3 to_eye = EyePosition - worldPos.xyz;
-
-  
 
 #if NUM_DIR_LIGHTS
   for (i=0; i<NUM_DIR_LIGHTS; ++i) {
@@ -100,5 +112,16 @@ float4 PS(VertexOut pin) : SV_Target
     }
   }
 #endif
+
+  float4 material = gMaterialMap.Sample(gsamLinear, pin.TexC);
+  
+  float3 reflection_dir = reflect(-to_eye, normal);
+  float3 reflection_color = skyCubeMap.Sample(gsamLinear, reflection_dir);
+  float reflect_factor = SchlickFresnel(material.xyz, normal, reflection_dir);
+
+  float3 env_light = (1.0f-material.w) * reflect_factor * reflection_color;
+
+  result += env_light;
+
   return float4(result.xyz, albedo.a);
 }
