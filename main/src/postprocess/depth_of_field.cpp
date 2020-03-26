@@ -84,11 +84,13 @@ void DepthOfField::Render(ColorBuffer& input) {
   auto& context = GraphicsContext::Begin(L"Blur Compute Context 1");
   context.CopyBuffer(blur_buffer_, input);
   //  context.TransitionResource(Graphics::Core.DepthBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-  context.Finish(true);
+
 
   int blur_count = GameSetting::GetIntValue("DofBlurIterateCount");
-  Graphics::Utility::Blur(blur_buffer_, blur_count);
+  ComputeContext& compute = reinterpret_cast<ComputeContext&>(context);
 
+  Graphics::Utility::Blur(compute, blur_buffer_, blur_count);
+  context.Finish(true);
   RenderInternal(input);
 }
 

@@ -12,6 +12,8 @@
 
 namespace Graphics {
 
+using namespace Odin;
+
 extern CD3DX12_DEPTH_STENCIL_DESC DepthStateDisabled;
 extern PassConstant MainConstants;
 

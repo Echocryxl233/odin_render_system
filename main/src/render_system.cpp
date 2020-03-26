@@ -3,25 +3,25 @@
 
 #include "render_system.h"
 
-#include "game/camera.h"
-#include "graphics/command_context.h"
 #include "defines_common.h"
-#include "postprocess/depth_of_field.h"
-#include "graphics/graphics_core.h"
-#include "graphics/graphics_common.h"
-#include "game/game_setting.h"
-#include "game/game_timer.h"
-#include "model.h"
-#include "math_helper.h"
-#include "graphics/sampler_manager.h"
-#include "skybox.h"
 #include "GI/ssao.h"
 #include "GI/gi_utility.h"
 #include "GI/shadow.h"
 #include "GI/ssr.h"
+#include "graphics/command_context.h"
+#include "graphics/graphics_core.h"
+#include "graphics/graphics_common.h"
+#include "graphics/sampler_manager.h"
+#include "game/camera.h"
+#include "game/game_setting.h"
+#include "game/game_timer.h"
+#include "model.h"
+#include "math_helper.h"
+
+#include "skybox.h"
+
 #include "postprocess/bloom.h"
-
-
+#include "postprocess/depth_of_field.h"
 
 using namespace GameCore;
 
@@ -83,13 +83,10 @@ void RenderSystem::Render() {
   GraphicsContext& draw_context = GraphicsContext::Begin(L"Draw Context");
   auto& display_plane = Graphics::Core.DisplayPlane();
 
-  
   GI::AO::MainSsao.ComputeAo();
   GI::Shadow::MainShadow.Render();
 
   Graphics::SkyBox::Render(display_plane);
-
-  //auto& display_plane = Graphics::Core.DisplayPlane();
 
   optional_system_->Render();
 
@@ -99,13 +96,10 @@ void RenderSystem::Render() {
     PostProcess::DoF.Render(display_plane);
   }
 
-
   GI::Specular::MainSSR.RenderReflection();
 
   DrawDebug(draw_context);
-
   draw_context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_PRESENT, true);
-
   draw_context.Finish(true);
 }
 

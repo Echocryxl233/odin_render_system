@@ -11,9 +11,10 @@
 #include "model.h"
 #include "skybox.h"
 
-namespace Graphics {
+namespace Odin {
 
 using namespace Geometry;
+using namespace Graphics;
 
 const wstring ShaderPrefix = L"shaders/";
 const wstring Shader_ColorStandar = L"color_standard.hlsl";
@@ -34,7 +35,7 @@ void OptionalSystem::Render() {
 
   OnOptionalPass(draw_context);
   //context.Flush();
-  draw_context.Finish();
+  draw_context.Finish(true);
 }
 
 void ForwardShading::Initialize() {
@@ -202,9 +203,9 @@ void DeferredShading::Initialize() {
 
 void DeferredShading::OnRender(GraphicsContext& context) {
   auto& display_plane = Graphics::Core.DisplayPlane();
-//  pass1 start
-  //context.SetViewports(&Graphics::Core.ViewPort());
-  //context.SetScissorRects(&Graphics::Core.ScissorRect());
+  //  pass1 start
+  //  draw opaque objects , and get g-buffer with Normal map, Albedo map
+  
 
   for (int i=0; i< Graphics::Core.kMRTBufferCount; ++i) {
     context.TransitionResource(Graphics::Core.GetMrtBuffer(i), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
@@ -238,7 +239,8 @@ void DeferredShading::OnRender(GraphicsContext& context) {
   context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   //  context.ClearColor(display_plane);
 
-//  pass2 start
+  //  pass2 start
+  //  Compute light with g-buffer by light equation
 
   context.SetRenderTarget(&display_plane.Rtv());
 
@@ -380,12 +382,6 @@ void DeferredLighting::Initialize() {
   auto color_vs = d3dUtil::CompileShader(ShaderPrefix + Shader_ColorStandar, nullptr, "VS", "vs_5_1");
   auto color_ps = d3dUtil::CompileShader(ShaderPrefix + Shader_ColorStandar, nullptr, "PS", "ps_5_1");
 
-  //std::vector<D3D12_INPUT_ELEMENT_DESC> input_layout =
-  //{
-  //  { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-  //{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-  //{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-  //};
 
   SamplerDesc shadow_sampler;
 
@@ -428,9 +424,9 @@ void DeferredLighting::Initialize() {
 
 void DeferredLighting::OnRender(GraphicsContext& context) {
   auto& display_plane = Graphics::Core.DisplayPlane();
-  //  pass1 start
-  //context.SetViewports(&Graphics::Core.ViewPort());
-  //context.SetScissorRects(&Graphics::Core.ScissorRect());
+  //  pass1 start 
+  //  render opaque objects and get normal and specular factor
+
   context.TransitionResource(normal_buffer_, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   context.ClearColor(normal_buffer_);
 
@@ -445,7 +441,8 @@ void DeferredLighting::OnRender(GraphicsContext& context) {
   //  Graphics::Core.MrtRtvs(), Graphics::Core.DepthBuffer().DSV());
 
   context.SetRenderTargets(1, &normal_buffer_.Rtv(), Graphics::Core.DepthBuffer().DSV());
-
+  //  context.SetRenderTargets(1, &display_plane.Rtv(), Graphics::Core.DepthBuffer().DSV());
+  
   context.SetPipelineState(pass1_pso_);
   context.SetRootSignature(pass1_signature_);
 
@@ -474,7 +471,8 @@ void DeferredLighting::OnRender(GraphicsContext& context) {
   //context.TransitionResource(display_plane, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
   //context.ClearColor(display_plane);
 
-  ////  pass2 start
+  //  pass2 start
+  //  apply lights and get diffuse and specular buffer
 
   context.SetRenderTargets(Graphics::Core.kMRTBufferCount, Graphics::Core.MrtRtvs(), Graphics::Core.DepthBuffer().DSV());
 
@@ -501,12 +499,9 @@ void DeferredLighting::OnRender(GraphicsContext& context) {
   context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   context.DrawIndexedInstanced(mesh_quad_.IndexBuffer().ElementCount(), 1, 0, 0, 0);
 
-  ////  pass3 start
-
-  //for (int i = 0; i < Graphics::Core.kMRTBufferCount; ++i) {
-  //  context.TransitionResource(Graphics::Core.GetMrtBuffer(i), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-  //  context.ClearColor(Graphics::Core.GetMrtBuffer(i));
-  //}
+  //  pass3 start
+  //  render opaque again, load albedo value from texture on objects
+  //  modulation albedo with diffuse and specular from pass2 will be the final color buffer
 
   context.ClearDepthStencil(Graphics::Core.DepthBuffer());
 
@@ -539,6 +534,7 @@ void DeferredLighting::OnRender(GraphicsContext& context) {
   }
 
   //  pass4 start
+  //  render the transparent objects as forward rendering
 
   context.SetPipelineState(pass4_pso_);
   context.SetRootSignature(pass4_signature_);

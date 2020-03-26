@@ -4,12 +4,11 @@
 #define OPTIONALSYSTEM_H
 
 #include "graphics/command_context.h"
-
 #include "graphics/pipeline_state.h"
 #include "render_queue.h"
 #include "graphics/sampler_manager.h"
 
-namespace Graphics {
+namespace Odin {
 
 class OptionalSystem {
  public :
@@ -59,6 +58,8 @@ class DeferredShading : public DeferredBase {
  
  private:
   const static int kMRTBufferCount = 4;
+
+  ColorBuffer skybox_buffer_;
 
   RootSignature pass1_signature_;
   GraphicsPso   pass1_pso_;

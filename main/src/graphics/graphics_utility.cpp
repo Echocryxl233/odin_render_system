@@ -34,10 +34,9 @@ void InitBlur() {
   vertical_pso_.Finalize();
 }
 
-void Blur(ColorBuffer& input, int blur_count) {
+void Blur(ComputeContext& context, ColorBuffer& input, int blur_count) {
   if (blur_count <=0)
     return;
-
 
   uint32_t width = input.Width();
   uint32_t height = input.Height();
@@ -56,7 +55,7 @@ void Blur(ColorBuffer& input, int blur_count) {
   auto weights = CalculateGaussWeights(2.5f);
   UINT radius = (UINT)weights.size() / 2;
 
-  auto& context = ComputeContext::Begin(L"Blur Compute Context 0");
+  //auto& context = ComputeContext::Begin(L"Blur Compute Context 0");
 
   context.SetRootSignature(blur_root_signature_);
 
@@ -100,13 +99,12 @@ void Blur(ColorBuffer& input, int blur_count) {
   }
 
   context.CopyBuffer(input, blur_buffer_1_);
-  context.Finish(true);
+  //context.Finish(true);
 
 }
 
 vector<float> CalculateGaussWeights(float sigma) {
   float two_sigma_sigma = 2.0f * sigma * sigma;
-
   int blur_radius = (int)ceil(2.0f * sigma);
 
   vector<float> weights(blur_radius * 2 + 1);

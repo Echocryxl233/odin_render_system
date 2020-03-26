@@ -48,17 +48,51 @@ float4 PS(VertexOut pin) : SV_Target
   float3 result = 0.0f;
   int i=0; 
 
+  float3 direct_radiance = 0.0f;
+  float3 result_diffuse = 0.0f;
+  float3 result_specular = 0.0f;
+  float3 light_direction = 0.0f;
+  float nDotL = 0.0f;
+  float vDotR = 0.0f;
+  float3 r = 0.0f;
+  float3 half_vector  = 0.0f;
+  float3 light_strength = 0.0f;
+  float3 specular_albedo = 0.0f;
+
+  float3 to_eye = EyePosition - worldPos.xyz;
+
+  
+
+#if NUM_DIR_LIGHTS
+  for (i=0; i<NUM_DIR_LIGHTS; ++i) {
+    // light_direction = normalize(Lights[i].Direction);
+    light_strength = Lights[i].Strength ; 
+    light_direction = -Lights[i].Direction;
+
+    nDotL = max(0.0f, dot(normal, light_direction));
+
+    light_strength = light_strength * nDotL;
+
+    r = normalize(reflect(-light_direction, normal));
+    float rDotV = max(0.0f, dot(r, normalize(to_eye)));
+
+    specular_albedo = pow(rDotV, 16);
+    result += (specular_albedo + albedo) * light_strength;
+  }
+#endif
+
+
 #if NUM_POINT_LIGHTS
-  for (i=0; i<NUM_POINT_LIGHTS; ++i) {
+  for (; i<NUM_POINT_LIGHTS; ++i) {
     float3 light_position = Lights[i].Position;
     // float3 light_direction = light_position-position;
-    float3 light_direction = light_position-worldPos.xyz;
+    light_direction = light_position-worldPos.xyz;
     float d = length(light_direction );
 
     if (d <= Lights[i].FalloffEnd && depth < 1.0f) {
         light_direction /= d;
-        float nDotL = max(0.0f, dot(normalize(normal), light_direction));
-        float3 light_strength = Lights[i].Strength ; 
+        nDotL = max(0.0f, dot(normalize(normal), light_direction));
+        light_strength = Lights[i].Strength ; 
         float attenuation = CalculateAttenuation(d, Lights[i].FalloffStart, Lights[i].FalloffEnd);
         light_strength *= attenuation;
 

@@ -8,7 +8,7 @@
 using namespace Lighting;
 using namespace DirectX;
 using namespace std;
-using namespace Graphics::Geometry;
+using namespace Odin::Geometry;
 
 struct Vertex
 {

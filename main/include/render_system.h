@@ -15,6 +15,7 @@
 #include "utility.h"
 
 using namespace DirectX;
+using namespace Odin;
 
 class RenderSystem {
 
@@ -71,11 +72,11 @@ class RenderSystem {
   D3D12_RECT scissor_rect_;
 //  ----------------  end debug plane
 
-  Graphics::OptionalSystem* optional_system_;
+  Odin::OptionalSystem* optional_system_;
 
-  Graphics::OptionalSystem* forward_shading_;
-  Graphics::OptionalSystem* deferred_shading_;
-  Graphics::OptionalSystem* deferred_lighting_;
+  Odin::OptionalSystem* forward_shading_;
+  Odin::OptionalSystem* deferred_shading_;
+  Odin::OptionalSystem* deferred_lighting_;
 
   vector<RenderObject> render_queue_;
 

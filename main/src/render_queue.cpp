@@ -2,7 +2,7 @@
 #include "render_queue.h"
 #include "utility.h"
 
-namespace Graphics {
+namespace Odin {
 //  RenderQueue MainRenderQueue;
 //  RenderQueue TransparentQueue;
 

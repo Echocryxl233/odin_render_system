@@ -47,8 +47,23 @@ float3 ComputeDirectLight(Light light, float3 to_eye, float3 normal, Material ma
     float nDotl = max(0.0f, dot(normal, light_direct));
     float3 light_strength = light.Strength * nDotl;
 
+    // float3 r = reflect(-light_direct, normal);
+    // float rDotV = max(0.0f, dot(r, to_eye));
+    // const float m = mat.Shininess * 256.0f;
+
+    // float3 specular_albedo =  pow(rDotV, m);
+    
+    // return (mat.DiffuseAlbedo.xyz + specular_albedo) * light_strength;
     return BlinnPhong(light_strength, light_direct, to_eye, normal, mat);
 }
+
+float3 ComputeDirectDiffuse(Light light, float3 to_eye, float3 normal) {
+    float3 light_direct = -light.Direction;
+    float nDotl = max(0.0f, dot(normal, light_direct));
+    float3 light_strength = light.Strength * nDotl;
+    return light_strength;
+}
+
 
 float CalculateAttenuation(float d, float falloffStart, float falloffEnd) {
 

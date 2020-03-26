@@ -1,6 +1,6 @@
 #include "mesh_geometry.h"
 
-namespace Graphics {
+namespace Odin {
 
 namespace Geometry {
 

@@ -34,7 +34,7 @@ VertexOut VS(VertexIn vin)  {
     vout.PosW = posW.xyz;
     vout.PosH = mul(posW, ViewProj);
 
-    float4 normal = mul(float4(vin.Normal, 1.0f), gWorld);
+    float4 normal = mul(float4(vin.Normal, 0.0f), gWorld);
     vout.Normal = normalize(normal.xyz);
     vout.NormalH = mul(normal, ViewProj); 
 
@@ -53,7 +53,14 @@ float4 PS(VertexOut pin) : SV_Target
 
     float4 texture_diffuse = gDiffuseMap.Sample(gsamLinear, pin.TexC);
 
-    float3 diffuse = (texture_diffuse + screen_specular).xyz * screen_diffuse.xyz;
-    
+    float3 diffuse = (texture_diffuse + screen_specular).xyz *  screen_diffuse;   
+    // float3 diffuse = screen_specular ;//    texture_diffuse.xyz + screen_diffuse.xyz;
+
+    // float3 toEyeW = normalize(EyePosition - pin.PosW);
+
+    // float nDotL = max(0.0f, dot(pin.Normal, -Lights[0].Direction));
+
+    // float3 diffuse = Lights[0].Strength * nDotL;    // ComputeDirectDiffuse(Lights[0], toEyeW,  pin.Normal);
+
     return float4(diffuse, texture_diffuse.a);
 }

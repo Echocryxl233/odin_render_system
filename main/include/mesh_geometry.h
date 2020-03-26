@@ -5,7 +5,7 @@
 
 #include "utility.h"
 
-namespace Graphics {
+namespace Odin {
 
 namespace Geometry{
   

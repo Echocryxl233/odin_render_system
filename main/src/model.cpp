@@ -7,7 +7,7 @@
 
 using namespace DebugUtility;
 using namespace std;
-using namespace Graphics::Geometry;
+using namespace Odin::Geometry;
 
 void Model::LoadFromFile(const string& filename) {
   ifstream fin(filename);

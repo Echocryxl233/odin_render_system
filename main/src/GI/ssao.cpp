@@ -250,9 +250,10 @@ void Ssao::ComputeAo() {
     //  BlurAmbientMap(context, true);
   }
   
+  //context.Finish(true);
+  ComputeContext& compute = reinterpret_cast<ComputeContext&>(context);
+  Graphics::Utility::Blur(compute, ambient_map_0_, iterate_count);
   context.Finish(true);
-
-  Graphics::Utility::Blur(ambient_map_0_, iterate_count);
 }
 
 void Ssao::BlurAmbientMap(GraphicsContext& context, bool is_horizontal) {

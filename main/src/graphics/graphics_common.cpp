@@ -19,7 +19,7 @@ namespace Graphics {
 
   RenderQueue MainQueue;  
   ColorBuffer NormalMap;
-};
+}
 
 namespace Graphics {
 

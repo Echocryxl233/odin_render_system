@@ -35,7 +35,7 @@ VertexOut VS(VertexIn vin) {
     vout.PosW = posW.xyz;
     vout.Position = mul(posW, ViewProj);
 
-    float4 normal = mul(float4(vin.Normal, 1.0f), gWorld);
+    float4 normal = mul(float4(vin.Normal, 0.0f), gWorld);
     vout.Normal = normal.xyz;
     vout.NormalH = mul(normal, ViewProj); 
 

@@ -68,6 +68,8 @@ float4 PS(VertexOut pin) : SV_Target
 
    // float3 direct_light = ComputeDirectLight(Lights[0], toEyeW, pin.Normal, mat);
 
+   
+
   float3 point_light = 0.0f;
   int i=0;
 #if NUM_POINT_LIGHTS

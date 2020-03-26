@@ -87,9 +87,11 @@ void Bloom::OnRender(ColorBuffer& input) {
   UINT group_x_count = (UINT)ceilf(width_ / 256.0f);
   context.Dispatch(width_, height_, 1);
 
-  context.Finish(true);
+  ComputeContext& compute = reinterpret_cast<ComputeContext&>(context);
 
-  Graphics::Utility::Blur(bloom_buffer_, 15);
+  Graphics::Utility::Blur(compute, bloom_buffer_, 15);
+
+  context.Finish(true);
 
   auto& context2 = ComputeContext::Begin(L"bloom composite Compute Context 2");
   context2.CopyBuffer(temp_buffer_, bloom_buffer_);

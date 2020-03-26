@@ -6,7 +6,7 @@
 #include "utility.h"
 #include "render_object.h"
 
-namespace Graphics {
+namespace Odin {
 
 namespace RenderGroupType {
   enum RenderGroupType {

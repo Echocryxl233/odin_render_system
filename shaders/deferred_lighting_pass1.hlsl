@@ -29,7 +29,7 @@ VertexOut VS(VertexIn vin)  {
     vout.PosW = posW.xyz;
     vout.Position = mul(posW, ViewProj);
 
-    float4 normal = mul(float4(vin.Normal, 1.0f), gWorld);
+    float4 normal = mul(float4(vin.Normal, 0.0f), gWorld);
     vout.Normal = normalize(normal.xyz);
     vout.NormalH = mul(normal, ViewProj); 
 
@@ -46,5 +46,6 @@ float4 PS(VertexOut pin) : SV_TARGET { //
     pout.w = Roughness;
 
     return pout;
+
 }
 
