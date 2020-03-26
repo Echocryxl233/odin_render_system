@@ -42,7 +42,11 @@ void RenderSystem::Initialize() {
   deferred_lighting_->Initialize();
   deferred_lighting_->SetRenderQueue(&Graphics::MainQueue);
 
-  optional_system_ = deferred_shading_;
+
+  optional_systems_.push_back(forward_shading_);
+  optional_systems_.push_back(deferred_shading_);
+  optional_systems_.push_back(deferred_lighting_);
+  current_optional_system_ = optional_systems_[current_optional_system_index_];
 
   BuildDebugPso();
   
@@ -58,12 +62,12 @@ void RenderSystem::Initialize() {
   screen_viewport_.MinDepth = 0.0f;
   screen_viewport_.MaxDepth = 1.0f;
 
-  long x = (long)(0.5f * width);
-  long y = (long)(0.5f * height);
+  //long x = (long)(0.5f * width);
+  //long y = (long)(0.5f * height);
 
-  scissor_rect_ = { x, y, width, height };
-  use_deferred = GameSetting::GetBoolValue("UseDeferred"); //  GameSetting::UseDeferred == 1;
-  cout << "begin use_deferred : " << use_deferred << endl;
+  //scissor_rect_ = { x, y, width, height };
+  //use_deferred = GameSetting::GetBoolValue("UseDeferred"); //  GameSetting::UseDeferred == 1;
+  //cout << "begin use_deferred : " << use_deferred << endl;
 };
 
 void RenderSystem::Update() {
@@ -86,9 +90,7 @@ void RenderSystem::Render() {
   GI::AO::MainSsao.ComputeAo();
   GI::Shadow::MainShadow.Render();
 
-
-
-  optional_system_->Render();
+  current_optional_system_->Render();
 
   PostProcess::BloomEffect->Render(display_plane);
 
@@ -163,3 +165,29 @@ void RenderSystem::DrawDebug(GraphicsContext& context) {
   //context.Flush();
   draw_context.Finish();
 }
+
+void RenderSystem::PrevOptionalSystem() {
+  const float delay = 0.2f;  
+  auto total = GameCore::MainTimer.TotalTime();
+  if (total - select_timer_ < delay)
+    return;
+
+  select_timer_ = GameCore::MainTimer.TotalTime();
+  size_t count = optional_systems_.size();
+  current_optional_system_index_ = (current_optional_system_index_ + count - 1) % count;
+  current_optional_system_ = optional_systems_[current_optional_system_index_];
+
+}
+
+void RenderSystem::NextOptionalSystem() {
+  const float delay = 0.2f;
+  auto total = GameCore::MainTimer.TotalTime();
+  if (total - select_timer_ < delay)
+    return;
+
+  select_timer_ = GameCore::MainTimer.TotalTime();
+  size_t count = optional_systems_.size();
+  current_optional_system_index_ = (current_optional_system_index_ + 1) % count;
+  current_optional_system_ = optional_systems_[current_optional_system_index_];
+}
+

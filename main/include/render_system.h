@@ -11,7 +11,6 @@
 #include "GI/ssao.h"
 #include "texture_manager.h"
 
-
 #include "utility.h"
 
 using namespace DirectX;
@@ -20,21 +19,20 @@ using namespace Odin;
 class RenderSystem {
 
  public:
-  int width;
-  int height;
   
   void Initialize();   
   void OnResize(UINT width, UINT height) {
-    this->width = width;
-    this->height = height;
     //  ssao_.Resize(width, height);
-    if (optional_system_ != nullptr) {
-      optional_system_->OnResize(width, height);
+    if (current_optional_system_ != nullptr) {
+      current_optional_system_->OnResize(width, height);
     }
   }
 
   void Render();
   void Update();
+
+  void PrevOptionalSystem();
+  void NextOptionalSystem();
 
  private:
  
@@ -72,11 +70,15 @@ class RenderSystem {
   D3D12_RECT scissor_rect_;
 //  ----------------  end debug plane
 
-  Odin::OptionalSystem* optional_system_;
+  Odin::OptionalSystem* current_optional_system_;
 
   Odin::OptionalSystem* forward_shading_;
   Odin::OptionalSystem* deferred_shading_;
   Odin::OptionalSystem* deferred_lighting_;
+
+  vector<Odin::OptionalSystem*> optional_systems_;
+  int current_optional_system_index_;
+  float select_timer_;
 
   vector<RenderObject> render_queue_;
 

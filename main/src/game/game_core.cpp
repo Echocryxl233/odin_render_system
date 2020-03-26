@@ -154,6 +154,14 @@ void OnKeyboardInput() {
   if (GetAsyncKeyState('5') & 0x8000) {
     PostProcess::BloomEffect->SetEnabled(!PostProcess::BloomEffect->Enabled());
   }
+
+  if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+    render_system->PrevOptionalSystem();
+  }
+
+  if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+    render_system->NextOptionalSystem();
+  }
     
 }
 
