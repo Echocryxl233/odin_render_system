@@ -32,7 +32,7 @@ VertexOut VS(VertexIn vin)
     // Already in homogeneous clip space.
   vout.PosH = float4(vin.PosL, 1.0f);
 
-  float3 eye_world_pos = EyePosition + float3(0.0f, 0.0f, 1.0f);
+  // float3 eye_world_pos = EyePosition + float3(0.0f, 0.0f, 1.0f);
   // float4 posH = mul(float4(eye_world_pos, 1.0f), ViewProj);
   // vout.EyePosH = posH;
 
