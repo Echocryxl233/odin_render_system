@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include "game/game_core.h"
 #include "game/camera.h"
 #include "game/camera_controller.h"
@@ -25,7 +26,7 @@ long client_height_ = 600;
 HWND  window;
 
 POINT last_mouse_pos_;
-std::auto_ptr<CameraController> main_camera_controller_;
+std::unique_ptr<CameraController> main_camera_controller_;
 RenderSystem* render_system;
 
 
@@ -138,6 +139,7 @@ void Initialize() {
 }
 
 void Run() {
+  std::cout << DebugUtility::FormatT("asd%0fghj%1", 3, 456) << std::endl;;
   Initialize();
   UpdateGame();
   delete render_system;

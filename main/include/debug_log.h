@@ -42,6 +42,37 @@ string Format(string format, TArgs... args) {
   return format;
 }
 
+template <typename T, typename... Args>
+void FormatInternal(std::string& format, int index, T first, Args... args) {
+  std::string rep("%");
+  rep += std::to_string(index);
+  size_t pos = format.find(rep);
+
+  std::string format_arg;
+
+  if constexpr (std::is_same_v<std::string, T>) {
+    format_arg = first;
+  }
+  else {
+    format_arg = std::to_string(first);
+  }
+  if (std::string::npos != pos) {
+    format = format.replace(pos, rep.length(), format_arg);
+  }
+
+  if constexpr ((sizeof...(args)) > 0) {
+    FormatInternal(format, index + 1, std::forward<Args>(args)...);
+  }
+}
+
+template<typename... Args>
+string FormatT(std::string format, Args... args) {
+
+  FormatInternal(format, 0, std::forward<Args>(args)...);
+  return format;
+}
+
+
 template<typename ... TArgs>
 void Log(wstring format, TArgs... args) {
 

@@ -18,28 +18,14 @@ std::wstring AnsiToWString(const std::string& str)
   return std::wstring(buffer);
 }
 
-//template<typename ... TArgs>
-//void Log(wstring format, TArgs... args) {
-//
-//  wstring arr[] = { (wstring(args))... };
-//  int index = 0;
-//
-//  for (auto s : arr) {
-//    wstring rep(L"%");
-//    rep += std::to_wstring(index);
-//
-//    size_t pos = format.find(rep);
-//    if (wstring::npos == pos)
-//      break;
-//
-//    format += std::to_wstring(__LINE__);
-//
-//    format = format.replace(pos, rep.length(), s);
-//    ++index;
-//  }
-//  //  format += L"\n";
-//  format += Location();
-//  OutputDebugString(format.c_str());
+
+
+
+
+//template <typename... Args>
+//inline std::string FormatT(std::string format, Args... args) {
+//  FormatInternal(format, std::forward<Args>(args)...);
+//  return format;
 //}
 
 void Log(wstring format) {
