@@ -19,3 +19,5 @@ OdinRenderSystem is a DirectX12 render system demo with some visible effect. It 
 * Configure the default setting in file "config.txt".
 * Press '1' to switch on/off **Shadow**
 * Press '5' to switch on/off **HDR&Bloom**
+
+![ScreenShot](https://github.com/Echocryxl233/odin_render_system/blob/master/img/screenshot1.png)
